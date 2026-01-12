@@ -3,9 +3,13 @@ services:
     build:
       context: ./docker/ollama
       dockerfile: Dockerfile
+      args:
+        - OLLAMA_PORT=${OLLAMA_PORT}
+        - MODEL_NAME=${MODEL_NAME}
+        - MODEL_BASE=${MODEL_BASE}
     restart: unless-stopped
     ports:
-      - "${OLLAMA_PORT:-11434}:11434"
+      - "${OLLAMA_PORT}:${OLLAMA_PORT}"
     deploy:
       resources:
         reservations:
