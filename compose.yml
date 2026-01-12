@@ -1,0 +1,21 @@
+services:
+  ollama:
+    build:
+      context: ./docker/ollama
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - anima_ll_data:/root/.ollama
+
+volumes:
+  anima_ll_data:
+    name: anima_ll_data
