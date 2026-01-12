@@ -1,1 +1,8 @@
+# --- Python Compile Cache (Auto-generated) ---
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+
+# --- Environment ---
 .env
