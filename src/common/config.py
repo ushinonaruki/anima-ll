@@ -34,7 +34,6 @@ def get_lang_strict(parent, key):
 
 # --- 共通設定 ---
 MODEL_NAME = get_env_strict("MODEL_NAME")
-MODEL_BASE = get_env_strict("MODEL_BASE")
 
 # --- 接続設定 ---
 OLLAMA_PORT = get_env_strict("OLLAMA_PORT", int)

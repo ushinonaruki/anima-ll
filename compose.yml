@@ -3,23 +3,15 @@ services:
     build:
       context: ./docker/ollama
       dockerfile: Dockerfile
-      args:
-        - OLLAMA_PORT=${OLLAMA_PORT}
-        - MODEL_NAME=${MODEL_NAME}
-        - MODEL_BASE=${MODEL_BASE}
-    restart: unless-stopped
+    env_file:
+      - .env
     ports:
-      - "${OLLAMA_PORT}:${OLLAMA_PORT}"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+      - "${OLLAMA_PORT}:11434"
     volumes:
-      - anima_ll_data:/root/.ollama
+      - ollama:/root/.ollama
+      - ./models:/models:ro
+    restart: unless-stopped
+    gpus: all
 
 volumes:
-  anima_ll_data:
-    name: anima_ll_data
+  ollama:

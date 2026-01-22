@@ -75,11 +75,12 @@ $timeoutSeconds = 60
 $intervalSeconds = 2
 $elapsedSeconds = 0
 $success = $false
-Write-Host "コンテナ側で Anima-LL が構成されるのを待っています..." -ForegroundColor Yellow
+$modelName = $env:MODEL_NAME
+Write-Host "コンテナ側で $modelName が構成されるのを待っています..." -ForegroundColor Yellow
 while ($elapsedSeconds -lt $timeoutSeconds) {
-    $modelList = docker exec anima-ll-ollama-1 ollama list 2>$null
+    $modelList = docker compose exec -T ollama ollama list 2>$null
 
-    if ($modelList -like "*Anima-LL*") {
+    if ($modelList -like "*$modelName*") {
         $success = $true
         break
     }
