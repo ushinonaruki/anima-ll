@@ -1,8 +1,0 @@
-ANIMA_LABEL = "Anima: "
-BOOT = "========================================\n   Anima-LL 中枢神経系 Bridge) 起動\n========================================"
-CLOSING = "神経接続を終了します..."
-ERR_CONN = "\n[神経接続エラー]: {error}"
-ERR_EOF = "\n[入力終了]: EOFが検出されました。"
-ERR_GENERIC = "\n[予期せぬエラー]: {error}"
-ERR_INTERRUPT = "\n強制終了されました。"
-INPUT_LABEL = "あなた: "

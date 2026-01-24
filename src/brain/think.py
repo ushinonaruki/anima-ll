@@ -1,5 +1,7 @@
+import os
 from . import post
-from common import config
+
+MODEL_NAME: str = os.environ.get("MODEL_NAME")
 
 
 def execute(prompt: str) -> str:
@@ -8,7 +10,7 @@ def execute(prompt: str) -> str:
     """
 
     payload = {
-        "model": config.MODEL_NAME,
+        "model": MODEL_NAME,
         "prompt": prompt,
         "stream": False,
     }

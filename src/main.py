@@ -1,14 +1,15 @@
-import requests
+import os
 from brain import think, vital
-from common import config
 from dtos.packet import AnimaLlPacket
+from requests.exceptions import ConnectionError
 from sensory.body import system
 from sensory.directive import terminal
 from sensory.site import jma
 
+OUTPUT_LABEL: str = os.environ.get("OUTPUT_LABEL")
+
 
 def main():
-    print(config.UI_BOOT)
     vital.execute()
 
     while True:
@@ -19,19 +20,19 @@ def main():
             packet = AnimaLlPacket(cmd=cmd_dto, jma=jma_dto, sys=sys_dto)
 
             response = think.execute(packet.serialize())
-            print(f"{config.UI_ANIMA_LABEL}{response}")
+            print(f"{OUTPUT_LABEL}{response}")
 
-        except requests.exceptions.ConnectionError:
-            print(config.UI_ERR_CONN)
+        except ConnectionError as e:
+            print(f"ConnectionError: {e}")
             break
-        except KeyboardInterrupt:
-            print(config.UI_ERR_INTERRUPT)
+        except KeyboardInterrupt as e:
+            print(f"KeyboardInterrupt: {e}")
             break
-        except EOFError:
-            print(config.UI_ERR_EOF)
+        except EOFError as e:
+            print(f"EOFError: {e}")
             break
         except Exception as e:
-            print(config.UI_ERR_GENERIC.format(error=e))
+            print(f"Exception: {e}")
             break
 
 

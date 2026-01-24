@@ -1,6 +1,8 @@
+import os
 import requests
-from common import config
 from dtos.site_jma import SiteJmaDto
+
+REQUEST_TIMEOUT: float = float(os.environ.get("REQUEST_TIMEOUT"))
 
 
 def execute() -> SiteJmaDto:
@@ -14,7 +16,7 @@ def execute() -> SiteJmaDto:
     url = f"https://www.jma.go.jp/bosai/forecast/data/forecast/{area_code}.json"
 
     try:
-        response = requests.get(url, timeout=config.REQUEST_TIMEOUT)
+        response = requests.get(url, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
         data = response.json()
 

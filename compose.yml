@@ -6,7 +6,7 @@ services:
     env_file:
       - .env
     ports:
-      - "${OLLAMA_PORT}:11434"
+      - "${OLLAMA_PORT_HOST}:${OLLAMA_PORT_CONTAINER}"
     volumes:
       - ollama:/root/.ollama
       - ./models:/models:ro
