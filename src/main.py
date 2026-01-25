@@ -1,6 +1,7 @@
 import os
 from brain import think, vital
 from dtos.packet import AnimaLlPacket
+from effector.voice import voice
 from requests.exceptions import ConnectionError
 from sensory.body import system
 from sensory.directive import terminal
@@ -15,11 +16,13 @@ def main():
     while True:
         try:
             cmd_dto = terminal.execute()
-            jma_dto = jma.execute()
-            sys_dto = system.execute()
-            packet = AnimaLlPacket(cmd=cmd_dto, jma=jma_dto, sys=sys_dto)
+            packet = AnimaLlPacket(cmd=cmd_dto)
+            # jma_dto = jma.execute()
+            # sys_dto = system.execute()
+            # packet = AnimaLlPacket(cmd=cmd_dto, jma=jma_dto, sys=sys_dto)
 
             response = think.execute(packet.serialize())
+            voice.execute(response)
             print(f"{OUTPUT_LABEL}{response}")
 
         except ConnectionError as e:

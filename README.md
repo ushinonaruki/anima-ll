@@ -154,3 +154,6 @@
 
 * **起動**: .\launch.ps1
 * **初期化**: docker system prune -a --volumes
+* **LFSファイルの取得**:
+  * cd checkpoints\openaudio-s1-mini
+  * git lfs checkout model.pth

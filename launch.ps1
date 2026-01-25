@@ -76,7 +76,7 @@ $intervalSeconds = 2
 $elapsedSeconds = 0
 $success = $false
 $modelName = $env:MODEL_NAME
-Write-Host "コンテナ側で $modelName が構成されるのを待っています..." -ForegroundColor Yellow
+Write-Host "生成中..." -ForegroundColor Yellow
 while ($elapsedSeconds -lt $timeoutSeconds) {
     $modelList = docker compose exec -T ollama ollama list 2>$null
 
@@ -90,11 +90,38 @@ while ($elapsedSeconds -lt $timeoutSeconds) {
     $elapsedSeconds += $intervalSeconds
     Write-Host "." -NoNewline
 }
+Write-Host ""
 if (!$success) {
     Write-Host "[!] コンテナ内でのモデルの生成に失敗しました。" -ForegroundColor Red
     pause; exit
 }
 Write-Host "[OK] コンテナ内でのモデルの生成が完了しました。" -ForegroundColor Green
+
+Write-Host "`n--- [Phase 5: Fish Speech起動確認] ---" -ForegroundColor Cyan
+$fishTimeoutSeconds = 600
+$fishIntervalSeconds = 5
+$fishElapsedSeconds = 0
+$fishSuccess = $false
+Write-Host "起動中..." -ForegroundColor Yellow
+while ($fishElapsedSeconds -lt $fishTimeoutSeconds) {
+    $fishLogs = docker compose logs fish_speech 2>$null
+    
+    if ($fishLogs -like "*Application startup complete.*") {
+        $fishSuccess = $true
+        break
+    }
+    
+    # 起動中の場合は待機
+    Start-Sleep -s $fishIntervalSeconds
+    $fishElapsedSeconds += $fishIntervalSeconds
+    Write-Host "." -NoNewline
+}
+Write-Host ""
+if (!$fishSuccess) {
+    Write-Host "[!] Fish Speechの起動に失敗しました。" -ForegroundColor Red
+    pause; exit
+}
+Write-Host "[OK] Fish Speechの起動が完了しました。" -ForegroundColor Green
 
 Write-Host "`n--- [Final: Anima-LL 覚醒] ---" -ForegroundColor Magenta
 & $pythonCmd src/main.py

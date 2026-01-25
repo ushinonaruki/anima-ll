@@ -1,4 +1,5 @@
-# --- model binaries (GGUF) ---
+# --- Large ML model artifacts ---
+checkpoints/*
 models/*
 
 # --- Python Compile Cache (Auto-generated) ---

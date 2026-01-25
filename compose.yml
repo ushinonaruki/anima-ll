@@ -13,5 +13,19 @@ services:
     restart: unless-stopped
     gpus: all
 
+  fish_speech:
+    image: fishaudio/fish-speech:server-cuda
+    ports:
+      - "${FISH_SPEECH_PORT_HOST}:${FISH_SPEECH_PORT_CONTAINER}"
+    volumes:
+      - ./checkpoints:/app/checkpoints:ro
+    environment:
+      API_SERVER_PORT: "${FISH_SPEECH_PORT_CONTAINER}"
+      LLAMA_CHECKPOINT_PATH: "/app/checkpoints/${FISH_SPEECH_MODEL}"
+      DECODER_CHECKPOINT_PATH: "/app/checkpoints/${FISH_SPEECH_MODEL}/codec.pth"
+      DECODER_CONFIG_NAME: "modded_dac_vq"
+      COMPILE: "1"
+    gpus: all
+
 volumes:
   ollama:
