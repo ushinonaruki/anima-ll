@@ -1,2 +1,8 @@
+import spinal
+
+
 if __name__ == "__main__":
-    print("main")
+    try:
+        spinal.run()
+    except Exception as e:
+        print(f"Exception: {e}")
