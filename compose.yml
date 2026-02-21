@@ -13,5 +13,16 @@ services:
     gpus: all
     restart: unless-stopped
 
+  redis:
+    build:
+      context: ./docker/redis
+      dockerfile: Dockerfile
+    ports:
+      - "${REDIS_PORT_HOST}:${REDIS_PORT_CONTAINER}"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
 volumes:
   ollama:
+  redis_data:
