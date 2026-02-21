@@ -1,0 +1,17 @@
+services:
+  ollama:
+    build:
+      context: ./docker/ollama
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "${OLLAMA_PORT_HOST}:${OLLAMA_PORT_CONTAINER}"
+    volumes:
+      - ollama:/root/.ollama
+      - ./models:/models:ro
+    gpus: all
+    restart: unless-stopped
+
+volumes:
+  ollama:
