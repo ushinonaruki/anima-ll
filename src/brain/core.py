@@ -1,8 +1,11 @@
+from config import Config
+
+
 def run(signal):
     match signal.get("receptor"):
-        case "pulse":
+        case Config.RECEPTOR.PULSE:
             return {
-                "effector": "console",
+                "effector": Config.EFFECTOR.CONSOLE,
                 "message": "Test Message",
             }
         case _:
