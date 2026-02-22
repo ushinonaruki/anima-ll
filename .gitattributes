@@ -1,0 +1,3 @@
+# シェルスクリプトをLF固定
+* text=auto
+*.sh text eol=lf
