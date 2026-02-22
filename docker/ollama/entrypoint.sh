@@ -16,7 +16,7 @@ until curl -sf "http://localhost:${OLLAMA_PORT_CONTAINER}/api/version" > /dev/nu
 done
 
 # Llamaの構成
-ollama create "${MODEL_NAME}" -f <(echo "FROM /models/${GGUF_FILE}")
+ollama create "${MODEL_NAME}" -f <(echo "FROM /models/${OLLAMA_GGUF_FILE}")
 
 # サーバープロセスを維持
 wait
