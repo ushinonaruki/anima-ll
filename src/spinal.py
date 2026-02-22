@@ -1,6 +1,7 @@
 import queue
 import threading
 from brain import core as brain
+from config import Config
 from effector import ConsoleEffector
 from receptor import PulseReceptor
 
@@ -9,9 +10,7 @@ def run():
     signal_queue = queue.Queue()
 
     # --- Receptor ---
-    pulse_receptor = PulseReceptor(signal_queue)
-    pulse_thread = threading.Thread(target=pulse_receptor.run, daemon=True)
-    pulse_thread.start()
+    threading.Thread(target=PulseReceptor(signal_queue).run, daemon=True).start()
 
     # --- Effector ---
     console_effector = ConsoleEffector()
@@ -24,7 +23,7 @@ def run():
         print(f"[Spinal] Brainからコマンドを受信: {command}")
 
         match command.get("effector"):
-            case "console":
+            case Config.EFFECTOR.CONSOLE:
                 console_effector.run(command)
             case _:
                 pass
