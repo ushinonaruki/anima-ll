@@ -3,6 +3,7 @@ import threading
 from brain import core as brain
 from config import Config
 from effector import ConsoleEffector
+from receptor import MicrophoneReceptor
 from receptor import PulseReceptor
 
 
@@ -10,6 +11,7 @@ def run():
     signal_queue = queue.Queue()
 
     # --- Receptor ---
+    threading.Thread(target=MicrophoneReceptor(signal_queue).run, daemon=True).start()
     threading.Thread(target=PulseReceptor(signal_queue).run, daemon=True).start()
 
     # --- Effector ---
