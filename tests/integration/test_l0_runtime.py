@@ -155,6 +155,9 @@ class MisbehavingUnit:
     def handle_kernel_result(self, task, result, context) -> UnitStepResult:
         return UnitStepResult.empty()
 
+    def handle_compute_outcome(self, request, outcome, context) -> None:
+        self.outcomes = getattr(self, "outcomes", []) + [outcome]
+
     def export_state(self):
         return {}
 
@@ -263,6 +266,40 @@ def test_unit_state_is_sampled_only_when_asked() -> None:
     samples = sampled.of_type(T.UNIT_STATE)
     assert [e.pulse for e in samples] == [p for p in (5, 10, 15, 20) for _ in range(4)]
     assert {"activity", "adaptation", "fire_count"} <= set(samples[0].data["state"])
+
+
+def test_every_permitted_request_gets_exactly_one_outcome() -> None:
+    _, log = run(silent(BASE), 200)
+    claims = [e for e in log.of_type(T.CLAIM)]
+    outcomes = log.of_type(T.COMPUTE_OUTCOME)
+    assert claims and len(claims) == len(outcomes)
+    started = sum(e.data["outcome"] == "started" for e in outcomes)
+    assert started == len(log.of_type(T.TASK_STARTED))
+
+
+def test_violations_get_no_outcome() -> None:
+    unit = MisbehavingUnit()
+    _, log = run(BASE, 3, unit_overrides={"u1": unit})
+    assert not getattr(unit, "outcomes", [])
+    assert not [e for e in log.of_type(T.COMPUTE_OUTCOME) if e.data["unit_id"] == "u1"]
+
+
+def test_pending_lets_a_starved_unit_get_compute() -> None:
+    """minimal-v1・偽 Kernel・入力なしの seed 2 では、u2 が一度も実行権を得られない。持ち越しで得られるようになる。"""
+    import yaml
+    neuro = yaml.safe_load((Path(__file__).resolve().parents[2] / "config/neuroarchitecture/minimal-v1.yaml").read_text(encoding="utf-8"))
+    cfg = silent(BASE)
+    cfg["neuro"] = neuro
+    cfg["birth"]["seed"] = 2
+    _, plain = run(cfg, 600)
+    assert not [e for e in plain.of_type(T.TASK_STARTED) if e.data["unit_id"] == "u2"]
+    carried = copy.deepcopy(cfg)
+    for unit in carried["neuro"]["units"]:
+        if isinstance(unit["output"], dict):
+            unit["output"]["pending_tau"] = 5
+    _, log = run(carried, 600)
+    assert [e for e in log.of_type(T.TASK_STARTED) if e.data["unit_id"] == "u2"]
+    assert [e for e in log.of_type(T.CLAIM) if e.data["origin"] == "pending"]
 
 
 def test_individual_snapshot_roundtrip(tmp_path: Path) -> None:

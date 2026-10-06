@@ -141,6 +141,8 @@ def _build_unit(spec: UnitSpec, rng: random.Random) -> GenericCognitiveUnit:
             resource_class=str(o.params["resource"]),
             io_template=o.params.get("io_template"),
             max_inputs=int(o.params.get("max_inputs", 8)),
+            pending_tau_seconds=float(o.params.get("pending_tau", 0.0)),
+            pending_floor=float(o.params.get("pending_floor", 0.1)),
         )
     else:
         raise ValueError(f"未知の output: {o.kind}")

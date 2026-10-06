@@ -1,7 +1,7 @@
 from dataclasses import asdict
 
 from anima_ll.domain.model.brain_state import BrainState, BrainStateSnapshot
-from anima_ll.domain.model.claim import ComputeRequest
+from anima_ll.domain.model.claim import ComputeOutcome, ComputeRequest
 from anima_ll.domain.model.delta import ProposedDelta, StateDelta
 from anima_ll.domain.model.identifiers import (
     ComponentId,
@@ -129,7 +129,7 @@ class PulseRuntime:
             )
 
         # 5. 計算資源の割り当て（Scheduler に見せるのは claim の数値だけ）
-        self._schedule(pending, pulse)
+        self._schedule(pending, context)
 
         # 6. Pulse の境界で反映（ここで確定した Delta は次の Pulse から見える）
         for delta in produced:
@@ -205,8 +205,10 @@ class PulseRuntime:
             self._violation(pulse, source_id, "unknown_effector", {"targets": unknown})
         return [d for d in outcome.deltas if d.target_id not in unknown]
 
-    def _schedule(self, pending: list[_PendingRequest], pulse: int) -> None:
+    def _schedule(self, pending: list[_PendingRequest], context: PulseContext) -> None:
+        pulse = context.pulse
         busy = self._coordinator.busy_units()
+        outcomes: list[tuple[UnitId, ComputeRequest, str]] = []
         eligible: list[_PendingRequest] = []
         seen_units: set[UnitId] = set()
         for unit_id, request, snapshot_id in pending:
@@ -214,7 +216,7 @@ class PulseRuntime:
             self._log.append(
                 RuntimeEvent(RuntimeEventType.CLAIM, pulse,
                              {"unit_id": unit_id, "resource_class": claim.resource_class,
-                              "strength": claim.strength})
+                              "strength": claim.strength, "origin": request.origin})
             )
             if claim.resource_class not in self._claim_permissions.get(unit_id, frozenset()):
                 self._violation(pulse, unit_id, "resource_not_allowed",
@@ -227,7 +229,9 @@ class PulseRuntime:
                 continue
             seen_units.add(unit_id)
             if unit_id in busy:
-                continue  # 思考中の Unit は新しい依頼を出せない（1 Unit 1 タスク。schedule.busy に残る）
+                # 思考中の Unit は新しい依頼を出せない（1 Unit 1 タスク。schedule.busy に残る）
+                outcomes.append((unit_id, request, ComputeOutcome.DROPPED_BUSY))
+                continue
             eligible.append((unit_id, request, snapshot_id))
 
         entries = [ClaimEntry(unit_id, request.claim) for unit_id, request, _ in eligible]
@@ -242,7 +246,9 @@ class PulseRuntime:
         )
         for unit_id, request, snapshot_id in eligible:
             if unit_id not in accepted_units:
+                outcomes.append((unit_id, request, ComputeOutcome.REJECTED_CAPACITY))
                 continue
+            outcomes.append((unit_id, request, ComputeOutcome.STARTED))
             task = self._coordinator.start(
                 unit_id=unit_id,
                 resource_class=request.claim.resource_class,
@@ -258,6 +264,15 @@ class PulseRuntime:
                               "input_delta_ids": list(task.input_delta_ids),
                               "without_evidence": _without_evidence(task.input_delta_ids)})
             )
+
+        # 要求を出した Unit に結果を返す（許可された要求それぞれに 1 回。中身は含まない）
+        for unit_id, request, outcome in outcomes:
+            self._log.append(
+                RuntimeEvent(RuntimeEventType.COMPUTE_OUTCOME, pulse,
+                             {"unit_id": unit_id, "outcome": outcome, "origin": request.origin,
+                              "strength": request.claim.strength})
+            )
+            self._units.get(unit_id).handle_compute_outcome(request, outcome, context)
 
     def _violation(self, pulse: int, source_id: ComponentId, rule: str, detail: dict) -> None:
         self._log.append(

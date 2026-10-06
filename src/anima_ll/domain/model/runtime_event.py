@@ -9,6 +9,7 @@ class RuntimeEventType:
     VIEW = "view"
     CLAIM = "claim"
     SCHEDULE = "schedule"
+    COMPUTE_OUTCOME = "compute_outcome"  # 要求ごとの結果（started / rejected_capacity / dropped_busy）
     TASK_STARTED = "task_started"
     TASK_COMPLETED = "task_completed"
     DELTA = "delta"

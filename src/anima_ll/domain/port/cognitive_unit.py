@@ -1,5 +1,6 @@
 from typing import Protocol
 
+from anima_ll.domain.model.claim import ComputeRequest
 from anima_ll.domain.model.identifiers import JsonValue, UnitId
 from anima_ll.domain.model.kernel_task import KernelResult, KernelTask
 from anima_ll.domain.model.pulse import PulseContext
@@ -25,6 +26,15 @@ class CognitiveUnit(Protocol):
         self, task: KernelTask, result: KernelResult, context: PulseContext
     ) -> UnitStepResult:
         """自分が依頼した計算が終わったときに呼ばれる。"""
+        ...
+
+    def handle_compute_outcome(
+        self, request: ComputeRequest, outcome: str, context: PulseContext
+    ) -> None:
+        """自分が出した計算の要求が、この Pulse にどうなったか（ComputeOutcome）を受け取る。
+
+        自分が外へ出した要求の結果を局所回路へ戻すフィードバックであり、ほかの Unit のことは何も含まない。
+        """
         ...
 
     def export_state(self) -> JsonValue: ...
