@@ -28,7 +28,12 @@ adapter/       外部技術（Kernel, Receptor, Effector, 保存, 設定の読�
 | `individual/` | 個体（Birth State）：個体 ID と seed |
 | `io_templates/` | Kernel への入出力の形式だけ（人格・口調・振る舞いは書かない） |
 
-`minimal-v0.yaml` は脳の仮説ではなく、配線と来歴を確かめるための動作テスト用の設計図。
+脳の設計図は版ごとに積み上げる。配線はどれも動作テスト用で、脳についての主張は込めていない。
+
+| 版 | 中身 | 使いどころ |
+|---|---|---|
+| `minimal-v0` | 基礎の力学（減衰・内在的駆動・閾値・不応期） | L0・L1・実験 0001〜0005 の比較基準。**凍結**（書き換えない） |
+| `minimal-v1` | v0 ＋ 発火履歴への順応（L2-1、参照値 α=0.01・τ_a=300 秒、実験 0004・0005） | **L2 の現行基準（既定）** |
 
 ## 動かす（Docker）
 
@@ -86,5 +91,7 @@ L1 環境の Ollama の場所は `config/environment/l1-ollama-console.yaml` の
 
 - **L0**（済）：Runtime と偽 Kernel。記録は `experiments/0001_minimal_runtime/`
 - **L1**（済）：Ollama とコンソール入出力、設定の 3 分割。観察 `experiments/0003_first_l1_session/`、実験 `experiments/0002_periodicity_with_llm/`
-- **L2**（次）：発火履歴に依存する順応 → 計算要求の持ち越し → 状態・時間の情報化 → 発話の判断を力学へ → 記憶
+- **L2**（進行中）
+  - L2-1 発火履歴に依存する順応（済）：実験 `0004_adaptation/`（入力なしで落ち着く）、`0005_response_threshold/`（発火に必要な入力が上がる）→ `minimal-v1`
+  - L2-2 計算要求の持ち越し（次）→ 状態・時間の情報化 → 発話の判断を力学へ → 記憶
 - L3：睡眠（Replay・恒常性）

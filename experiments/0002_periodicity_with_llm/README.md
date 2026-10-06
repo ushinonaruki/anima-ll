@@ -115,6 +115,10 @@ python experiments/0002_periodicity_with_llm/analyze.py data/logs/0002/l1/*.json
 - 2026-10-06：レビュー（ChatGPT）を受けて `analyze.py` を修正。判定を seed 42/43 だけに限定（seed 44 が判定に混ざるバグ）、seed と実行環境をログの run 記録から読む、実行環境の混在を拒否、Kernel の失敗率 1 割以上を無効に。ログの置き場所を `data/logs/0002/l0|l1/` に分けた。仮説・指標・閾値は変えていない
 - 2026-10-06：L1 初回起動の観察（0003）とレビュー（ChatGPT）を受けて、(1) 入力なしの条件を標準入力に頼らず作るため環境を `l1-ollama-silent.yaml` に変更（LLM と sampling は同じ）、(2) 補助指標として壁時計での間隔の変動係数と Pulse 間隔の最大値を追加、(3) 発話内容を評価対象外と明記。仮説・判定基準・閾値は変えていない
 
+## 再現するときの注意（2026-10-07 追記）
+
+起動時の既定の設計図は L2 で `minimal-v1`（順応あり）に変わった。この実験を再現するときは、上のコマンドに `--neuroarchitecture config/neuroarchitecture/minimal-v0.yaml` を付けること。測定時（commit `dde99ec`）の既定は `minimal-v0` だった。
+
 ## 結果
 
 > 測定：2026-10-06 20:20〜21:51、t-k さんの手元（Windows、Docker、Ollama 0.35.1、CPU）
