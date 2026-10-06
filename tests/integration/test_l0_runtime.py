@@ -248,6 +248,23 @@ def test_run_metadata_is_logged_first() -> None:
     assert first.data["environment"]["resources"][0]["kernel"] == "fake_delayed"
 
 
+def test_adaptation_reduces_silent_activity() -> None:
+    adapted = silent(BASE)
+    adapted["neuro"]["defaults"]["dynamics"].update(adaptation_increment=0.01, adaptation_tau=300)
+    _, plain_log = run(silent(BASE), 1200)
+    _, adapted_log = run(adapted, 1200)
+    assert 0 < len(adapted_log.of_type(T.CLAIM)) < len(plain_log.of_type(T.CLAIM))
+
+
+def test_unit_state_is_sampled_only_when_asked() -> None:
+    _, quiet = run(BASE, 20)
+    assert not quiet.of_type(T.UNIT_STATE)
+    _, sampled = run(BASE, 20, state_sample_interval=5)
+    samples = sampled.of_type(T.UNIT_STATE)
+    assert [e.pulse for e in samples] == [p for p in (5, 10, 15, 20) for _ in range(4)]
+    assert {"activity", "adaptation", "fire_count"} <= set(samples[0].data["state"])
+
+
 def test_individual_snapshot_roundtrip(tmp_path: Path) -> None:
     store = JsonSnapshotStore(tmp_path)
     app, _ = run(BASE, 20, snapshot_store=store)
@@ -255,3 +272,10 @@ def test_individual_snapshot_roundtrip(tmp_path: Path) -> None:
     assert loaded is not None and loaded.pulse == 20
     assert set(loaded.units) == {"u0", "u1", "u2", "u3"}
     assert "worker" not in str(loaded.units)  # 実行基盤の状態は個体に含めない
+
+
+def test_old_snapshots_without_adaptation_still_load() -> None:
+    app, _ = run(BASE, 1)
+    unit = app.units.get("u1")
+    unit.import_state({"activity": 0.2, "refractory_remaining": 0})
+    assert unit.export_state()["adaptation"] == 0.0

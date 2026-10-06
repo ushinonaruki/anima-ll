@@ -49,6 +49,8 @@ class GenericCognitiveUnit:
         return {
             "activity": self._state.activity,
             "refractory_remaining": self._state.refractory_remaining,
+            "adaptation": self._state.adaptation,
+            "fire_count": self._state.fire_count,
             "dynamics": self._dynamics.describe(),
         }
 
@@ -56,4 +58,6 @@ class GenericCognitiveUnit:
         self._state = ActivityState(
             activity=float(state["activity"]),
             refractory_remaining=int(state["refractory_remaining"]),
+            adaptation=float(state.get("adaptation", 0.0)),  # L1 までのスナップショットには無い
+            fire_count=int(state.get("fire_count", 0)),
         )

@@ -9,7 +9,12 @@ class ActivityState:
     """Unit の私的な内部状態。Shared Brain State には出さない。"""
 
     activity: float = 0.0
+    """現在たまっている駆動。"""
     refractory_remaining: int = 0
+    adaptation: float = 0.0
+    """最近発火したために一時的に上がっている発火しにくさ（実効閾値への上乗せ）。"""
+    fire_count: int = 0
+    """これまでの発火回数。観察用（力学には使わない）。"""
 
 
 @dataclass(frozen=True)

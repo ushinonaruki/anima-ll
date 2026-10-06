@@ -126,6 +126,9 @@ def _build_unit(spec: UnitSpec, rng: random.Random) -> GenericCognitiveUnit:
         threshold=threshold,
         refractory_pulses=int(d.params.get("refractory_pulses", 3)),
         intrinsic_drive_per_second=vary(float(d.params.get("intrinsic_drive", 0.0))),
+        # 順応のパラメータには個体差（jitter）を掛けない。乱数の消費順も変えない（α = 0 で L1 と同一）
+        adaptation_increment=float(d.params.get("adaptation_increment", 0.0)),
+        adaptation_tau_seconds=float(d.params.get("adaptation_tau", 0.0)),
     )
     initial = ActivityState(activity=rng.uniform(0.0, threshold * 0.5))
 
@@ -172,6 +175,7 @@ def build_application(
     kernel_overrides: Mapping[str, ComputeKernel] | None = None,
     unit_overrides: Mapping[str, CognitiveUnit] | None = None,
     run_metadata: Mapping[str, JsonValue] | None = None,
+    state_sample_interval: int = 0,
 ) -> Application:
     problems = environment.binding_mismatches(manifest)
     if problems:
@@ -227,6 +231,7 @@ def build_application(
         dispatcher=EffectorDispatcher(list(effectors.values())),
         issuer=issuer,
         event_log=event_log,
+        state_sample_interval=state_sample_interval,
     )
     lifecycle = RuntimeLifecycle(
         individual_id=birth.individual_id,
