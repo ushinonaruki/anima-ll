@@ -17,21 +17,27 @@ adapter/       外部技術（Kernel, Receptor, Effector, 保存, Manifest 読�
 
 依存の向きは `tests/architecture` で自動検査している。
 
-## 動かす
+## 動かす（Docker）
+
+本体も周辺ソフトウェアも Docker で動かす。手元に Python は不要。
 
 ```bash
-pip install -e ".[dev]"
+docker compose build
+
+# 実時間（1 秒 / Pulse）で起動。Ctrl+C で止める
+docker compose run --rm anima
 
 # 偽 Kernel で 120 Pulse を一気に回す（実時間は待たない）
-python -m anima_ll --pulses 120 --clock fast
+docker compose run --rm anima python -m anima_ll --pulses 120 --clock fast
 
-# 実時間（1 秒 / Pulse）。Ctrl+C で止める
-python -m anima_ll
-
-pytest
+# テスト
+docker compose run --rm test
 ```
 
-ログは `data/logs/run-*.jsonl`（来歴をすべて記録）、個体のスナップショットは `data/snapshots/`。
+- `config/` はコンテナに読み取り専用でマウントされる。Manifest を書き換えたらビルドし直さずに反映される
+- ログは `data/logs/run-*.jsonl`（来歴をすべて記録）、個体のスナップショットは `data/snapshots/` に、手元のフォルダとして残る
+
+Docker を使わずに動かす場合は、リポジトリ直下で `pip install -e ".[dev]"` のあと `python -m anima_ll` / `pytest`。
 
 ## 脳の設計図
 
@@ -40,6 +46,6 @@ pytest
 ## 段階
 
 - **L0**（済）：Runtime と偽 Kernel。記録は `experiments/0001_minimal_runtime/`
-- **L1**：Ollama（Llama-3.2-3B-Instruct-Q5_K_M を暫定利用）とコンソール入出力
+- **L1**：Ollama（Llama-3.2-3B-Instruct-Q5_K_M を暫定利用、`compose.yml` にサービスとして追加）とコンソール入出力
 - L2：学習（適格性トレース・調節信号）、長期記憶、内受容
 - L3：睡眠（Replay・恒常性）

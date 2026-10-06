@@ -1,0 +1,16 @@
+.git
+.gitignore
+.gitattributes
+.dockerignore
+Dockerfile
+compose.yml
+data
+experiments
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+.pytest_cache
+.venv
+.env
+build
+dist
