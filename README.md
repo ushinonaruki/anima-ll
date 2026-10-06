@@ -85,6 +85,6 @@ L1 環境の Ollama の場所は `config/environment/l1-ollama-console.yaml` の
 ## 段階
 
 - **L0**（済）：Runtime と偽 Kernel。記録は `experiments/0001_minimal_runtime/`
-- **L1**：Ollama とコンソール入出力、設定の 3 分割。実験 `experiments/0002_periodicity_with_llm/`
-- L2：学習（適格性トレース・調節信号）、長期記憶、内受容、「何も起きなかった」の情報化
+- **L1**（済）：Ollama とコンソール入出力、設定の 3 分割。観察 `experiments/0003_first_l1_session/`、実験 `experiments/0002_periodicity_with_llm/`
+- **L2**（次）：発火履歴に依存する順応 → 計算要求の持ち越し → 状態・時間の情報化 → 発話の判断を力学へ → 記憶
 - L3：睡眠（Replay・恒常性）
