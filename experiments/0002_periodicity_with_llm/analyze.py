@@ -1,7 +1,12 @@
 """実験 0002 の集計（事前登録の一部。実行前にコミットする）。
 
 使い方:
-  python experiments/0002_periodicity_with_llm/analyze.py data/logs/run-*-s42.jsonl data/logs/run-*-s43.jsonl ...
+  python experiments/0002_periodicity_with_llm/analyze.py data/logs/0002/l1/*.jsonl
+
+- seed・実行環境はファイル名ではなく、ログ先頭の run 記録から読む
+- 仮説の判定に使うのは --primary-seeds（既定 42 43）の run だけ。それ以外は参考として表示する
+- Kernel の失敗が started の 1 割以上の run は無効（判定不能）とする
+- 実行環境（Kernel）の違う run が混ざっていたら判定しない
 
 標準ライブラリだけで動く（Docker 内でも手元でも）。
 """
@@ -17,6 +22,8 @@ KERNEL_UNITS = ("u1", "u2", "u3")
 RECEPTOR_PREFIX = "receptor."
 CV_THRESHOLD = 0.2
 MIN_UTTERANCES = 5
+MAX_ERROR_RATE = 0.1
+DEFAULT_PRIMARY_SEEDS = (42, 43)
 
 
 def coefficient_of_variation(pulses: list[int]) -> float | None:
@@ -31,6 +38,19 @@ def coefficient_of_variation(pulses: list[int]) -> float | None:
 def load(path: Path) -> list[dict]:
     with path.open(encoding="utf-8") as f:
         return [json.loads(line) for line in f if line.strip()]
+
+
+def run_record(events: list[dict]) -> dict | None:
+    return next((e for e in events if e["type"] == "run"), None)
+
+
+def environment_signature(run: dict) -> str:
+    """実行環境の要約（Kernel の種類とモデル）。混ざっていないかを見るため。"""
+    resources = run.get("environment", {}).get("resources", [])
+    return ",".join(
+        f"{r['resource_class']}={r['kernel']}" + (f"({r['params']['model']})" if "model" in r.get("params", {}) else "")
+        for r in resources
+    )
 
 
 def analyze(events: list[dict]) -> dict:
@@ -81,13 +101,25 @@ def analyze(events: list[dict]) -> dict:
     utterance_cv = coefficient_of_variation(effects)
     ungrounded = sum(not grounded(d) for d in effect_deltas)
 
-    h1 = all(cv is not None and cv < CV_THRESHOLD for cv in unit_cv.values())
+    error_rate = errors / started if started else 0.0
+    valid = error_rate < MAX_ERROR_RATE
+
+    h1: bool | None = all(cv is not None and cv < CV_THRESHOLD for cv in unit_cv.values())
+    h2: bool | None
     if len(effects) < MIN_UTTERANCES:
-        h2: bool | None = None
+        h2 = None
     else:
         h2 = utterance_cv is not None and utterance_cv < CV_THRESHOLD
+    if not valid:
+        h1 = h2 = None
 
+    run = run_record(events) or {}
     return {
+        "seed": run.get("seed"),
+        "environment": environment_signature(run) if run else None,
+        "git_commit": run.get("git_commit"),
+        "valid": valid,
+        "kernel_error_rate": error_rate,
         "pulses": last_pulse,
         "receptor_inputs": receptor_inputs,
         "claims": {u: len(claims.get(u, [])) for u in KERNEL_UNITS},
@@ -107,34 +139,63 @@ def fmt(value: float | None) -> str:
     return "-" if value is None else f"{value:.3f}"
 
 
+LABEL = {True: "周期的", False: "周期的でない", None: "判定不能"}
+
+
+def verdict(values: list[bool | None]) -> str:
+    if not values or None in values:
+        return "判定不能"
+    return "支持" if all(values) else "不支持"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("logs", nargs="+", type=Path)
+    parser.add_argument("--primary-seeds", nargs="+", type=int, default=list(DEFAULT_PRIMARY_SEEDS),
+                        help="仮説の判定に使う個体の seed（既定 42 43）")
     parser.add_argument("--json", action="store_true", help="結果を JSON で出す")
     args = parser.parse_args()
 
     results = {str(path): analyze(load(path)) for path in args.logs}
+    missing = [p for p, r in results.items() if r["seed"] is None]
+    if missing:
+        print("run 記録（seed・実行環境）のないログは集計できません:\n  " + "\n  ".join(missing))
+        return 2
+
     if args.json:
         print(json.dumps(results, ensure_ascii=False, indent=2))
     else:
         for path, r in results.items():
-            print(f"## {Path(path).name}")
-            print(f"  pulses={r['pulses']}  receptor_inputs={r['receptor_inputs']}  kernel_errors={r['kernel_errors']}")
+            role = "判定" if r["seed"] in args.primary_seeds else "参考"
+            print(f"## {Path(path).name}  [seed {r['seed']}・{role}]  {r['environment']}  commit={r['git_commit']}")
+            print(f"  pulses={r['pulses']}  receptor_inputs={r['receptor_inputs']}"
+                  f"  kernel_errors={r['kernel_errors']}/{r['tasks_started']}"
+                  + ("" if r["valid"] else f"  ← 失敗率 {r['kernel_error_rate']:.0%} のため無効"))
             print("  H1 発火間隔の CV: " + "  ".join(f"{u}={fmt(r['unit_cv'][u])}(n={r['claims'][u]})" for u in KERNEL_UNITS)
-                  + f"  → {'周期的' if r['H1_periodic'] else '周期的でない'}")
-            h2 = {True: "周期的", False: "周期的でない", None: "判定不能（発話が少ない）"}[r["H2_periodic"]]
-            print(f"  H2 発話間隔の CV: {fmt(r['utterance_cv'])}(n={r['utterances']})  → {h2}")
+                  + f"  → {LABEL[r['H1_periodic']]}")
+            print(f"  H2 発話間隔の CV: {fmt(r['utterance_cv'])}(n={r['utterances']})  → {LABEL[r['H2_periodic']]}")
             print(f"  根拠なしの計算: {r['tasks_without_evidence']}/{r['tasks_started']}"
                   f"  外からの根拠のない発話: {r['ungrounded_utterances']}/{r['utterances']}")
 
     runs = list(results.values())
+    problems = []
+    environments = {r["environment"] for r in runs}
+    if len(environments) > 1:
+        problems.append("実行環境の違う run が混ざっています: " + " / ".join(sorted(map(str, environments))))
     if any(r["receptor_inputs"] for r in runs):
-        print("\n注意: 受容器からの入力があるログが含まれています（実験 0002 は話しかけない条件）")
-    h1_supported = all(r["H1_periodic"] for r in runs)
-    h2_values = [r["H2_periodic"] for r in runs]
-    h2 = None if None in h2_values else all(h2_values)
-    print(f"\n判定（{len(runs)} 本）: H1 {'支持' if h1_supported else '不支持'} / "
-          f"H2 {'判定不能' if h2 is None else ('支持' if h2 else '不支持')}")
+        problems.append("受容器からの入力がある run が含まれています（実験 0002 は話しかけない条件）")
+    primary = [r for r in runs if r["seed"] in args.primary_seeds]
+    seeds = sorted(r["seed"] for r in primary)
+    if seeds != sorted(args.primary_seeds):
+        problems.append(f"判定に使う seed {sorted(args.primary_seeds)} の run がちょうど 1 本ずつそろっていません（あるもの: {seeds}）")
+
+    print()
+    if problems:
+        print("判定しません:\n  " + "\n  ".join(problems))
+        return 1
+    print(f"判定（seed {', '.join(map(str, args.primary_seeds))}）: "
+          f"H1 {verdict([r['H1_periodic'] for r in primary])} / "
+          f"H2 {verdict([r['H2_periodic'] for r in primary])}")
     return 0
 
 

@@ -14,7 +14,12 @@ L0（偽 Kernel、遅延 3 秒固定）では、入力がないと Unit がほ�
 L1 と同じ条件（入力なし・1800 Pulse・seed 42/43/44）を、偽 Kernel で回した結果。偽 Kernel は時計だけで動くので `--clock fast` でも実時間と同じ結果になる。
 
 ```bash
-python -m anima_ll --environment config/environment/l0-fake-silent.yaml --clock fast --pulses 1800 --seed 42
+for s in 42 43 44; do
+  docker compose run --rm --no-deps -T anima python -m anima_ll \
+      --environment config/environment/l0-fake-silent.yaml --clock fast --pulses 1800 \
+      --seed $s --log-group 0002/l0
+done
+python experiments/0002_periodicity_with_llm/analyze.py data/logs/0002/l0/*.jsonl
 ```
 
 | seed | u1 CV | u2 CV | u3 CV | 発話 CV（回数） | H1 | H2 |
@@ -43,17 +48,26 @@ seed 44 は参考として同じ指標を記録する（LLM が入って周期�
 - 入力：一切与えない（標準入力を閉じる）
 - 時間：1800 Pulse（1 Pulse = 1 秒、**実時間**。実際の LLM は時計と無関係に時間がかかるので `--clock fast` は使えない）
 - 個体の seed：42, 43, 44（1 本ずつ、順番に）
-- 実行前に `docker compose logs ollama` で、モデルが登録済みであることと Ollama のバージョンを記録する
+- 実行前に `docker compose logs ollama` で、モデルが登録済みであること・GGUF の SHA-256・Ollama のバージョンを記録する
+- ログは `data/logs/0002/l1/` に分ける。各ログの先頭には、設定ファイルのパスと SHA-256、実行環境（モデル・sampling）、個体の seed、コードの版（git commit）が記録される
 
 ```bash
+export ANIMA_GIT_COMMIT=$(git rev-parse HEAD)
 docker compose up -d ollama
 for s in 42 43 44; do
-  docker compose run --rm -T anima python -m anima_ll --pulses 1800 --seed $s < /dev/null
+  docker compose run --rm -T anima python -m anima_ll --pulses 1800 --seed $s --log-group 0002/l1 < /dev/null
 done
-python experiments/0002_periodicity_with_llm/analyze.py data/logs/run-*-anima-s4[234].jsonl
+python experiments/0002_periodicity_with_llm/analyze.py data/logs/0002/l1/*.jsonl
 ```
 
-## 指標（`analyze.py`）
+## 集計（`analyze.py`）
+
+- seed と実行環境は、ファイル名ではなくログ先頭の run 記録から読む（run 記録のないログは集計しない）
+- 仮説の判定に使うのは `--primary-seeds`（既定 42 43）の run だけ。seed 44 は表示するが判定には入れない
+- 次の場合は判定しない：実行環境（Kernel・モデル）の違う run が混ざっている／受容器からの入力がある／判定用の seed がちょうど 1 本ずつそろっていない
+- Kernel の失敗が started の 1 割以上の run は無効とし、その run の H1・H2 は判定不能にする
+
+## 指標
 
 | 指標 | 定義 |
 |---|---|
@@ -74,7 +88,11 @@ python experiments/0002_periodicity_with_llm/analyze.py data/logs/run-*-anima-s4
   - a. ベースライン（上の表）がそのまま再現するか
   - b. 偽 Kernel の遅延をばらつかせる（`l0-fake-silent.yaml` の `delay_jitter_seconds`）。推論時間のばらつきだけで崩れるか
   - c. `utter` テンプレートから「黙る」を外す。発話の間引きだけで H2 が崩れているのか
-- **Kernel の失敗が多い**（started の 1 割以上）場合は、結果を判定せずに原因を直してやり直す
+- **Kernel の失敗が多い**（started の 1 割以上）場合は、その run を無効とし（`analyze.py` が判定不能にする）、原因を直してやり直す
+
+## 登録内容の修正（測定前）
+
+- 2026-10-06：レビュー（ChatGPT）を受けて `analyze.py` を修正。判定を seed 42/43 だけに限定（seed 44 が判定に混ざるバグ）、seed と実行環境をログの run 記録から読む、実行環境の混在を拒否、Kernel の失敗率 1 割以上を無効に。ログの置き場所を `data/logs/0002/l0|l1/` に分けた。仮説・指標・閾値は変えていない
 
 ## 結果
 
