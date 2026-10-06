@@ -1,2 +1,7 @@
 # 改行コードは Git に任せて正規化する
 * text=auto
+
+# コンテナ（Linux）の中で使うファイルは、Windows で checkout しても LF のままにする
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+Modelfile.base  text eol=lf

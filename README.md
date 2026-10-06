@@ -54,7 +54,7 @@ adapter/       外部技術（Kernel, Receptor, Effector, 保存, 設定の読�
 3. 初回だけ、モデルの動作を確かめる
 
    ```bash
-   docker compose exec ollama ollama show anima-llm --verbose | grep add_bos_token   # true なら文頭トークンは自動で付く
+   docker compose exec ollama ollama show anima-llm --verbose | findstr add_bos_token   # true なら文頭トークンは自動で付く（mac/Linux は grep）
    docker compose exec ollama ollama run anima-llm "こんにちは"                        # 日本語で普通に返れば OK
    ```
 

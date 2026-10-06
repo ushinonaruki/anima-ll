@@ -9,6 +9,8 @@ FROM ollama/ollama:${OLLAMA_VERSION}
 
 COPY Modelfile.base /etc/anima/Modelfile.base
 COPY entrypoint.sh /usr/local/bin/anima-ollama-entrypoint
-RUN chmod +x /usr/local/bin/anima-ollama-entrypoint
+# Windows で CRLF になっていても動くように、改行を LF にそろえる
+RUN sed -i 's/\r$//' /usr/local/bin/anima-ollama-entrypoint /etc/anima/Modelfile.base \
+    && chmod +x /usr/local/bin/anima-ollama-entrypoint
 
 ENTRYPOINT ["/usr/local/bin/anima-ollama-entrypoint"]
