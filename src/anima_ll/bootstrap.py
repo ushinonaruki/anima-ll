@@ -5,20 +5,22 @@ Manifest の文字列キー（kind）と実装クラスの対応表もここに�
 
 import random
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 from anima_ll.adapter.clock.fixed_step_clock import FixedStepClock
 from anima_ll.adapter.clock.system_clock import SystemClock
 from anima_ll.adapter.effector.console_effector import ConsoleEffector
 from anima_ll.adapter.effector.recording_effector import RecordingEffector
 from anima_ll.adapter.kernel.fake_delayed_kernel import FakeDelayedKernel
+from anima_ll.adapter.kernel.ollama_kernel import OllamaKernel
+from anima_ll.adapter.receptor.console_receptor import ConsoleReceptor
 from anima_ll.adapter.receptor.scripted_receptor import ScriptedReceptor
-from anima_ll.domain.model.manifest import (
-    ComponentSpec,
-    NeuroarchitectureManifest,
-    ResourceSpec,
-    UnitSpec,
-)
+from anima_ll.domain.model.environment import ComponentSpec, EnvironmentSpec, ResourceSpec
+from anima_ll.domain.model.individual import BirthState
+from anima_ll.domain.model.identifiers import JsonValue
+from anima_ll.domain.model.manifest import NeuroarchitectureManifest, UnitSpec
+from anima_ll.domain.model.runtime_event import RuntimeEvent, RuntimeEventType
 from anima_ll.domain.port.clock import Clock
 from anima_ll.domain.port.cognitive_unit import CognitiveUnit
 from anima_ll.domain.port.compute_kernel import ComputeKernel
@@ -49,11 +51,34 @@ from anima_ll.unit.output.unit_output import UnitOutput
 # ---- Manifest の kind → 実装 ----------------------------------------------
 
 def _kernel_fake_delayed(spec: ResourceSpec, clock: Clock) -> ComputeKernel:
-    return FakeDelayedKernel(clock=clock, delay_seconds=float(spec.params.get("delay_seconds", 3.0)))
+    return FakeDelayedKernel(
+        clock=clock,
+        delay_seconds=float(spec.params.get("delay_seconds", 3.0)),
+        delay_jitter_seconds=float(spec.params.get("delay_jitter_seconds", 0.0)),
+        seed=int(spec.params.get("seed", 0)),
+    )
+
+
+_OLLAMA_OPTION_KEYS = ("seed", "temperature", "num_predict", "top_p", "top_k")
+
+
+def _kernel_ollama(spec: ResourceSpec, clock: Clock) -> ComputeKernel:
+    p = spec.params
+    return OllamaKernel(
+        base_url=str(p.get("base_url", "http://ollama:11434")),
+        model=str(p["model"]),
+        templates_dir=Path(str(p.get("templates_dir", "config/io_templates"))),
+        options={k: p[k] for k in _OLLAMA_OPTION_KEYS if k in p},
+        timeout_seconds=float(p.get("timeout_seconds", 60.0)),
+    )
 
 
 def _receptor_scripted(spec: ComponentSpec) -> Receptor:
     return ScriptedReceptor(spec.component_id, spec.params.get("script") or {})
+
+
+def _receptor_console(spec: ComponentSpec) -> Receptor:
+    return ConsoleReceptor(spec.component_id)
 
 
 def _effector_console(spec: ComponentSpec) -> Effector:
@@ -67,9 +92,11 @@ def _effector_recording(spec: ComponentSpec) -> Effector:
 
 KERNELS: dict[str, Callable[[ResourceSpec, Clock], ComputeKernel]] = {
     "fake_delayed": _kernel_fake_delayed,
+    "ollama": _kernel_ollama,
 }
 RECEPTORS: dict[str, Callable[[ComponentSpec], Receptor]] = {
     "scripted": _receptor_scripted,
+    "console": _receptor_console,
 }
 EFFECTORS: dict[str, Callable[[ComponentSpec], Effector]] = {
     "console": _effector_console,
@@ -128,39 +155,64 @@ class Application:
     effectors: dict[str, Effector] = field(default_factory=dict)
 
 
+class ConfigurationMismatch(ValueError):
+    """脳の設計図と実行環境の口が食い違っている。"""
+
+
 def build_application(
     manifest: NeuroarchitectureManifest,
+    environment: EnvironmentSpec,
+    birth: BirthState,
     *,
     clock: Clock,
     event_log: EventLog,
     snapshot_store: SnapshotStore | None = None,
-    individual_id: str = "anima",
     receptor_overrides: Mapping[str, Receptor] | None = None,
     effector_overrides: Mapping[str, Effector] | None = None,
     kernel_overrides: Mapping[str, ComputeKernel] | None = None,
     unit_overrides: Mapping[str, CognitiveUnit] | None = None,
+    run_metadata: Mapping[str, JsonValue] | None = None,
 ) -> Application:
-    rng = random.Random(manifest.seed)
+    problems = environment.binding_mismatches(manifest)
+    if problems:
+        raise ConfigurationMismatch("\n".join(problems))
+
+    # ログの先頭に、どの設計図・実行環境・個体で動いたかを残す（実験の集計はこれを見る）
+    event_log.append(
+        RuntimeEvent(
+            RuntimeEventType.RUN,
+            0,
+            {
+                "individual_id": birth.individual_id,
+                "seed": birth.seed,
+                "neuroarchitecture_version": manifest.version,
+                "environment": asdict(environment),
+                **dict(run_metadata or {}),
+            },
+        )
+    )
+
+    rng = random.Random(birth.seed)  # 初期値のばらつきは個体（Birth State）の seed から作る
     issuer = IdentifierIssuer()
 
     receptors = {
         spec.component_id: (receptor_overrides or {}).get(spec.component_id)
         or RECEPTORS[spec.kind](spec)
-        for spec in manifest.receptors
+        for spec in environment.receptors
     }
     effectors = {
         spec.component_id: (effector_overrides or {}).get(spec.component_id)
         or EFFECTORS[spec.kind](spec)
-        for spec in manifest.effectors
+        for spec in environment.effectors
     }
     kernels = {
         spec.resource_class: (kernel_overrides or {}).get(spec.resource_class)
         or KERNELS[spec.kernel](spec, clock)
-        for spec in manifest.resources
+        for spec in environment.resources
     }
     built = [_build_unit(spec, rng) for spec in manifest.units]  # seed の消費順を固定するため全部作る
     units = UnitRegistry((unit_overrides or {}).get(u.unit_id) or u for u in built)
-    coordinator = KernelTaskCoordinator(kernels, manifest.capacities(), issuer)
+    coordinator = KernelTaskCoordinator(kernels, environment.capacities(), issuer)
 
     pulse_runtime = PulseRuntime(
         units=units,
@@ -177,7 +229,7 @@ def build_application(
         event_log=event_log,
     )
     lifecycle = RuntimeLifecycle(
-        individual_id=individual_id,
+        individual_id=birth.individual_id,
         clock=clock,
         pulse_runtime=pulse_runtime,
         coordinator=coordinator,

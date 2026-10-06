@@ -1,0 +1,22 @@
+# 実行環境：L0 の動作テスト用
+#
+# 偽 Kernel（LLM を使わない）と、台本どおりに入力を出す Receptor。
+# 脳の設計図はそのままで、このファイルだけを差し替えて L0 と L1 を切り替える。
+
+resources:
+  llm_pool:
+    capacity: 1
+    kernel: fake_delayed
+    delay_seconds: 3          # 偽 Kernel が「考える」秒数
+    # delay_jitter_seconds: 2 # 推論時間のばらつきだけを入れる（実験 0002 のアブレーション b）
+
+receptors:
+  receptor.console:
+    kind: scripted
+    script:                   # drain が呼ばれた回（≒ Pulse）: 入力
+      5: "ただいま"
+      40: "今日は少し疲れた"
+
+effectors:
+  effector.console:
+    kind: console

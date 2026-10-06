@@ -1,0 +1,25 @@
+# 実行環境：L1 の Ollama で、入力を一切与えない（実験 0002 の本測定）
+#
+# キーボード入力の代わりに、何も出さない台本入力をつなぐ。
+# 標準入力の扱い（OS やシェルの違い）に左右されずに「話しかけない条件」を作るため。
+
+resources:
+  llm_pool:
+    capacity: 1
+    kernel: ollama
+    base_url: http://ollama:11434
+    model: anima-llm
+    templates_dir: config/io_templates
+    timeout_seconds: 120
+    seed: 0
+    temperature: 0.3
+    num_predict: 80
+
+receptors:
+  receptor.console:
+    kind: scripted
+    script: {}
+
+effectors:
+  effector.console:
+    kind: console

@@ -3,49 +3,88 @@
 生活空間の隣で継続して存在する AI 生命体 / AI 隣人。
 
 設計の正本は Obsidian vault の `【プログラム】Anima-ll/設計書/` を参照。
-現在の実装は最軽量版 L0（Python 3.11 以上、外部依存は PyYAML のみ）。
+現在の実装は最軽量版 L1（Python 3.11 以上、外部依存は PyYAML と httpx。ローカル LLM は Ollama）。
 
 ## 構成（src/anima_ll）
 
 ```text
-bootstrap.py   全部品を組み立てる唯一の場所（Manifest の kind → 実装の対応表）
+bootstrap.py   全部品を組み立てる唯一の場所（設定の kind → 実装の対応表）
 domain/        AnIma-ll の概念だけ（Delta, Claim, View, Unit, Port）。外部技術を知らない
 runtime/       Pulse を回す「考えない部分」（View 生成・来歴確定・統合・資源配分・非同期タスク）
 unit/          唯一の Unit 実装 GenericCognitiveUnit と、その部品（dynamics, output）
-adapter/       外部技術（Kernel, Receptor, Effector, 保存, Manifest 読み込み, 時計）
+adapter/       外部技術（Kernel, Receptor, Effector, 保存, 設定の読み込み, 時計）
 ```
 
 依存の向きは `tests/architecture` で自動検査している。
 
+## 設定（config/）
+
+変わる理由が違うので、3 つに分けている。
+
+| フォルダ | 何を表すか |
+|---|---|
+| `neuroarchitecture/` | 脳の設計図：Unit・配線・力学。外とつながる口は ID だけを宣言する。Unit に役割（`role: memory` など）は書けない |
+| `environment/` | 実行環境：口にどの実装（偽 Kernel／Ollama、台本／コンソール）をつなぐか |
+| `individual/` | 個体（Birth State）：個体 ID と seed |
+| `io_templates/` | Kernel への入出力の形式だけ（人格・口調・振る舞いは書かない） |
+
+`minimal-v0.yaml` は脳の仮説ではなく、配線と来歴を確かめるための動作テスト用の設計図。
+
 ## 動かす（Docker）
 
-本体も周辺ソフトウェアも Docker で動かす。手元に Python は不要。
+本体も Ollama も Docker で動かす。手元に Python も Ollama も不要。
 
-```bash
-docker compose build
+1. モデルファイルを置く（Git 管理外）
 
-# 実時間（1 秒 / Pulse）で起動。Ctrl+C で止める
-docker compose run --rm anima
+   ```text
+   models/Llama-3.2-3B-Instruct-Q5_K_M.gguf
+   ```
 
-# 偽 Kernel で 120 Pulse を一気に回す（実時間は待たない）
-docker compose run --rm anima python -m anima_ll --pulses 120 --clock fast
+2. 起動する
 
-# テスト
-docker compose run --rm test
-```
+   ```bash
+   docker compose build
+   docker compose up -d ollama          # 初回は GGUF からモデル anima-llm を登録する（数分）
+   docker compose logs -f ollama        # 「登録しました」「登録済みです」が出れば準備完了
 
-- `config/` はコンテナに読み取り専用でマウントされる。Manifest を書き換えたらビルドし直さずに反映される
-- ログは `data/logs/run-*.jsonl`（来歴をすべて記録）、個体のスナップショットは `data/snapshots/` に、手元のフォルダとして残る
+   docker compose run --rm anima        # 話しかける（1 行入力して Enter）。Ctrl+C で止める
+   docker compose down                  # Ollama も止める
+   ```
 
-Docker を使わずに動かす場合は、リポジトリ直下で `pip install -e ".[dev]"` のあと `python -m anima_ll` / `pytest`。
+3. 初回だけ、モデルの動作を確かめる
 
-## 脳の設計図
+   ```bash
+   docker compose exec ollama ollama show anima-llm --verbose | findstr add_bos_token   # true なら文頭トークンは自動で付く（mac/Linux は grep）
+   docker compose exec ollama ollama run anima-llm "こんにちは"                        # 日本語で普通に返れば OK
+   ```
 
-`config/neuroarchitecture/minimal-v0.yaml`。Unit に役割（`role: memory` など）は書けない。違いは配線とパラメータだけで表す。
+   返答に `<|eot_id|>` などの特殊トークンが混ざる、同じ文を繰り返す、何も返らない、などがあれば
+   チャット形式（`docker/ollama/Modelfile.base`）の問題なので知らせてほしい。
+
+4. そのほか
+
+   ```bash
+   # L0 の動作テスト（偽 Kernel・台本入力。Ollama は使わない）
+   docker compose run --rm --no-deps anima python -m anima_ll \
+       --environment config/environment/l0-fake.yaml --pulses 120 --clock fast
+
+   # テスト
+   docker compose run --rm test
+   ```
+
+- `config/` はコンテナに読み取り専用でマウントされる。設定を書き換えたらビルドし直さずに反映される
+- ログは `data/logs/run-<日時>-<個体>-s<seed>.jsonl`（来歴をすべて記録。先頭に設定・実行環境・seed・コードの版）。`--log-group 0002/l1` で `data/logs/0002/l1/` に分けられる
+- 個体のスナップショットは `data/snapshots/`
+- GGUF を同じファイル名のまま差し替えても、中身（SHA-256）の違いを見て登録し直す
+- Ollama やモデルがなくても本体は止まらない（Kernel のエラーとして記録され、Pulse は進み続ける）
+- 入力なしで LLM を呼んだ計算はログで `without_evidence: true` になる（L1 では禁止せずに観察する）
+
+Docker を使わずに動かす場合は、リポジトリ直下で `pip install -e ".[dev]"` のあと `pytest`。
+L1 環境の Ollama の場所は `config/environment/l1-ollama-console.yaml` の `base_url` で変えられる。
 
 ## 段階
 
 - **L0**（済）：Runtime と偽 Kernel。記録は `experiments/0001_minimal_runtime/`
-- **L1**：Ollama（Llama-3.2-3B-Instruct-Q5_K_M を暫定利用、`compose.yml` にサービスとして追加）とコンソール入出力
-- L2：学習（適格性トレース・調節信号）、長期記憶、内受容
+- **L1**（済）：Ollama とコンソール入出力、設定の 3 分割。観察 `experiments/0003_first_l1_session/`、実験 `experiments/0002_periodicity_with_llm/`
+- **L2**（次）：発火履歴に依存する順応 → 計算要求の持ち越し → 状態・時間の情報化 → 発話の判断を力学へ → 記憶
 - L3：睡眠（Replay・恒常性）

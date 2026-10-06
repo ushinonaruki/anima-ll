@@ -1,36 +1,28 @@
-# AnIma-ll 最軽量版 Neuroarchitecture Manifest（L0）
+# AnIma-ll 最軽量版 脳の設計図（Neuroarchitecture Manifest）
+#
+# 【位置づけ】これは脳の仮説ではなく、Runtime の配線と来歴が正しく動くかを確かめるための
+#   動作テスト用の設計図（smoke-test manifest）。Unit の数や結合の重みに、脳についての主張は込めていない。
 #
 # - Unit に役割は書かない（role: memory などは読み込み時にエラーになる）
 # - 違いは配線（projections）と部品・パラメータだけで表す
 # - Unit の名前は番号だけ。「u0 は感覚野」などとは決めない
+# - 外とつながる口は ID だけを宣言する。何をつなぐかは config/environment/ が決める
+# - seed（初期値のばらつきの元）は個体の設定 config/individual/ にある
 
 version: 0
-seed: 42                 # 初期値のばらつき用（出生時の条件）
 delta_ttl_pulses: 10     # Delta が BrainState に残る Pulse 数
 
-resources:
-  llm_pool:
-    capacity: 1
-    kernel: fake_delayed # L1 で ollama に差し替える
-    delay_seconds: 3     # 偽 Kernel が「考える」秒数
-
-receptors:
-  - id: receptor.console
-    kind: scripted       # L0 は台本どおりに入力を出す。L1 で console に差し替える
-    script:
-      5: "ただいま"
-      40: "今日は少し疲れた"
-
-effectors:
-  - id: effector.console
-    kind: console
+interfaces:
+  resources: [llm_pool]
+  receptors: [receptor.console]
+  effectors: [effector.console]
 
 defaults:
   dynamics:
     kind: simple_activity
     decay: 0.85          # 1 秒あたりの減衰率
     threshold: 0.5
-    refractory_pulses: 3
+    refractory_pulses: 3   # 不応期。生物の再現ではなく単純な計算仮説の1つ
     intrinsic_drive: 0.08  # 入力がなくても活動がゆっくり動き続ける（内容非依存）
                            # 平衡値 ≒ drive / (1 - decay) ≒ 0.53 で閾値をわずかに上回る。
                            # 0.05 だと平衡値 ≒ 0.33 で、入力がない限り一度も発火しない

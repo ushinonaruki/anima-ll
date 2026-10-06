@@ -1,6 +1,8 @@
-"""Neuroarchitecture Manifest のドメイン表現。
+"""Neuroarchitecture Manifest（脳の設計図）のドメイン表現。
 
 Unit に役割（記憶・感情など）を書く欄はない。違いは配線とパラメータだけで表す。
+外とつながる口（計算資源・Receptor・Effector）は ID だけを宣言し、
+何をつなぐかは実行環境（EnvironmentSpec）が決める。
 """
 
 from dataclasses import dataclass, field
@@ -11,24 +13,6 @@ from anima_ll.domain.model.identifiers import (
     ResourceClass,
     UnitId,
 )
-
-
-@dataclass(frozen=True)
-class ResourceSpec:
-    resource_class: ResourceClass
-    capacity: int
-    kernel: str
-    """Kernel 実装を指すキー（例: "fake_delayed", "ollama"）。"""
-    params: dict[str, JsonValue] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class ComponentSpec:
-    """Receptor・Effector の指定。"""
-
-    component_id: ComponentId
-    kind: str
-    params: dict[str, JsonValue] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -58,11 +42,10 @@ class ProjectionSpec:
 @dataclass(frozen=True)
 class NeuroarchitectureManifest:
     version: int
-    seed: int
     delta_ttl_pulses: int
-    resources: tuple[ResourceSpec, ...]
-    receptors: tuple[ComponentSpec, ...]
-    effectors: tuple[ComponentSpec, ...]
+    resource_classes: frozenset[ResourceClass]
+    receptor_ids: tuple[ComponentId, ...]
+    effector_ids: tuple[ComponentId, ...]
     units: tuple[UnitSpec, ...]
     projections: tuple[ProjectionSpec, ...]
 
@@ -76,6 +59,3 @@ class NeuroarchitectureManifest:
             if spec.unit_id == unit_id:
                 return spec
         raise KeyError(unit_id)
-
-    def capacities(self) -> dict[ResourceClass, int]:
-        return {r.resource_class: r.capacity for r in self.resources}
