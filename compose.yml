@@ -8,8 +8,14 @@
 
 name: anima-ll
 
+x-common: &common
+  pull_policy: build   # イメージは常にローカルでビルドする（Docker Hub に取りに行かない）
+  environment:
+    TZ: ${TZ:-Asia/Tokyo}   # ログのファイル名・時刻を手元の時間に合わせる
+
 services:
   anima:
+    <<: *common
     build:
       context: .
       target: runtime
@@ -21,6 +27,7 @@ services:
       - ./data:/app/data          # 来歴ログと個体のスナップショットは手元に残す
 
   test:
+    <<: *common
     build:
       context: .
       target: dev

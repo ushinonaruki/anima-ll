@@ -12,6 +12,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# タイムゾーンのデータ（compose の TZ でログの時刻を手元に合わせるため）
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
 # 依存とパッケージ（ソースが変わらなければキャッシュが効く順に置く）
 COPY pyproject.toml README.md ./
 COPY src ./src
