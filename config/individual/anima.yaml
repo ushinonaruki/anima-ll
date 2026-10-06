@@ -1,0 +1,7 @@
+# 個体（Birth State）
+#
+# 同じ脳の設計図からでも、ここが違えば別の個体になる。
+# L1 では個体 ID と seed（Unit の初期値のばらつきの元）だけ。
+
+individual_id: anima
+seed: 42

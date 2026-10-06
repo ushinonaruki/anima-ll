@@ -1,0 +1,25 @@
+# 実行環境：L1（既定）
+#
+# ローカル LLM（Ollama）と、キーボードからの入力。
+# Ollama は compose の ollama サービス。モデル anima-llm は models/ の GGUF から登録される。
+
+resources:
+  llm_pool:
+    capacity: 1
+    kernel: ollama
+    base_url: http://ollama:11434
+    model: anima-llm
+    templates_dir: config/io_templates   # 入出力の形式だけを書いたテンプレート
+    timeout_seconds: 120      # 初回はモデルの読み込みで時間がかかる
+    # sampling（Engineering substitute：再現性を優先して固定する。v1.4 §8.3）
+    seed: 0
+    temperature: 0.3
+    num_predict: 80           # 1 回の思考の長さの上限（他の Unit を長く待たせないため）
+
+receptors:
+  receptor.console:
+    kind: console             # キーボードから 1 行ずつ
+
+effectors:
+  effector.console:
+    kind: console

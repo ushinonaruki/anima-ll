@@ -30,6 +30,15 @@ from anima_ll.runtime.unit_registry import UnitRegistry
 _PendingRequest = tuple[UnitId, ComputeRequest, SnapshotId]
 
 
+def _without_evidence(input_delta_ids: tuple[DeltaId, ...]) -> bool:
+    """受容野から 1 つも Delta を受け取らずに始まった計算か（中身は読まず、数だけを見る）。
+
+    L1 では「何も起きなかった」を情報として表す手段がまだないため、
+    このような計算は禁止せずに印をつけて観察する（v1.4 §6）。
+    """
+    return len(input_delta_ids) == 0
+
+
 class PulseRuntime:
     """1 Pulse の手順を順に呼ぶだけの調整役。自分では意味の判断をしない。"""
 
@@ -91,6 +100,7 @@ class PulseRuntime:
                     pulse,
                     {"task_id": task.task_id, "unit_id": task.unit_id,
                      "started_pulse": task.started_pulse, "status": result.status,
+                     "without_evidence": _without_evidence(task.input_delta_ids),
                      "output": result.output, "error": result.error},
                 )
             )
@@ -200,9 +210,14 @@ class PulseRuntime:
                 self._violation(pulse, unit_id, "resource_not_allowed",
                                 {"resource_class": claim.resource_class})
                 continue
-            if unit_id in busy or unit_id in seen_units:
-                continue  # 思考中の Unit は新しい依頼を出せない（1 Unit 1 タスク）
+            if unit_id in seen_units:
+                # 1 Unit が 1 Pulse に出せる計算依頼は 1 件まで。2 件目以降は棄却して記録する
+                self._violation(pulse, unit_id, "extra_compute_request",
+                                {"resource_class": claim.resource_class})
+                continue
             seen_units.add(unit_id)
+            if unit_id in busy:
+                continue  # 思考中の Unit は新しい依頼を出せない（1 Unit 1 タスク。schedule.busy に残る）
             eligible.append((unit_id, request, snapshot_id))
 
         entries = [ClaimEntry(unit_id, request.claim) for unit_id, request, _ in eligible]
@@ -230,7 +245,8 @@ class PulseRuntime:
                              {"task_id": task.task_id, "unit_id": unit_id,
                               "resource_class": task.resource_class,
                               "snapshot_id": snapshot_id,
-                              "input_delta_ids": list(task.input_delta_ids)})
+                              "input_delta_ids": list(task.input_delta_ids),
+                              "without_evidence": _without_evidence(task.input_delta_ids)})
             )
 
     def _violation(self, pulse: int, source_id: ComponentId, rule: str, detail: dict) -> None:

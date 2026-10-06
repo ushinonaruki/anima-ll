@@ -13,3 +13,7 @@ __pycache__/
 .env
 build/
 dist/
+
+# ローカル LLM のモデル（README だけ管理する）
+/models/*
+!/models/README.md

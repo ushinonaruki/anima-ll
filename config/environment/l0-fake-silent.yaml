@@ -1,0 +1,17 @@
+# 実行環境：L0 の偽 Kernel で、入力を一切与えない（実験 0002 のベースライン）
+
+resources:
+  llm_pool:
+    capacity: 1
+    kernel: fake_delayed
+    delay_seconds: 3
+    # delay_jitter_seconds: 2   # アブレーション b：推論時間のばらつきだけを入れる
+
+receptors:
+  receptor.console:
+    kind: scripted
+    script: {}
+
+effectors:
+  effector.console:
+    kind: console
