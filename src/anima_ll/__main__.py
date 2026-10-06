@@ -1,5 +1,8 @@
 """`python -m anima_ll` で起動する。
 
+設定とデータの場所は、実行時の作業ディレクトリを基準にする
+（リポジトリ直下でも、Docker コンテナの /app でも同じように動く）。
+
 例:
   python -m anima_ll --pulses 60                 # 実時間（1 秒/Pulse）で 60 Pulse
   python -m anima_ll --pulses 200 --clock fast   # 時計だけ進めて一気に回す
@@ -15,17 +18,17 @@ from anima_ll.adapter.persistence.json_snapshot_store import JsonSnapshotStore
 from anima_ll.adapter.persistence.jsonl_event_log import JsonlEventLog
 from anima_ll.bootstrap import build_application, make_clock
 
-ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_MANIFEST = Path("config/neuroarchitecture/minimal-v0.yaml")
+DEFAULT_DATA_DIR = Path("data")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="anima_ll")
-    parser.add_argument("--manifest", type=Path,
-                        default=ROOT / "config/neuroarchitecture/minimal-v0.yaml")
+    parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--pulses", type=int, default=None, help="省略すると Ctrl+C まで動き続ける")
     parser.add_argument("--interval", type=float, default=1.0, help="1 Pulse の秒数")
     parser.add_argument("--clock", choices=["realtime", "fast"], default="realtime")
-    parser.add_argument("--data-dir", type=Path, default=ROOT / "data")
+    parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
     args = parser.parse_args()
 
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")

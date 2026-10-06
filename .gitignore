@@ -11,3 +11,5 @@ __pycache__/
 
 # --- ローカル設定 ---
 .env
+build/
+dist/

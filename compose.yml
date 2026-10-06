@@ -1,0 +1,35 @@
+# AnIma-ll の実行環境
+#
+#   docker compose run --rm anima                                    # 実時間で起動（Ctrl+C で停止）
+#   docker compose run --rm anima python -m anima_ll --pulses 120 --clock fast
+#   docker compose run --rm test                                     # テスト
+#
+# L1 で Ollama のサービスをここに追加する。
+
+name: anima-ll
+
+x-common: &common
+  pull_policy: build   # イメージは常にローカルでビルドする（Docker Hub に取りに行かない）
+  environment:
+    TZ: ${TZ:-Asia/Tokyo}   # ログのファイル名・時刻を手元の時間に合わせる
+
+services:
+  anima:
+    <<: *common
+    build:
+      context: .
+      target: runtime
+    image: anima-ll:runtime
+    stdin_open: true   # L1 でコンソールから話しかけるため
+    tty: true
+    volumes:
+      - ./config:/app/config:ro   # 脳の設計図はビルドし直さずに差し替えられる
+      - ./data:/app/data          # 来歴ログと個体のスナップショットは手元に残す
+
+  test:
+    <<: *common
+    build:
+      context: .
+      target: dev
+    image: anima-ll:dev
+    profiles: ["test"]   # `docker compose up` では起動しない
