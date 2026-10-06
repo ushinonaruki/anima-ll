@@ -132,7 +132,8 @@ def analyze(data: dict) -> dict:
 
 # ---- 参照値の選び方（事前登録した規則） ----------------------------------------------
 
-def load_0004_h1(path: Path) -> dict[tuple, bool]:
+def load_0004_h1(path: Path) -> tuple[dict[tuple, bool], bool]:
+    """0004 の条件ごとの H1 と、H1 の正式判定（判定用 4 条件すべてで成り立つか）。"""
     spec = importlib.util.spec_from_file_location("analyze_0004",
                                                   Path(__file__).parent.parent / "0004_adaptation" / "analyze.py")
     module = importlib.util.module_from_spec(spec)
@@ -142,14 +143,20 @@ def load_0004_h1(path: Path) -> dict[tuple, bool]:
     problems = module.completeness_problems(data)
     if problems:
         raise SystemExit("0004 の結果が事前登録とそろっていない: " + "; ".join(problems))
-    return {cond: r["holds"] for cond, r in module.analyze_silent(data["silent"]).items()}
+    per_cond = {cond: r["holds"] for cond, r in module.analyze_silent(data["silent"]).items()}
+    return per_cond, all(per_cond[c] for c in module.H1_REFERENCE)
 
 
-def choose_reference(h1: dict[tuple, bool], h2: dict[tuple, dict]) -> tuple | None:
-    """0004 の H1（落ち着く）と 0005 の H2（w* が上がる）を両方満たす条件のうち、最も弱い順応。
+def choose_reference(h1: dict[tuple, bool], h1_supported: bool, h2: dict[tuple, dict]) -> tuple | None:
+    """参照値を選ぶ。0004 の H1 と 0005 の H2' の正式判定が両方とも支持された場合に限る。
 
-    弱さ = α × τ_a（発火頻度が同じなら、定常状態で積もる順応の大きさに比例する）。同じなら α が小さい方。
+    そのときだけ、全 10 条件から「H1 を条件別に満たす」かつ「H2' を条件別に満たす」ものを候補にし、
+    最も弱い順応を選ぶ。弱さ = α × τ_a（1 回の発火で生じる順応 a(t) = α·exp(−t/τ_a) の時間積分。
+    1 回の発火が後の時間に残す順応の総量）。同じなら α が小さい方。
     """
+    h2_supported = all(h2[c]["holds"] for c in H2_REFERENCE)
+    if not (h1_supported and h2_supported):
+        return None
     candidates = [c for c in h2 if c != (0.0, 0) and h1.get(c) and h2[c]["holds"]]
     if not candidates:
         return None
@@ -201,9 +208,10 @@ def main() -> int:
     print("（判定に使う条件：" + ", ".join(fmt_cond(c) for c in H2_REFERENCE) + "）")
 
     if args.with_0004:
-        h1 = load_0004_h1(args.with_0004)
-        chosen = choose_reference(h1, report)
-        print("\n## 参照値（0004 の H1 と 0005 の H2 を両方満たす中で最も弱い順応）")
+        h1, h1_supported = load_0004_h1(args.with_0004)
+        chosen = choose_reference(h1, h1_supported, report)
+        print("\n## 参照値（H1・H2' の正式判定が両方支持された場合に限り、条件別に両方を満たす中で最も弱い順応）")
+        print(f"0004 H1：{'支持' if h1_supported else '不支持'} / 0005 H2'：{'支持' if h2 else '不支持'}")
         print(f"→ {fmt_cond(chosen)}" if chosen else "→ 該当なし（参照値は決めない）")
     return 0
 
