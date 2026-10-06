@@ -39,8 +39,8 @@ services:
     <<: *common
     build:
       context: docker/ollama
-      # args:
-      #   OLLAMA_VERSION: 0.x.y   # 動作を確認したら固定する
+      args:
+        OLLAMA_VERSION: 0.35.1   # 動作を確認した版に固定（2026-10-06）
     image: anima-ll:ollama
     environment:
       <<: *tz
@@ -52,9 +52,11 @@ services:
       - ollama-data:/root/.ollama    # 登録済みモデル（2 回目以降は登録し直さない）
     healthcheck:
       test: ["CMD", "ollama", "list"]
-      interval: 10s
+      interval: 60s          # 確認のたびに Ollama のログに 2 行出るので、間隔は長めに
+      start_period: 300s     # 初回のモデル登録の間は失敗を数えない
+      start_interval: 5s
       timeout: 5s
-      retries: 6
+      retries: 3
     # ports:
     #   - "11434:11434"   # 手元から Ollama を直接触りたいときだけ
     # NVIDIA GPU を使う場合（NVIDIA Container Toolkit が必要）:

@@ -4,7 +4,7 @@
 # 再現性のため、動作を確認したら OLLAMA_VERSION を固定する（例: --build-arg OLLAMA_VERSION=0.x.y）。
 # 起動ログの先頭に実際のバージョンが出る。
 
-ARG OLLAMA_VERSION=latest
+ARG OLLAMA_VERSION=0.35.1
 FROM ollama/ollama:${OLLAMA_VERSION}
 
 COPY Modelfile.base /etc/anima/Modelfile.base
