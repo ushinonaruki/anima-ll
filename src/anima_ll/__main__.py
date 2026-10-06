@@ -48,6 +48,8 @@ def main() -> None:
     parser.add_argument("--interval", type=float, default=1.0, help="1 Pulse の秒数")
     parser.add_argument("--clock", choices=["realtime", "fast"], default="realtime")
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
+    parser.add_argument("--state-log-interval", type=int, default=0,
+                        help="Unit の内部状態を何 Pulse ごとにログに残すか（0 は残さない。観察用）")
     parser.add_argument("--log-group", default="", help="ログを data/logs/<group>/ に分ける（例: 0002/l1）")
     args = parser.parse_args()
 
@@ -78,7 +80,9 @@ def main() -> None:
             "clock": args.clock,
             "interval_seconds": args.interval,
             "git_commit": _git_commit(),
+            "state_log_interval": args.state_log_interval,
         },
+        state_sample_interval=args.state_log_interval,
     )
     print(f"[anima_ll] individual: {birth.individual_id} (seed {birth.seed})")
     print(f"[anima_ll] environment: {args.environment}")

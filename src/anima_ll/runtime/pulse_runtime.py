@@ -58,6 +58,7 @@ class PulseRuntime:
         issuer: IdentifierIssuer,
         event_log: EventLog,
         initial_state: BrainState | None = None,
+        state_sample_interval: int = 0,
     ) -> None:
         self._units = units
         self._claim_permissions = claim_permissions
@@ -72,6 +73,7 @@ class PulseRuntime:
         self._issuer = issuer
         self._log = event_log
         self._state = initial_state or BrainState()
+        self._state_sample_interval = state_sample_interval
 
     @property
     def brain_state(self) -> BrainState:
@@ -143,6 +145,14 @@ class PulseRuntime:
                 RuntimeEvent(RuntimeEventType.EFFECT, pulse,
                              {"delta_id": delta.delta_id, "effector_id": delta.target_id})
             )
+
+        # 8. 観察用：Unit の私的な状態の標本（Runtime は中身を解釈せず、そのまま記録するだけ）
+        if self._state_sample_interval and pulse % self._state_sample_interval == 0:
+            for unit in self._units.all():
+                self._log.append(
+                    RuntimeEvent(RuntimeEventType.UNIT_STATE, pulse,
+                                 {"unit_id": unit.unit_id, "state": unit.export_state()})
+                )
 
     def _collect_step(
         self,

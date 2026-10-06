@@ -15,6 +15,7 @@ class RuntimeEventType:
     EFFECT = "effect"
     VIOLATION = "violation"
     UNROUTED = "unrouted"
+    UNIT_STATE = "unit_state"  # 観察用：Unit の私的な状態の標本（間隔は設定で決める。既定は記録しない）
 
 
 @dataclass(frozen=True)
