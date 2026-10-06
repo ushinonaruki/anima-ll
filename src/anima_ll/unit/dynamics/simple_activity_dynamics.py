@@ -19,7 +19,7 @@ class SimpleActivityDynamics:
 
     adaptation は発火頻度順応（spike-frequency adaptation、Biological mechanism）を
     「実効閾値の一時的な上昇」という 1 変数に粗視化したもの（Computational hypothesis）。
-    発火の中身ではなく、回数とタイミングだけで決まる。乱数は使わない。
+    発火の中身ではなく、回数とタイミングだけで決まる。確率ノイズは入れない。
     α = 0 なら順応のない L1 までの力学とまったく同じになる。
     """
 
