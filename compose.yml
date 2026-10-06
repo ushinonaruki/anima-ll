@@ -26,6 +26,7 @@ services:
     image: anima-ll:runtime
     environment:
       <<: *tz
+      ANIMA_GIT_COMMIT: ${ANIMA_GIT_COMMIT:-}   # コードの版をログに残す（実験時は export ANIMA_GIT_COMMIT=$(git rev-parse HEAD)）
     stdin_open: true   # コンソールから話しかけるため
     tty: true
     depends_on:

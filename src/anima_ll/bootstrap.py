@@ -5,7 +5,7 @@ Manifest の文字列キー（kind）と実装クラスの対応表もここに�
 
 import random
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from anima_ll.adapter.clock.fixed_step_clock import FixedStepClock
@@ -18,7 +18,9 @@ from anima_ll.adapter.receptor.console_receptor import ConsoleReceptor
 from anima_ll.adapter.receptor.scripted_receptor import ScriptedReceptor
 from anima_ll.domain.model.environment import ComponentSpec, EnvironmentSpec, ResourceSpec
 from anima_ll.domain.model.individual import BirthState
+from anima_ll.domain.model.identifiers import JsonValue
 from anima_ll.domain.model.manifest import NeuroarchitectureManifest, UnitSpec
+from anima_ll.domain.model.runtime_event import RuntimeEvent, RuntimeEventType
 from anima_ll.domain.port.clock import Clock
 from anima_ll.domain.port.cognitive_unit import CognitiveUnit
 from anima_ll.domain.port.compute_kernel import ComputeKernel
@@ -169,10 +171,26 @@ def build_application(
     effector_overrides: Mapping[str, Effector] | None = None,
     kernel_overrides: Mapping[str, ComputeKernel] | None = None,
     unit_overrides: Mapping[str, CognitiveUnit] | None = None,
+    run_metadata: Mapping[str, JsonValue] | None = None,
 ) -> Application:
     problems = environment.binding_mismatches(manifest)
     if problems:
         raise ConfigurationMismatch("\n".join(problems))
+
+    # ログの先頭に、どの設計図・実行環境・個体で動いたかを残す（実験の集計はこれを見る）
+    event_log.append(
+        RuntimeEvent(
+            RuntimeEventType.RUN,
+            0,
+            {
+                "individual_id": birth.individual_id,
+                "seed": birth.seed,
+                "neuroarchitecture_version": manifest.version,
+                "environment": asdict(environment),
+                **dict(run_metadata or {}),
+            },
+        )
+    )
 
     rng = random.Random(birth.seed)  # 初期値のばらつきは個体（Birth State）の seed から作る
     issuer = IdentifierIssuer()

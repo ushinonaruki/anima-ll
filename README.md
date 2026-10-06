@@ -51,7 +51,17 @@ adapter/       外部技術（Kernel, Receptor, Effector, 保存, 設定の読�
    docker compose down                  # Ollama も止める
    ```
 
-3. そのほか
+3. 初回だけ、モデルの動作を確かめる
+
+   ```bash
+   docker compose exec ollama ollama show anima-llm --verbose | grep add_bos_token   # true なら文頭トークンは自動で付く
+   docker compose exec ollama ollama run anima-llm "こんにちは"                        # 日本語で普通に返れば OK
+   ```
+
+   返答に `<|eot_id|>` などの特殊トークンが混ざる、同じ文を繰り返す、何も返らない、などがあれば
+   チャット形式（`docker/ollama/Modelfile.base`）の問題なので知らせてほしい。
+
+4. そのほか
 
    ```bash
    # L0 の動作テスト（偽 Kernel・台本入力。Ollama は使わない）
@@ -63,7 +73,9 @@ adapter/       外部技術（Kernel, Receptor, Effector, 保存, 設定の読�
    ```
 
 - `config/` はコンテナに読み取り専用でマウントされる。設定を書き換えたらビルドし直さずに反映される
-- ログは `data/logs/run-<日時>-<個体>-s<seed>.jsonl`（来歴をすべて記録）、個体のスナップショットは `data/snapshots/`
+- ログは `data/logs/run-<日時>-<個体>-s<seed>.jsonl`（来歴をすべて記録。先頭に設定・実行環境・seed・コードの版）。`--log-group 0002/l1` で `data/logs/0002/l1/` に分けられる
+- 個体のスナップショットは `data/snapshots/`
+- GGUF を同じファイル名のまま差し替えても、中身（SHA-256）の違いを見て登録し直す
 - Ollama やモデルがなくても本体は止まらない（Kernel のエラーとして記録され、Pulse は進み続ける）
 - 入力なしで LLM を呼んだ計算はログで `without_evidence: true` になる（L1 では禁止せずに観察する）
 

@@ -4,6 +4,7 @@ from anima_ll.domain.model.identifiers import JsonValue, PulseNumber
 
 
 class RuntimeEventType:
+    RUN = "run"            # 起動時に 1 回：どの設計図・環境・個体で動いたか
     PULSE = "pulse"
     VIEW = "view"
     CLAIM = "claim"

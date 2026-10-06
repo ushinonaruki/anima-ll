@@ -240,6 +240,14 @@ def test_mismatched_environment_refuses_to_start() -> None:
         run(cfg, 1)
 
 
+def test_run_metadata_is_logged_first() -> None:
+    _, log = run(BASE, 3)
+    first = log.events[0]
+    assert first.type == T.RUN and first.pulse == 0
+    assert first.data["seed"] == 42 and first.data["individual_id"] == "anima"
+    assert first.data["environment"]["resources"][0]["kernel"] == "fake_delayed"
+
+
 def test_individual_snapshot_roundtrip(tmp_path: Path) -> None:
     store = JsonSnapshotStore(tmp_path)
     app, _ = run(BASE, 20, snapshot_store=store)

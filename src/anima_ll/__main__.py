@@ -16,6 +16,9 @@
 
 import argparse
 import asyncio
+import hashlib
+import os
+import subprocess
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
@@ -45,6 +48,7 @@ def main() -> None:
     parser.add_argument("--interval", type=float, default=1.0, help="1 Pulse の秒数")
     parser.add_argument("--clock", choices=["realtime", "fast"], default="realtime")
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
+    parser.add_argument("--log-group", default="", help="ログを data/logs/<group>/ に分ける（例: 0002/l1）")
     args = parser.parse_args()
 
     birth = YamlBirthStateSource(args.individual).load()
@@ -52,9 +56,13 @@ def main() -> None:
         birth = replace(birth, seed=args.seed)
 
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
-    event_log = JsonlEventLog(
-        args.data_dir / "logs" / f"run-{run_id}-{birth.individual_id}-s{birth.seed}.jsonl"
-    )
+    log_dir = args.data_dir / "logs" / args.log_group if args.log_group else args.data_dir / "logs"
+    event_log = JsonlEventLog(log_dir / f"run-{run_id}-{birth.individual_id}-s{birth.seed}.jsonl")
+    config_files = {
+        "neuroarchitecture": args.neuroarchitecture,
+        "environment": args.environment,
+        "individual": args.individual,
+    }
     app = build_application(
         YamlNeuroarchitectureSource(args.neuroarchitecture).load(),
         YamlEnvironmentSource(args.environment).load(),
@@ -62,6 +70,15 @@ def main() -> None:
         clock=make_clock(args.clock, args.interval),
         event_log=event_log,
         snapshot_store=JsonSnapshotStore(args.data_dir / "snapshots"),
+        run_metadata={
+            "run_id": run_id,
+            "config_files": {k: str(v) for k, v in config_files.items()},
+            "config_sha256": {k: _sha256(v) for k, v in config_files.items()},
+            "seed_overridden": args.seed is not None,
+            "clock": args.clock,
+            "interval_seconds": args.interval,
+            "git_commit": _git_commit(),
+        },
     )
     print(f"[anima_ll] individual: {birth.individual_id} (seed {birth.seed})")
     print(f"[anima_ll] environment: {args.environment}")
@@ -73,6 +90,24 @@ def main() -> None:
     finally:
         event_log.close()
         print(f"[anima_ll] stopped at pulse {app.lifecycle.pulse}")
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _git_commit() -> str:
+    """コードの版。Docker 内には .git がないので、環境変数 ANIMA_GIT_COMMIT で渡す。"""
+    from_env = os.environ.get("ANIMA_GIT_COMMIT", "").strip()
+    if from_env:
+        return from_env
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, timeout=5, check=True
+        )
+        return result.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
 
 
 if __name__ == "__main__":
