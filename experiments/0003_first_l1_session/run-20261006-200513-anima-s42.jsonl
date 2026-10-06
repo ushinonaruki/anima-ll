@@ -1,0 +1,1088 @@
+{"type": "run", "pulse": 0, "individual_id": "anima", "seed": 42, "neuroarchitecture_version": 0, "environment": {"resources": [{"resource_class": "llm_pool", "capacity": 1, "kernel": "ollama", "params": {"base_url": "http://ollama:11434", "model": "anima-llm", "templates_dir": "config/io_templates", "timeout_seconds": 120, "seed": 0, "temperature": 0.3, "num_predict": 80}}], "receptors": [{"component_id": "receptor.console", "kind": "console", "params": {}}], "effectors": [{"component_id": "effector.console", "kind": "console", "params": {}}]}, "run_id": "20261006-200513", "config_files": {"neuroarchitecture": "config/neuroarchitecture/minimal-v0.yaml", "environment": "config/environment/l1-ollama-console.yaml", "individual": "config/individual/anima.yaml"}, "config_sha256": {"neuroarchitecture": "809c6b81f04f1372764a6a97decd9f880510983abeb04ac1a04cd44b44679317", "environment": "2093f7badd8eb72d2d34d335097cd6dc4e3c6ec5700cf4c3af75d4451418d4ce", "individual": "45d24fc35ee5fb52ea54cce961f40daab529df12f4747dcbd37c1815da2ac1fa"}, "seed_overridden": false, "clock": "realtime", "interval_seconds": 1.0, "git_commit": "unknown"}
+{"type": "pulse", "pulse": 1, "now": 4341.559374887, "dt": 0.9942627469999934}
+{"type": "view", "pulse": 1, "unit_id": "u0", "snapshot_id": "s000001", "delta_ids": []}
+{"type": "view", "pulse": 1, "unit_id": "u1", "snapshot_id": "s000001", "delta_ids": []}
+{"type": "view", "pulse": 1, "unit_id": "u2", "snapshot_id": "s000001", "delta_ids": []}
+{"type": "view", "pulse": 1, "unit_id": "u3", "snapshot_id": "s000001", "delta_ids": []}
+{"type": "schedule", "pulse": 1, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 2, "now": 4342.559328892, "dt": 0.9999540050002906}
+{"type": "view", "pulse": 2, "unit_id": "u0", "snapshot_id": "s000002", "delta_ids": []}
+{"type": "view", "pulse": 2, "unit_id": "u1", "snapshot_id": "s000002", "delta_ids": []}
+{"type": "view", "pulse": 2, "unit_id": "u2", "snapshot_id": "s000002", "delta_ids": []}
+{"type": "view", "pulse": 2, "unit_id": "u3", "snapshot_id": "s000002", "delta_ids": []}
+{"type": "schedule", "pulse": 2, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 3, "now": 4343.559754717, "dt": 1.000425825000093}
+{"type": "view", "pulse": 3, "unit_id": "u0", "snapshot_id": "s000003", "delta_ids": []}
+{"type": "view", "pulse": 3, "unit_id": "u1", "snapshot_id": "s000003", "delta_ids": []}
+{"type": "view", "pulse": 3, "unit_id": "u2", "snapshot_id": "s000003", "delta_ids": []}
+{"type": "view", "pulse": 3, "unit_id": "u3", "snapshot_id": "s000003", "delta_ids": []}
+{"type": "schedule", "pulse": 3, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 4, "now": 4344.559432752, "dt": 0.9996780350002155}
+{"type": "view", "pulse": 4, "unit_id": "u0", "snapshot_id": "s000004", "delta_ids": []}
+{"type": "view", "pulse": 4, "unit_id": "u1", "snapshot_id": "s000004", "delta_ids": []}
+{"type": "view", "pulse": 4, "unit_id": "u2", "snapshot_id": "s000004", "delta_ids": []}
+{"type": "view", "pulse": 4, "unit_id": "u3", "snapshot_id": "s000004", "delta_ids": []}
+{"type": "schedule", "pulse": 4, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 5, "now": 4345.559188343, "dt": 0.9997555909994844}
+{"type": "view", "pulse": 5, "unit_id": "u0", "snapshot_id": "s000005", "delta_ids": []}
+{"type": "view", "pulse": 5, "unit_id": "u1", "snapshot_id": "s000005", "delta_ids": []}
+{"type": "view", "pulse": 5, "unit_id": "u2", "snapshot_id": "s000005", "delta_ids": []}
+{"type": "view", "pulse": 5, "unit_id": "u3", "snapshot_id": "s000005", "delta_ids": []}
+{"type": "schedule", "pulse": 5, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 6, "now": 4346.559814518, "dt": 1.0006261750004342}
+{"type": "view", "pulse": 6, "unit_id": "u0", "snapshot_id": "s000006", "delta_ids": []}
+{"type": "view", "pulse": 6, "unit_id": "u1", "snapshot_id": "s000006", "delta_ids": []}
+{"type": "view", "pulse": 6, "unit_id": "u2", "snapshot_id": "s000006", "delta_ids": []}
+{"type": "view", "pulse": 6, "unit_id": "u3", "snapshot_id": "s000006", "delta_ids": []}
+{"type": "schedule", "pulse": 6, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 7, "now": 4347.559503625, "dt": 0.99968910699954}
+{"type": "view", "pulse": 7, "unit_id": "u0", "snapshot_id": "s000007", "delta_ids": []}
+{"type": "view", "pulse": 7, "unit_id": "u1", "snapshot_id": "s000007", "delta_ids": []}
+{"type": "view", "pulse": 7, "unit_id": "u2", "snapshot_id": "s000007", "delta_ids": []}
+{"type": "view", "pulse": 7, "unit_id": "u3", "snapshot_id": "s000007", "delta_ids": []}
+{"type": "schedule", "pulse": 7, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 8, "now": 4348.56017667, "dt": 1.0006730450004397}
+{"type": "view", "pulse": 8, "unit_id": "u0", "snapshot_id": "s000008", "delta_ids": []}
+{"type": "view", "pulse": 8, "unit_id": "u1", "snapshot_id": "s000008", "delta_ids": []}
+{"type": "view", "pulse": 8, "unit_id": "u2", "snapshot_id": "s000008", "delta_ids": []}
+{"type": "view", "pulse": 8, "unit_id": "u3", "snapshot_id": "s000008", "delta_ids": []}
+{"type": "schedule", "pulse": 8, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 9, "now": 4349.559928506, "dt": 0.999751835999632}
+{"type": "view", "pulse": 9, "unit_id": "u0", "snapshot_id": "s000009", "delta_ids": []}
+{"type": "view", "pulse": 9, "unit_id": "u1", "snapshot_id": "s000009", "delta_ids": []}
+{"type": "view", "pulse": 9, "unit_id": "u2", "snapshot_id": "s000009", "delta_ids": []}
+{"type": "view", "pulse": 9, "unit_id": "u3", "snapshot_id": "s000009", "delta_ids": []}
+{"type": "schedule", "pulse": 9, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 10, "now": 4350.559765731, "dt": 0.9998372250001921}
+{"type": "view", "pulse": 10, "unit_id": "u0", "snapshot_id": "s000010", "delta_ids": []}
+{"type": "view", "pulse": 10, "unit_id": "u1", "snapshot_id": "s000010", "delta_ids": []}
+{"type": "view", "pulse": 10, "unit_id": "u2", "snapshot_id": "s000010", "delta_ids": []}
+{"type": "view", "pulse": 10, "unit_id": "u3", "snapshot_id": "s000010", "delta_ids": []}
+{"type": "claim", "pulse": 10, "unit_id": "u1", "resource_class": "llm_pool", "strength": 0.4799777647964886}
+{"type": "schedule", "pulse": 10, "accepted": ["u1"], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 10, "task_id": "t000001", "unit_id": "u1", "resource_class": "llm_pool", "snapshot_id": "s000010", "input_delta_ids": [], "without_evidence": true}
+{"type": "pulse", "pulse": 11, "now": 4351.558976696, "dt": 0.9992109650002021}
+{"type": "task_completed", "pulse": 11, "task_id": "t000001", "unit_id": "u1", "started_pulse": 10, "status": "ok", "without_evidence": true, "output": "現在は何もありません。", "error": null}
+{"type": "view", "pulse": 11, "unit_id": "u0", "snapshot_id": "s000011", "delta_ids": []}
+{"type": "view", "pulse": 11, "unit_id": "u1", "snapshot_id": "s000011", "delta_ids": []}
+{"type": "view", "pulse": 11, "unit_id": "u2", "snapshot_id": "s000011", "delta_ids": []}
+{"type": "view", "pulse": 11, "unit_id": "u3", "snapshot_id": "s000011", "delta_ids": []}
+{"type": "schedule", "pulse": 11, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 11, "delta_id": "d000001", "source_id": "u1", "output_port": "main", "target_id": "u2", "projection_weight": 0.4, "created_pulse": 11, "kind": "content", "payload": "現在は何もありません。", "parent_delta_ids": [], "origin_snapshot_id": "s000010", "origin_task_id": "t000001", "expires_after_pulse": 21}
+{"type": "delta", "pulse": 11, "delta_id": "d000002", "source_id": "u1", "output_port": "main", "target_id": "u3", "projection_weight": 0.6, "created_pulse": 11, "kind": "content", "payload": "現在は何もありません。", "parent_delta_ids": [], "origin_snapshot_id": "s000010", "origin_task_id": "t000001", "expires_after_pulse": 21}
+{"type": "pulse", "pulse": 12, "now": 4352.559396858, "dt": 1.0004201619995001}
+{"type": "view", "pulse": 12, "unit_id": "u0", "snapshot_id": "s000012", "delta_ids": []}
+{"type": "view", "pulse": 12, "unit_id": "u1", "snapshot_id": "s000012", "delta_ids": []}
+{"type": "view", "pulse": 12, "unit_id": "u2", "snapshot_id": "s000012", "delta_ids": ["d000001"]}
+{"type": "view", "pulse": 12, "unit_id": "u3", "snapshot_id": "s000012", "delta_ids": ["d000002"]}
+{"type": "claim", "pulse": 12, "unit_id": "u2", "resource_class": "llm_pool", "strength": 0.8358028874435774}
+{"type": "claim", "pulse": 12, "unit_id": "u3", "resource_class": "llm_pool", "strength": 1.0}
+{"type": "schedule", "pulse": 12, "accepted": ["u3"], "rejected": ["u2"], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 12, "task_id": "t000002", "unit_id": "u3", "resource_class": "llm_pool", "snapshot_id": "s000012", "input_delta_ids": ["d000002"], "without_evidence": false}
+{"type": "pulse", "pulse": 13, "now": 4353.560136485, "dt": 1.0007396270002573}
+{"type": "task_completed", "pulse": 13, "task_id": "t000002", "unit_id": "u3", "started_pulse": 12, "status": "ok", "without_evidence": false, "output": "何もありません。", "error": null}
+{"type": "view", "pulse": 13, "unit_id": "u0", "snapshot_id": "s000013", "delta_ids": []}
+{"type": "view", "pulse": 13, "unit_id": "u1", "snapshot_id": "s000013", "delta_ids": []}
+{"type": "view", "pulse": 13, "unit_id": "u2", "snapshot_id": "s000013", "delta_ids": ["d000001"]}
+{"type": "view", "pulse": 13, "unit_id": "u3", "snapshot_id": "s000013", "delta_ids": ["d000002"]}
+{"type": "schedule", "pulse": 13, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 13, "delta_id": "d000003", "source_id": "u3", "output_port": "main", "target_id": "effector.console", "projection_weight": 1.0, "created_pulse": 13, "kind": "content", "payload": "何もありません。", "parent_delta_ids": ["d000002"], "origin_snapshot_id": "s000012", "origin_task_id": "t000002", "expires_after_pulse": 23}
+{"type": "effect", "pulse": 13, "delta_id": "d000003", "effector_id": "effector.console"}
+{"type": "pulse", "pulse": 14, "now": 4354.560168503, "dt": 1.0000320179997289}
+{"type": "view", "pulse": 14, "unit_id": "u0", "snapshot_id": "s000014", "delta_ids": []}
+{"type": "view", "pulse": 14, "unit_id": "u1", "snapshot_id": "s000014", "delta_ids": []}
+{"type": "view", "pulse": 14, "unit_id": "u2", "snapshot_id": "s000014", "delta_ids": ["d000001"]}
+{"type": "view", "pulse": 14, "unit_id": "u3", "snapshot_id": "s000014", "delta_ids": ["d000002"]}
+{"type": "schedule", "pulse": 14, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 15, "now": 4355.559885999, "dt": 0.9997174959999029}
+{"type": "view", "pulse": 15, "unit_id": "u0", "snapshot_id": "s000015", "delta_ids": []}
+{"type": "view", "pulse": 15, "unit_id": "u1", "snapshot_id": "s000015", "delta_ids": []}
+{"type": "view", "pulse": 15, "unit_id": "u2", "snapshot_id": "s000015", "delta_ids": ["d000001"]}
+{"type": "view", "pulse": 15, "unit_id": "u3", "snapshot_id": "s000015", "delta_ids": ["d000002"]}
+{"type": "schedule", "pulse": 15, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 16, "now": 4356.559515604, "dt": 0.9996296050003366}
+{"type": "view", "pulse": 16, "unit_id": "u0", "snapshot_id": "s000016", "delta_ids": []}
+{"type": "view", "pulse": 16, "unit_id": "u1", "snapshot_id": "s000016", "delta_ids": []}
+{"type": "view", "pulse": 16, "unit_id": "u2", "snapshot_id": "s000016", "delta_ids": ["d000001"]}
+{"type": "view", "pulse": 16, "unit_id": "u3", "snapshot_id": "s000016", "delta_ids": ["d000002"]}
+{"type": "schedule", "pulse": 16, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 17, "now": 4357.559194274, "dt": 0.9996786700003213}
+{"type": "view", "pulse": 17, "unit_id": "u0", "snapshot_id": "s000017", "delta_ids": []}
+{"type": "view", "pulse": 17, "unit_id": "u1", "snapshot_id": "s000017", "delta_ids": []}
+{"type": "view", "pulse": 17, "unit_id": "u2", "snapshot_id": "s000017", "delta_ids": ["d000001"]}
+{"type": "view", "pulse": 17, "unit_id": "u3", "snapshot_id": "s000017", "delta_ids": ["d000002"]}
+{"type": "schedule", "pulse": 17, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 18, "now": 4358.559988765, "dt": 1.0007944909993967}
+{"type": "view", "pulse": 18, "unit_id": "u0", "snapshot_id": "s000018", "delta_ids": []}
+{"type": "view", "pulse": 18, "unit_id": "u1", "snapshot_id": "s000018", "delta_ids": []}
+{"type": "view", "pulse": 18, "unit_id": "u2", "snapshot_id": "s000018", "delta_ids": ["d000001"]}
+{"type": "view", "pulse": 18, "unit_id": "u3", "snapshot_id": "s000018", "delta_ids": ["d000002"]}
+{"type": "schedule", "pulse": 18, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 19, "now": 4359.55977755, "dt": 0.999788785000419}
+{"type": "view", "pulse": 19, "unit_id": "u0", "snapshot_id": "s000019", "delta_ids": []}
+{"type": "view", "pulse": 19, "unit_id": "u1", "snapshot_id": "s000019", "delta_ids": []}
+{"type": "view", "pulse": 19, "unit_id": "u2", "snapshot_id": "s000019", "delta_ids": ["d000001"]}
+{"type": "view", "pulse": 19, "unit_id": "u3", "snapshot_id": "s000019", "delta_ids": ["d000002"]}
+{"type": "schedule", "pulse": 19, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 20, "now": 4360.559620666, "dt": 0.9998431160001928}
+{"type": "view", "pulse": 20, "unit_id": "u0", "snapshot_id": "s000020", "delta_ids": []}
+{"type": "view", "pulse": 20, "unit_id": "u1", "snapshot_id": "s000020", "delta_ids": []}
+{"type": "view", "pulse": 20, "unit_id": "u2", "snapshot_id": "s000020", "delta_ids": ["d000001"]}
+{"type": "view", "pulse": 20, "unit_id": "u3", "snapshot_id": "s000020", "delta_ids": ["d000002"]}
+{"type": "schedule", "pulse": 20, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 21, "now": 4361.559385117, "dt": 0.9997644509994643}
+{"type": "view", "pulse": 21, "unit_id": "u0", "snapshot_id": "s000021", "delta_ids": []}
+{"type": "view", "pulse": 21, "unit_id": "u1", "snapshot_id": "s000021", "delta_ids": []}
+{"type": "view", "pulse": 21, "unit_id": "u2", "snapshot_id": "s000021", "delta_ids": ["d000001"]}
+{"type": "view", "pulse": 21, "unit_id": "u3", "snapshot_id": "s000021", "delta_ids": ["d000002"]}
+{"type": "schedule", "pulse": 21, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 22, "now": 4362.559210039, "dt": 0.9998249220006983}
+{"type": "view", "pulse": 22, "unit_id": "u0", "snapshot_id": "s000022", "delta_ids": []}
+{"type": "view", "pulse": 22, "unit_id": "u1", "snapshot_id": "s000022", "delta_ids": []}
+{"type": "view", "pulse": 22, "unit_id": "u2", "snapshot_id": "s000022", "delta_ids": []}
+{"type": "view", "pulse": 22, "unit_id": "u3", "snapshot_id": "s000022", "delta_ids": []}
+{"type": "claim", "pulse": 22, "unit_id": "u1", "resource_class": "llm_pool", "strength": 0.4790966879017975}
+{"type": "schedule", "pulse": 22, "accepted": ["u1"], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 22, "task_id": "t000003", "unit_id": "u1", "resource_class": "llm_pool", "snapshot_id": "s000022", "input_delta_ids": [], "without_evidence": true}
+{"type": "delta", "pulse": 22, "delta_id": "d000004", "source_id": "receptor.console", "output_port": "main", "target_id": "u0", "projection_weight": 1.0, "created_pulse": 22, "kind": "content", "payload": "こんばんは", "parent_delta_ids": [], "origin_snapshot_id": null, "origin_task_id": null, "expires_after_pulse": 32}
+{"type": "pulse", "pulse": 23, "now": 4363.559719135, "dt": 1.000509095999405}
+{"type": "view", "pulse": 23, "unit_id": "u0", "snapshot_id": "s000023", "delta_ids": ["d000004"]}
+{"type": "view", "pulse": 23, "unit_id": "u1", "snapshot_id": "s000023", "delta_ids": []}
+{"type": "view", "pulse": 23, "unit_id": "u2", "snapshot_id": "s000023", "delta_ids": []}
+{"type": "view", "pulse": 23, "unit_id": "u3", "snapshot_id": "s000023", "delta_ids": []}
+{"type": "schedule", "pulse": 23, "accepted": [], "rejected": [], "busy": ["u1"], "tie_broken": []}
+{"type": "delta", "pulse": 23, "delta_id": "d000005", "source_id": "u0", "output_port": "main", "target_id": "u1", "projection_weight": 1.0, "created_pulse": 23, "kind": "content", "payload": "こんばんは", "parent_delta_ids": ["d000004"], "origin_snapshot_id": "s000023", "origin_task_id": null, "expires_after_pulse": 33}
+{"type": "delta", "pulse": 23, "delta_id": "d000006", "source_id": "u0", "output_port": "main", "target_id": "u2", "projection_weight": 1.0, "created_pulse": 23, "kind": "content", "payload": "こんばんは", "parent_delta_ids": ["d000004"], "origin_snapshot_id": "s000023", "origin_task_id": null, "expires_after_pulse": 33}
+{"type": "pulse", "pulse": 24, "now": 4364.559736724, "dt": 1.000017588999981}
+{"type": "task_completed", "pulse": 24, "task_id": "t000003", "unit_id": "u1", "started_pulse": 22, "status": "ok", "without_evidence": true, "output": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "error": null}
+{"type": "view", "pulse": 24, "unit_id": "u0", "snapshot_id": "s000024", "delta_ids": ["d000004"]}
+{"type": "view", "pulse": 24, "unit_id": "u1", "snapshot_id": "s000024", "delta_ids": ["d000005"]}
+{"type": "view", "pulse": 24, "unit_id": "u2", "snapshot_id": "s000024", "delta_ids": ["d000006"]}
+{"type": "view", "pulse": 24, "unit_id": "u3", "snapshot_id": "s000024", "delta_ids": []}
+{"type": "claim", "pulse": 24, "unit_id": "u2", "resource_class": "llm_pool", "strength": 1.0}
+{"type": "schedule", "pulse": 24, "accepted": ["u2"], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 24, "task_id": "t000004", "unit_id": "u2", "resource_class": "llm_pool", "snapshot_id": "s000024", "input_delta_ids": ["d000006"], "without_evidence": false}
+{"type": "delta", "pulse": 24, "delta_id": "d000007", "source_id": "u1", "output_port": "main", "target_id": "u2", "projection_weight": 0.4, "created_pulse": 24, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000022", "origin_task_id": "t000003", "expires_after_pulse": 34}
+{"type": "delta", "pulse": 24, "delta_id": "d000008", "source_id": "u1", "output_port": "main", "target_id": "u3", "projection_weight": 0.6, "created_pulse": 24, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000022", "origin_task_id": "t000003", "expires_after_pulse": 34}
+{"type": "pulse", "pulse": 25, "now": 4365.559404036, "dt": 0.9996673120003834}
+{"type": "task_completed", "pulse": 25, "task_id": "t000004", "unit_id": "u2", "started_pulse": 24, "status": "ok", "without_evidence": false, "output": "夜の時間です。", "error": null}
+{"type": "view", "pulse": 25, "unit_id": "u0", "snapshot_id": "s000025", "delta_ids": ["d000004"]}
+{"type": "view", "pulse": 25, "unit_id": "u1", "snapshot_id": "s000025", "delta_ids": ["d000005"]}
+{"type": "view", "pulse": 25, "unit_id": "u2", "snapshot_id": "s000025", "delta_ids": ["d000006", "d000007"]}
+{"type": "view", "pulse": 25, "unit_id": "u3", "snapshot_id": "s000025", "delta_ids": ["d000008"]}
+{"type": "claim", "pulse": 25, "unit_id": "u3", "resource_class": "llm_pool", "strength": 1.0}
+{"type": "schedule", "pulse": 25, "accepted": ["u3"], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 25, "task_id": "t000005", "unit_id": "u3", "resource_class": "llm_pool", "snapshot_id": "s000025", "input_delta_ids": ["d000008"], "without_evidence": false}
+{"type": "delta", "pulse": 25, "delta_id": "d000009", "source_id": "u2", "output_port": "main", "target_id": "u1", "projection_weight": 0.4, "created_pulse": 25, "kind": "content", "payload": "夜の時間です。", "parent_delta_ids": ["d000006"], "origin_snapshot_id": "s000024", "origin_task_id": "t000004", "expires_after_pulse": 35}
+{"type": "delta", "pulse": 25, "delta_id": "d000010", "source_id": "u2", "output_port": "main", "target_id": "u3", "projection_weight": 0.6, "created_pulse": 25, "kind": "content", "payload": "夜の時間です。", "parent_delta_ids": ["d000006"], "origin_snapshot_id": "s000024", "origin_task_id": "t000004", "expires_after_pulse": 35}
+{"type": "pulse", "pulse": 26, "now": 4366.560288394, "dt": 1.0008843579998938}
+{"type": "view", "pulse": 26, "unit_id": "u0", "snapshot_id": "s000026", "delta_ids": ["d000004"]}
+{"type": "view", "pulse": 26, "unit_id": "u1", "snapshot_id": "s000026", "delta_ids": ["d000005", "d000009"]}
+{"type": "view", "pulse": 26, "unit_id": "u2", "snapshot_id": "s000026", "delta_ids": ["d000006", "d000007"]}
+{"type": "view", "pulse": 26, "unit_id": "u3", "snapshot_id": "s000026", "delta_ids": ["d000008", "d000010"]}
+{"type": "claim", "pulse": 26, "unit_id": "u1", "resource_class": "llm_pool", "strength": 1.0}
+{"type": "schedule", "pulse": 26, "accepted": [], "rejected": ["u1"], "busy": ["u3"], "tie_broken": []}
+{"type": "pulse", "pulse": 27, "now": 4367.560194099, "dt": 0.9999057049999465}
+{"type": "task_completed", "pulse": 27, "task_id": "t000005", "unit_id": "u3", "started_pulse": 25, "status": "ok", "without_evidence": false, "output": "状況が不明なので、具体的な情報が得られていない。", "error": null}
+{"type": "view", "pulse": 27, "unit_id": "u0", "snapshot_id": "s000027", "delta_ids": ["d000004"]}
+{"type": "view", "pulse": 27, "unit_id": "u1", "snapshot_id": "s000027", "delta_ids": ["d000005", "d000009"]}
+{"type": "view", "pulse": 27, "unit_id": "u2", "snapshot_id": "s000027", "delta_ids": ["d000006", "d000007"]}
+{"type": "view", "pulse": 27, "unit_id": "u3", "snapshot_id": "s000027", "delta_ids": ["d000008", "d000010"]}
+{"type": "schedule", "pulse": 27, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 27, "delta_id": "d000011", "source_id": "u3", "output_port": "main", "target_id": "effector.console", "projection_weight": 1.0, "created_pulse": 27, "kind": "content", "payload": "状況が不明なので、具体的な情報が得られていない。", "parent_delta_ids": ["d000008"], "origin_snapshot_id": "s000025", "origin_task_id": "t000005", "expires_after_pulse": 37}
+{"type": "effect", "pulse": 27, "delta_id": "d000011", "effector_id": "effector.console"}
+{"type": "pulse", "pulse": 28, "now": 4368.559723276, "dt": 0.9995291770001131}
+{"type": "view", "pulse": 28, "unit_id": "u0", "snapshot_id": "s000028", "delta_ids": ["d000004"]}
+{"type": "view", "pulse": 28, "unit_id": "u1", "snapshot_id": "s000028", "delta_ids": ["d000005", "d000009"]}
+{"type": "view", "pulse": 28, "unit_id": "u2", "snapshot_id": "s000028", "delta_ids": ["d000006", "d000007"]}
+{"type": "view", "pulse": 28, "unit_id": "u3", "snapshot_id": "s000028", "delta_ids": ["d000008", "d000010"]}
+{"type": "schedule", "pulse": 28, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 29, "now": 4369.559818589, "dt": 1.0000953130002017}
+{"type": "view", "pulse": 29, "unit_id": "u0", "snapshot_id": "s000029", "delta_ids": ["d000004"]}
+{"type": "view", "pulse": 29, "unit_id": "u1", "snapshot_id": "s000029", "delta_ids": ["d000005", "d000009"]}
+{"type": "view", "pulse": 29, "unit_id": "u2", "snapshot_id": "s000029", "delta_ids": ["d000006", "d000007"]}
+{"type": "view", "pulse": 29, "unit_id": "u3", "snapshot_id": "s000029", "delta_ids": ["d000008", "d000010"]}
+{"type": "claim", "pulse": 29, "unit_id": "u3", "resource_class": "llm_pool", "strength": 0.6091063308136836}
+{"type": "schedule", "pulse": 29, "accepted": ["u3"], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 29, "task_id": "t000006", "unit_id": "u3", "resource_class": "llm_pool", "snapshot_id": "s000029", "input_delta_ids": ["d000008", "d000010"], "without_evidence": false}
+{"type": "pulse", "pulse": 30, "now": 4370.559226698, "dt": 0.9994081089998872}
+{"type": "view", "pulse": 30, "unit_id": "u0", "snapshot_id": "s000030", "delta_ids": ["d000004"]}
+{"type": "view", "pulse": 30, "unit_id": "u1", "snapshot_id": "s000030", "delta_ids": ["d000005", "d000009"]}
+{"type": "view", "pulse": 30, "unit_id": "u2", "snapshot_id": "s000030", "delta_ids": ["d000006", "d000007"]}
+{"type": "view", "pulse": 30, "unit_id": "u3", "snapshot_id": "s000030", "delta_ids": ["d000008", "d000010"]}
+{"type": "schedule", "pulse": 30, "accepted": [], "rejected": [], "busy": ["u3"], "tie_broken": []}
+{"type": "pulse", "pulse": 31, "now": 4371.559092069, "dt": 0.9998653709999417}
+{"type": "task_completed", "pulse": 31, "task_id": "t000006", "unit_id": "u3", "started_pulse": 29, "status": "ok", "without_evidence": false, "output": "状況が不明なので、夜の時間だけは明確に言います。", "error": null}
+{"type": "view", "pulse": 31, "unit_id": "u0", "snapshot_id": "s000031", "delta_ids": ["d000004"]}
+{"type": "view", "pulse": 31, "unit_id": "u1", "snapshot_id": "s000031", "delta_ids": ["d000005", "d000009"]}
+{"type": "view", "pulse": 31, "unit_id": "u2", "snapshot_id": "s000031", "delta_ids": ["d000006", "d000007"]}
+{"type": "view", "pulse": 31, "unit_id": "u3", "snapshot_id": "s000031", "delta_ids": ["d000008", "d000010"]}
+{"type": "schedule", "pulse": 31, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 31, "delta_id": "d000012", "source_id": "u3", "output_port": "main", "target_id": "effector.console", "projection_weight": 1.0, "created_pulse": 31, "kind": "content", "payload": "状況が不明なので、夜の時間だけは明確に言います。", "parent_delta_ids": ["d000008", "d000010"], "origin_snapshot_id": "s000029", "origin_task_id": "t000006", "expires_after_pulse": 41}
+{"type": "effect", "pulse": 31, "delta_id": "d000012", "effector_id": "effector.console"}
+{"type": "pulse", "pulse": 32, "now": 4372.559594236, "dt": 1.0005021669994676}
+{"type": "view", "pulse": 32, "unit_id": "u0", "snapshot_id": "s000032", "delta_ids": ["d000004"]}
+{"type": "view", "pulse": 32, "unit_id": "u1", "snapshot_id": "s000032", "delta_ids": ["d000005", "d000009"]}
+{"type": "view", "pulse": 32, "unit_id": "u2", "snapshot_id": "s000032", "delta_ids": ["d000006", "d000007"]}
+{"type": "view", "pulse": 32, "unit_id": "u3", "snapshot_id": "s000032", "delta_ids": ["d000008", "d000010"]}
+{"type": "schedule", "pulse": 32, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 33, "now": 4373.559303221, "dt": 0.9997089850003249}
+{"type": "view", "pulse": 33, "unit_id": "u0", "snapshot_id": "s000033", "delta_ids": []}
+{"type": "view", "pulse": 33, "unit_id": "u1", "snapshot_id": "s000033", "delta_ids": ["d000005", "d000009"]}
+{"type": "view", "pulse": 33, "unit_id": "u2", "snapshot_id": "s000033", "delta_ids": ["d000006", "d000007"]}
+{"type": "view", "pulse": 33, "unit_id": "u3", "snapshot_id": "s000033", "delta_ids": ["d000008", "d000010"]}
+{"type": "schedule", "pulse": 33, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 34, "now": 4374.560091574, "dt": 1.0007883529997343}
+{"type": "view", "pulse": 34, "unit_id": "u0", "snapshot_id": "s000034", "delta_ids": []}
+{"type": "view", "pulse": 34, "unit_id": "u1", "snapshot_id": "s000034", "delta_ids": ["d000009"]}
+{"type": "view", "pulse": 34, "unit_id": "u2", "snapshot_id": "s000034", "delta_ids": ["d000007"]}
+{"type": "view", "pulse": 34, "unit_id": "u3", "snapshot_id": "s000034", "delta_ids": ["d000008", "d000010"]}
+{"type": "schedule", "pulse": 34, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 35, "now": 4375.559646093, "dt": 0.9995545190004123}
+{"type": "view", "pulse": 35, "unit_id": "u0", "snapshot_id": "s000035", "delta_ids": []}
+{"type": "view", "pulse": 35, "unit_id": "u1", "snapshot_id": "s000035", "delta_ids": ["d000009"]}
+{"type": "view", "pulse": 35, "unit_id": "u2", "snapshot_id": "s000035", "delta_ids": []}
+{"type": "view", "pulse": 35, "unit_id": "u3", "snapshot_id": "s000035", "delta_ids": ["d000010"]}
+{"type": "schedule", "pulse": 35, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 36, "now": 4376.559606936, "dt": 0.9999608429998261}
+{"type": "view", "pulse": 36, "unit_id": "u0", "snapshot_id": "s000036", "delta_ids": []}
+{"type": "view", "pulse": 36, "unit_id": "u1", "snapshot_id": "s000036", "delta_ids": []}
+{"type": "view", "pulse": 36, "unit_id": "u2", "snapshot_id": "s000036", "delta_ids": []}
+{"type": "view", "pulse": 36, "unit_id": "u3", "snapshot_id": "s000036", "delta_ids": []}
+{"type": "schedule", "pulse": 36, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 37, "now": 4377.559424465, "dt": 0.9998175290002109}
+{"type": "view", "pulse": 37, "unit_id": "u0", "snapshot_id": "s000037", "delta_ids": []}
+{"type": "view", "pulse": 37, "unit_id": "u1", "snapshot_id": "s000037", "delta_ids": []}
+{"type": "view", "pulse": 37, "unit_id": "u2", "snapshot_id": "s000037", "delta_ids": []}
+{"type": "view", "pulse": 37, "unit_id": "u3", "snapshot_id": "s000037", "delta_ids": []}
+{"type": "schedule", "pulse": 37, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 38, "now": 4378.559301459, "dt": 0.9998769940002603}
+{"type": "view", "pulse": 38, "unit_id": "u0", "snapshot_id": "s000038", "delta_ids": []}
+{"type": "view", "pulse": 38, "unit_id": "u1", "snapshot_id": "s000038", "delta_ids": []}
+{"type": "view", "pulse": 38, "unit_id": "u2", "snapshot_id": "s000038", "delta_ids": []}
+{"type": "view", "pulse": 38, "unit_id": "u3", "snapshot_id": "s000038", "delta_ids": []}
+{"type": "claim", "pulse": 38, "unit_id": "u1", "resource_class": "llm_pool", "strength": 0.47909142792040244}
+{"type": "schedule", "pulse": 38, "accepted": ["u1"], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 38, "task_id": "t000007", "unit_id": "u1", "resource_class": "llm_pool", "snapshot_id": "s000038", "input_delta_ids": [], "without_evidence": true}
+{"type": "pulse", "pulse": 39, "now": 4379.558903758, "dt": 0.9996022989998892}
+{"type": "task_completed", "pulse": 39, "task_id": "t000007", "unit_id": "u1", "started_pulse": 38, "status": "ok", "without_evidence": true, "output": "現在は何もありません。", "error": null}
+{"type": "view", "pulse": 39, "unit_id": "u0", "snapshot_id": "s000039", "delta_ids": []}
+{"type": "view", "pulse": 39, "unit_id": "u1", "snapshot_id": "s000039", "delta_ids": []}
+{"type": "view", "pulse": 39, "unit_id": "u2", "snapshot_id": "s000039", "delta_ids": []}
+{"type": "view", "pulse": 39, "unit_id": "u3", "snapshot_id": "s000039", "delta_ids": []}
+{"type": "schedule", "pulse": 39, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 39, "delta_id": "d000013", "source_id": "u1", "output_port": "main", "target_id": "u2", "projection_weight": 0.4, "created_pulse": 39, "kind": "content", "payload": "現在は何もありません。", "parent_delta_ids": [], "origin_snapshot_id": "s000038", "origin_task_id": "t000007", "expires_after_pulse": 49}
+{"type": "delta", "pulse": 39, "delta_id": "d000014", "source_id": "u1", "output_port": "main", "target_id": "u3", "projection_weight": 0.6, "created_pulse": 39, "kind": "content", "payload": "現在は何もありません。", "parent_delta_ids": [], "origin_snapshot_id": "s000038", "origin_task_id": "t000007", "expires_after_pulse": 49}
+{"type": "pulse", "pulse": 40, "now": 4380.559403521, "dt": 1.000499762999425}
+{"type": "view", "pulse": 40, "unit_id": "u0", "snapshot_id": "s000040", "delta_ids": []}
+{"type": "view", "pulse": 40, "unit_id": "u1", "snapshot_id": "s000040", "delta_ids": []}
+{"type": "view", "pulse": 40, "unit_id": "u2", "snapshot_id": "s000040", "delta_ids": ["d000013"]}
+{"type": "view", "pulse": 40, "unit_id": "u3", "snapshot_id": "s000040", "delta_ids": ["d000014"]}
+{"type": "claim", "pulse": 40, "unit_id": "u2", "resource_class": "llm_pool", "strength": 0.8878837420500166}
+{"type": "claim", "pulse": 40, "unit_id": "u3", "resource_class": "llm_pool", "strength": 1.0}
+{"type": "schedule", "pulse": 40, "accepted": ["u3"], "rejected": ["u2"], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 40, "task_id": "t000008", "unit_id": "u3", "resource_class": "llm_pool", "snapshot_id": "s000040", "input_delta_ids": ["d000014"], "without_evidence": false}
+{"type": "pulse", "pulse": 41, "now": 4381.558863562, "dt": 0.9994600410000203}
+{"type": "task_completed", "pulse": 41, "task_id": "t000008", "unit_id": "u3", "started_pulse": 40, "status": "ok", "without_evidence": false, "output": "何もありません。", "error": null}
+{"type": "view", "pulse": 41, "unit_id": "u0", "snapshot_id": "s000041", "delta_ids": []}
+{"type": "view", "pulse": 41, "unit_id": "u1", "snapshot_id": "s000041", "delta_ids": []}
+{"type": "view", "pulse": 41, "unit_id": "u2", "snapshot_id": "s000041", "delta_ids": ["d000013"]}
+{"type": "view", "pulse": 41, "unit_id": "u3", "snapshot_id": "s000041", "delta_ids": ["d000014"]}
+{"type": "schedule", "pulse": 41, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 41, "delta_id": "d000015", "source_id": "u3", "output_port": "main", "target_id": "effector.console", "projection_weight": 1.0, "created_pulse": 41, "kind": "content", "payload": "何もありません。", "parent_delta_ids": ["d000014"], "origin_snapshot_id": "s000040", "origin_task_id": "t000008", "expires_after_pulse": 51}
+{"type": "effect", "pulse": 41, "delta_id": "d000015", "effector_id": "effector.console"}
+{"type": "pulse", "pulse": 42, "now": 4382.559207783, "dt": 1.0003442209999776}
+{"type": "view", "pulse": 42, "unit_id": "u0", "snapshot_id": "s000042", "delta_ids": []}
+{"type": "view", "pulse": 42, "unit_id": "u1", "snapshot_id": "s000042", "delta_ids": []}
+{"type": "view", "pulse": 42, "unit_id": "u2", "snapshot_id": "s000042", "delta_ids": ["d000013"]}
+{"type": "view", "pulse": 42, "unit_id": "u3", "snapshot_id": "s000042", "delta_ids": ["d000014"]}
+{"type": "schedule", "pulse": 42, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 43, "now": 4383.559908162, "dt": 1.000700379000591}
+{"type": "view", "pulse": 43, "unit_id": "u0", "snapshot_id": "s000043", "delta_ids": []}
+{"type": "view", "pulse": 43, "unit_id": "u1", "snapshot_id": "s000043", "delta_ids": []}
+{"type": "view", "pulse": 43, "unit_id": "u2", "snapshot_id": "s000043", "delta_ids": ["d000013"]}
+{"type": "view", "pulse": 43, "unit_id": "u3", "snapshot_id": "s000043", "delta_ids": ["d000014"]}
+{"type": "schedule", "pulse": 43, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 44, "now": 4384.559274578, "dt": 0.9993664160001572}
+{"type": "view", "pulse": 44, "unit_id": "u0", "snapshot_id": "s000044", "delta_ids": []}
+{"type": "view", "pulse": 44, "unit_id": "u1", "snapshot_id": "s000044", "delta_ids": []}
+{"type": "view", "pulse": 44, "unit_id": "u2", "snapshot_id": "s000044", "delta_ids": ["d000013"]}
+{"type": "view", "pulse": 44, "unit_id": "u3", "snapshot_id": "s000044", "delta_ids": ["d000014"]}
+{"type": "schedule", "pulse": 44, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 45, "now": 4385.560186836, "dt": 1.0009122579995164}
+{"type": "view", "pulse": 45, "unit_id": "u0", "snapshot_id": "s000045", "delta_ids": []}
+{"type": "view", "pulse": 45, "unit_id": "u1", "snapshot_id": "s000045", "delta_ids": []}
+{"type": "view", "pulse": 45, "unit_id": "u2", "snapshot_id": "s000045", "delta_ids": ["d000013"]}
+{"type": "view", "pulse": 45, "unit_id": "u3", "snapshot_id": "s000045", "delta_ids": ["d000014"]}
+{"type": "schedule", "pulse": 45, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 46, "now": 4386.559949496, "dt": 0.9997626599997602}
+{"type": "view", "pulse": 46, "unit_id": "u0", "snapshot_id": "s000046", "delta_ids": []}
+{"type": "view", "pulse": 46, "unit_id": "u1", "snapshot_id": "s000046", "delta_ids": []}
+{"type": "view", "pulse": 46, "unit_id": "u2", "snapshot_id": "s000046", "delta_ids": ["d000013"]}
+{"type": "view", "pulse": 46, "unit_id": "u3", "snapshot_id": "s000046", "delta_ids": ["d000014"]}
+{"type": "schedule", "pulse": 46, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 47, "now": 4387.559902938, "dt": 0.9999534420003329}
+{"type": "view", "pulse": 47, "unit_id": "u0", "snapshot_id": "s000047", "delta_ids": []}
+{"type": "view", "pulse": 47, "unit_id": "u1", "snapshot_id": "s000047", "delta_ids": []}
+{"type": "view", "pulse": 47, "unit_id": "u2", "snapshot_id": "s000047", "delta_ids": ["d000013"]}
+{"type": "view", "pulse": 47, "unit_id": "u3", "snapshot_id": "s000047", "delta_ids": ["d000014"]}
+{"type": "schedule", "pulse": 47, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 48, "now": 4388.559758086, "dt": 0.9998551480002789}
+{"type": "view", "pulse": 48, "unit_id": "u0", "snapshot_id": "s000048", "delta_ids": []}
+{"type": "view", "pulse": 48, "unit_id": "u1", "snapshot_id": "s000048", "delta_ids": []}
+{"type": "view", "pulse": 48, "unit_id": "u2", "snapshot_id": "s000048", "delta_ids": ["d000013"]}
+{"type": "view", "pulse": 48, "unit_id": "u3", "snapshot_id": "s000048", "delta_ids": ["d000014"]}
+{"type": "schedule", "pulse": 48, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 49, "now": 4389.55962087, "dt": 0.9998627839995606}
+{"type": "view", "pulse": 49, "unit_id": "u0", "snapshot_id": "s000049", "delta_ids": []}
+{"type": "view", "pulse": 49, "unit_id": "u1", "snapshot_id": "s000049", "delta_ids": []}
+{"type": "view", "pulse": 49, "unit_id": "u2", "snapshot_id": "s000049", "delta_ids": ["d000013"]}
+{"type": "view", "pulse": 49, "unit_id": "u3", "snapshot_id": "s000049", "delta_ids": ["d000014"]}
+{"type": "schedule", "pulse": 49, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 50, "now": 4390.559315197, "dt": 0.9996943269998155}
+{"type": "view", "pulse": 50, "unit_id": "u0", "snapshot_id": "s000050", "delta_ids": []}
+{"type": "view", "pulse": 50, "unit_id": "u1", "snapshot_id": "s000050", "delta_ids": []}
+{"type": "view", "pulse": 50, "unit_id": "u2", "snapshot_id": "s000050", "delta_ids": []}
+{"type": "view", "pulse": 50, "unit_id": "u3", "snapshot_id": "s000050", "delta_ids": []}
+{"type": "claim", "pulse": 50, "unit_id": "u1", "resource_class": "llm_pool", "strength": 0.4791050833327887}
+{"type": "schedule", "pulse": 50, "accepted": ["u1"], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 50, "task_id": "t000009", "unit_id": "u1", "resource_class": "llm_pool", "snapshot_id": "s000050", "input_delta_ids": [], "without_evidence": true}
+{"type": "pulse", "pulse": 51, "now": 4391.55957106, "dt": 1.0002558630003477}
+{"type": "view", "pulse": 51, "unit_id": "u0", "snapshot_id": "s000051", "delta_ids": []}
+{"type": "view", "pulse": 51, "unit_id": "u1", "snapshot_id": "s000051", "delta_ids": []}
+{"type": "view", "pulse": 51, "unit_id": "u2", "snapshot_id": "s000051", "delta_ids": []}
+{"type": "view", "pulse": 51, "unit_id": "u3", "snapshot_id": "s000051", "delta_ids": []}
+{"type": "schedule", "pulse": 51, "accepted": [], "rejected": [], "busy": ["u1"], "tie_broken": []}
+{"type": "pulse", "pulse": 52, "now": 4392.559728829, "dt": 1.0001577689999976}
+{"type": "task_completed", "pulse": 52, "task_id": "t000009", "unit_id": "u1", "started_pulse": 50, "status": "ok", "without_evidence": true, "output": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "error": null}
+{"type": "view", "pulse": 52, "unit_id": "u0", "snapshot_id": "s000052", "delta_ids": []}
+{"type": "view", "pulse": 52, "unit_id": "u1", "snapshot_id": "s000052", "delta_ids": []}
+{"type": "view", "pulse": 52, "unit_id": "u2", "snapshot_id": "s000052", "delta_ids": []}
+{"type": "view", "pulse": 52, "unit_id": "u3", "snapshot_id": "s000052", "delta_ids": []}
+{"type": "schedule", "pulse": 52, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 52, "delta_id": "d000016", "source_id": "u1", "output_port": "main", "target_id": "u2", "projection_weight": 0.4, "created_pulse": 52, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000050", "origin_task_id": "t000009", "expires_after_pulse": 62}
+{"type": "delta", "pulse": 52, "delta_id": "d000017", "source_id": "u1", "output_port": "main", "target_id": "u3", "projection_weight": 0.6, "created_pulse": 52, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000050", "origin_task_id": "t000009", "expires_after_pulse": 62}
+{"type": "pulse", "pulse": 53, "now": 4393.559875952, "dt": 1.000147122999806}
+{"type": "view", "pulse": 53, "unit_id": "u0", "snapshot_id": "s000053", "delta_ids": []}
+{"type": "view", "pulse": 53, "unit_id": "u1", "snapshot_id": "s000053", "delta_ids": []}
+{"type": "view", "pulse": 53, "unit_id": "u2", "snapshot_id": "s000053", "delta_ids": ["d000016"]}
+{"type": "view", "pulse": 53, "unit_id": "u3", "snapshot_id": "s000053", "delta_ids": ["d000017"]}
+{"type": "claim", "pulse": 53, "unit_id": "u2", "resource_class": "llm_pool", "strength": 0.8301237328528781}
+{"type": "claim", "pulse": 53, "unit_id": "u3", "resource_class": "llm_pool", "strength": 1.0}
+{"type": "schedule", "pulse": 53, "accepted": ["u3"], "rejected": ["u2"], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 53, "task_id": "t000010", "unit_id": "u3", "resource_class": "llm_pool", "snapshot_id": "s000053", "input_delta_ids": ["d000017"], "without_evidence": false}
+{"type": "pulse", "pulse": 54, "now": 4394.559195951, "dt": 0.9993199990003632}
+{"type": "view", "pulse": 54, "unit_id": "u0", "snapshot_id": "s000054", "delta_ids": []}
+{"type": "view", "pulse": 54, "unit_id": "u1", "snapshot_id": "s000054", "delta_ids": []}
+{"type": "view", "pulse": 54, "unit_id": "u2", "snapshot_id": "s000054", "delta_ids": ["d000016"]}
+{"type": "view", "pulse": 54, "unit_id": "u3", "snapshot_id": "s000054", "delta_ids": ["d000017"]}
+{"type": "schedule", "pulse": 54, "accepted": [], "rejected": [], "busy": ["u3"], "tie_broken": []}
+{"type": "pulse", "pulse": 55, "now": 4395.561030492, "dt": 1.0018345409998801}
+{"type": "task_completed", "pulse": 55, "task_id": "t000010", "unit_id": "u3", "started_pulse": 53, "status": "ok", "without_evidence": false, "output": "状況が不明なので、具体的な情報が得られていない。", "error": null}
+{"type": "view", "pulse": 55, "unit_id": "u0", "snapshot_id": "s000055", "delta_ids": []}
+{"type": "view", "pulse": 55, "unit_id": "u1", "snapshot_id": "s000055", "delta_ids": []}
+{"type": "view", "pulse": 55, "unit_id": "u2", "snapshot_id": "s000055", "delta_ids": ["d000016"]}
+{"type": "view", "pulse": 55, "unit_id": "u3", "snapshot_id": "s000055", "delta_ids": ["d000017"]}
+{"type": "schedule", "pulse": 55, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 55, "delta_id": "d000018", "source_id": "u3", "output_port": "main", "target_id": "effector.console", "projection_weight": 1.0, "created_pulse": 55, "kind": "content", "payload": "状況が不明なので、具体的な情報が得られていない。", "parent_delta_ids": ["d000017"], "origin_snapshot_id": "s000053", "origin_task_id": "t000010", "expires_after_pulse": 65}
+{"type": "effect", "pulse": 55, "delta_id": "d000018", "effector_id": "effector.console"}
+{"type": "pulse", "pulse": 56, "now": 4396.559765671, "dt": 0.9987351789995955}
+{"type": "view", "pulse": 56, "unit_id": "u0", "snapshot_id": "s000056", "delta_ids": []}
+{"type": "view", "pulse": 56, "unit_id": "u1", "snapshot_id": "s000056", "delta_ids": []}
+{"type": "view", "pulse": 56, "unit_id": "u2", "snapshot_id": "s000056", "delta_ids": ["d000016"]}
+{"type": "view", "pulse": 56, "unit_id": "u3", "snapshot_id": "s000056", "delta_ids": ["d000017"]}
+{"type": "schedule", "pulse": 56, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 57, "now": 4397.559591023, "dt": 0.9998253520006983}
+{"type": "view", "pulse": 57, "unit_id": "u0", "snapshot_id": "s000057", "delta_ids": []}
+{"type": "view", "pulse": 57, "unit_id": "u1", "snapshot_id": "s000057", "delta_ids": []}
+{"type": "view", "pulse": 57, "unit_id": "u2", "snapshot_id": "s000057", "delta_ids": ["d000016"]}
+{"type": "view", "pulse": 57, "unit_id": "u3", "snapshot_id": "s000057", "delta_ids": ["d000017"]}
+{"type": "schedule", "pulse": 57, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 58, "now": 4398.560123505, "dt": 1.0005324819994712}
+{"type": "view", "pulse": 58, "unit_id": "u0", "snapshot_id": "s000058", "delta_ids": []}
+{"type": "view", "pulse": 58, "unit_id": "u1", "snapshot_id": "s000058", "delta_ids": []}
+{"type": "view", "pulse": 58, "unit_id": "u2", "snapshot_id": "s000058", "delta_ids": ["d000016"]}
+{"type": "view", "pulse": 58, "unit_id": "u3", "snapshot_id": "s000058", "delta_ids": ["d000017"]}
+{"type": "schedule", "pulse": 58, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 59, "now": 4399.559598844, "dt": 0.9994753390001279}
+{"type": "view", "pulse": 59, "unit_id": "u0", "snapshot_id": "s000059", "delta_ids": []}
+{"type": "view", "pulse": 59, "unit_id": "u1", "snapshot_id": "s000059", "delta_ids": []}
+{"type": "view", "pulse": 59, "unit_id": "u2", "snapshot_id": "s000059", "delta_ids": ["d000016"]}
+{"type": "view", "pulse": 59, "unit_id": "u3", "snapshot_id": "s000059", "delta_ids": ["d000017"]}
+{"type": "schedule", "pulse": 59, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 60, "now": 4400.559187913, "dt": 0.9995890689997395}
+{"type": "view", "pulse": 60, "unit_id": "u0", "snapshot_id": "s000060", "delta_ids": []}
+{"type": "view", "pulse": 60, "unit_id": "u1", "snapshot_id": "s000060", "delta_ids": []}
+{"type": "view", "pulse": 60, "unit_id": "u2", "snapshot_id": "s000060", "delta_ids": ["d000016"]}
+{"type": "view", "pulse": 60, "unit_id": "u3", "snapshot_id": "s000060", "delta_ids": ["d000017"]}
+{"type": "schedule", "pulse": 60, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 61, "now": 4401.559760162, "dt": 1.00057224900047}
+{"type": "view", "pulse": 61, "unit_id": "u0", "snapshot_id": "s000061", "delta_ids": []}
+{"type": "view", "pulse": 61, "unit_id": "u1", "snapshot_id": "s000061", "delta_ids": []}
+{"type": "view", "pulse": 61, "unit_id": "u2", "snapshot_id": "s000061", "delta_ids": ["d000016"]}
+{"type": "view", "pulse": 61, "unit_id": "u3", "snapshot_id": "s000061", "delta_ids": ["d000017"]}
+{"type": "schedule", "pulse": 61, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 62, "now": 4402.559349504, "dt": 0.9995893420000357}
+{"type": "view", "pulse": 62, "unit_id": "u0", "snapshot_id": "s000062", "delta_ids": []}
+{"type": "view", "pulse": 62, "unit_id": "u1", "snapshot_id": "s000062", "delta_ids": []}
+{"type": "view", "pulse": 62, "unit_id": "u2", "snapshot_id": "s000062", "delta_ids": ["d000016"]}
+{"type": "view", "pulse": 62, "unit_id": "u3", "snapshot_id": "s000062", "delta_ids": ["d000017"]}
+{"type": "claim", "pulse": 62, "unit_id": "u1", "resource_class": "llm_pool", "strength": 0.47910522409614525}
+{"type": "schedule", "pulse": 62, "accepted": ["u1"], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 62, "task_id": "t000011", "unit_id": "u1", "resource_class": "llm_pool", "snapshot_id": "s000062", "input_delta_ids": [], "without_evidence": true}
+{"type": "pulse", "pulse": 63, "now": 4403.559614703, "dt": 1.0002651989998412}
+{"type": "view", "pulse": 63, "unit_id": "u0", "snapshot_id": "s000063", "delta_ids": []}
+{"type": "view", "pulse": 63, "unit_id": "u1", "snapshot_id": "s000063", "delta_ids": []}
+{"type": "view", "pulse": 63, "unit_id": "u2", "snapshot_id": "s000063", "delta_ids": []}
+{"type": "view", "pulse": 63, "unit_id": "u3", "snapshot_id": "s000063", "delta_ids": []}
+{"type": "schedule", "pulse": 63, "accepted": [], "rejected": [], "busy": ["u1"], "tie_broken": []}
+{"type": "pulse", "pulse": 64, "now": 4404.558968519, "dt": 0.9993538159997115}
+{"type": "task_completed", "pulse": 64, "task_id": "t000011", "unit_id": "u1", "started_pulse": 62, "status": "ok", "without_evidence": true, "output": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "error": null}
+{"type": "view", "pulse": 64, "unit_id": "u0", "snapshot_id": "s000064", "delta_ids": []}
+{"type": "view", "pulse": 64, "unit_id": "u1", "snapshot_id": "s000064", "delta_ids": []}
+{"type": "view", "pulse": 64, "unit_id": "u2", "snapshot_id": "s000064", "delta_ids": []}
+{"type": "view", "pulse": 64, "unit_id": "u3", "snapshot_id": "s000064", "delta_ids": []}
+{"type": "schedule", "pulse": 64, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 64, "delta_id": "d000019", "source_id": "u1", "output_port": "main", "target_id": "u2", "projection_weight": 0.4, "created_pulse": 64, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000062", "origin_task_id": "t000011", "expires_after_pulse": 74}
+{"type": "delta", "pulse": 64, "delta_id": "d000020", "source_id": "u1", "output_port": "main", "target_id": "u3", "projection_weight": 0.6, "created_pulse": 64, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000062", "origin_task_id": "t000011", "expires_after_pulse": 74}
+{"type": "pulse", "pulse": 65, "now": 4405.559443776, "dt": 1.0004752570002893}
+{"type": "view", "pulse": 65, "unit_id": "u0", "snapshot_id": "s000065", "delta_ids": []}
+{"type": "view", "pulse": 65, "unit_id": "u1", "snapshot_id": "s000065", "delta_ids": []}
+{"type": "view", "pulse": 65, "unit_id": "u2", "snapshot_id": "s000065", "delta_ids": ["d000019"]}
+{"type": "view", "pulse": 65, "unit_id": "u3", "snapshot_id": "s000065", "delta_ids": ["d000020"]}
+{"type": "claim", "pulse": 65, "unit_id": "u2", "resource_class": "llm_pool", "strength": 0.8196726780396499}
+{"type": "claim", "pulse": 65, "unit_id": "u3", "resource_class": "llm_pool", "strength": 1.0}
+{"type": "schedule", "pulse": 65, "accepted": ["u3"], "rejected": ["u2"], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 65, "task_id": "t000012", "unit_id": "u3", "resource_class": "llm_pool", "snapshot_id": "s000065", "input_delta_ids": ["d000020"], "without_evidence": false}
+{"type": "pulse", "pulse": 66, "now": 4406.559903161, "dt": 1.0004593849998855}
+{"type": "view", "pulse": 66, "unit_id": "u0", "snapshot_id": "s000066", "delta_ids": []}
+{"type": "view", "pulse": 66, "unit_id": "u1", "snapshot_id": "s000066", "delta_ids": []}
+{"type": "view", "pulse": 66, "unit_id": "u2", "snapshot_id": "s000066", "delta_ids": ["d000019"]}
+{"type": "view", "pulse": 66, "unit_id": "u3", "snapshot_id": "s000066", "delta_ids": ["d000020"]}
+{"type": "schedule", "pulse": 66, "accepted": [], "rejected": [], "busy": ["u3"], "tie_broken": []}
+{"type": "pulse", "pulse": 67, "now": 4407.55987087, "dt": 0.999967708999975}
+{"type": "task_completed", "pulse": 67, "task_id": "t000012", "unit_id": "u3", "started_pulse": 65, "status": "ok", "without_evidence": false, "output": "状況が不明なので、具体的な情報が得られていない。", "error": null}
+{"type": "view", "pulse": 67, "unit_id": "u0", "snapshot_id": "s000067", "delta_ids": []}
+{"type": "view", "pulse": 67, "unit_id": "u1", "snapshot_id": "s000067", "delta_ids": []}
+{"type": "view", "pulse": 67, "unit_id": "u2", "snapshot_id": "s000067", "delta_ids": ["d000019"]}
+{"type": "view", "pulse": 67, "unit_id": "u3", "snapshot_id": "s000067", "delta_ids": ["d000020"]}
+{"type": "schedule", "pulse": 67, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 67, "delta_id": "d000021", "source_id": "u3", "output_port": "main", "target_id": "effector.console", "projection_weight": 1.0, "created_pulse": 67, "kind": "content", "payload": "状況が不明なので、具体的な情報が得られていない。", "parent_delta_ids": ["d000020"], "origin_snapshot_id": "s000065", "origin_task_id": "t000012", "expires_after_pulse": 77}
+{"type": "effect", "pulse": 67, "delta_id": "d000021", "effector_id": "effector.console"}
+{"type": "pulse", "pulse": 68, "now": 4408.559605362, "dt": 0.9997344920002433}
+{"type": "view", "pulse": 68, "unit_id": "u0", "snapshot_id": "s000068", "delta_ids": []}
+{"type": "view", "pulse": 68, "unit_id": "u1", "snapshot_id": "s000068", "delta_ids": []}
+{"type": "view", "pulse": 68, "unit_id": "u2", "snapshot_id": "s000068", "delta_ids": ["d000019"]}
+{"type": "view", "pulse": 68, "unit_id": "u3", "snapshot_id": "s000068", "delta_ids": ["d000020"]}
+{"type": "schedule", "pulse": 68, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 69, "now": 4409.560138542, "dt": 1.0005331799993655}
+{"type": "view", "pulse": 69, "unit_id": "u0", "snapshot_id": "s000069", "delta_ids": []}
+{"type": "view", "pulse": 69, "unit_id": "u1", "snapshot_id": "s000069", "delta_ids": []}
+{"type": "view", "pulse": 69, "unit_id": "u2", "snapshot_id": "s000069", "delta_ids": ["d000019"]}
+{"type": "view", "pulse": 69, "unit_id": "u3", "snapshot_id": "s000069", "delta_ids": ["d000020"]}
+{"type": "schedule", "pulse": 69, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 70, "now": 4410.56008193, "dt": 0.9999433880002471}
+{"type": "view", "pulse": 70, "unit_id": "u0", "snapshot_id": "s000070", "delta_ids": []}
+{"type": "view", "pulse": 70, "unit_id": "u1", "snapshot_id": "s000070", "delta_ids": []}
+{"type": "view", "pulse": 70, "unit_id": "u2", "snapshot_id": "s000070", "delta_ids": ["d000019"]}
+{"type": "view", "pulse": 70, "unit_id": "u3", "snapshot_id": "s000070", "delta_ids": ["d000020"]}
+{"type": "schedule", "pulse": 70, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 71, "now": 4411.55977279, "dt": 0.9996908600005554}
+{"type": "view", "pulse": 71, "unit_id": "u0", "snapshot_id": "s000071", "delta_ids": []}
+{"type": "view", "pulse": 71, "unit_id": "u1", "snapshot_id": "s000071", "delta_ids": []}
+{"type": "view", "pulse": 71, "unit_id": "u2", "snapshot_id": "s000071", "delta_ids": ["d000019"]}
+{"type": "view", "pulse": 71, "unit_id": "u3", "snapshot_id": "s000071", "delta_ids": ["d000020"]}
+{"type": "schedule", "pulse": 71, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 72, "now": 4412.560196126, "dt": 1.000423335999585}
+{"type": "view", "pulse": 72, "unit_id": "u0", "snapshot_id": "s000072", "delta_ids": []}
+{"type": "view", "pulse": 72, "unit_id": "u1", "snapshot_id": "s000072", "delta_ids": []}
+{"type": "view", "pulse": 72, "unit_id": "u2", "snapshot_id": "s000072", "delta_ids": ["d000019"]}
+{"type": "view", "pulse": 72, "unit_id": "u3", "snapshot_id": "s000072", "delta_ids": ["d000020"]}
+{"type": "schedule", "pulse": 72, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 73, "now": 4413.560095022, "dt": 0.9998988959996495}
+{"type": "view", "pulse": 73, "unit_id": "u0", "snapshot_id": "s000073", "delta_ids": []}
+{"type": "view", "pulse": 73, "unit_id": "u1", "snapshot_id": "s000073", "delta_ids": []}
+{"type": "view", "pulse": 73, "unit_id": "u2", "snapshot_id": "s000073", "delta_ids": ["d000019"]}
+{"type": "view", "pulse": 73, "unit_id": "u3", "snapshot_id": "s000073", "delta_ids": ["d000020"]}
+{"type": "schedule", "pulse": 73, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 74, "now": 4414.5600321, "dt": 0.9999370780005847}
+{"type": "view", "pulse": 74, "unit_id": "u0", "snapshot_id": "s000074", "delta_ids": []}
+{"type": "view", "pulse": 74, "unit_id": "u1", "snapshot_id": "s000074", "delta_ids": []}
+{"type": "view", "pulse": 74, "unit_id": "u2", "snapshot_id": "s000074", "delta_ids": ["d000019"]}
+{"type": "view", "pulse": 74, "unit_id": "u3", "snapshot_id": "s000074", "delta_ids": ["d000020"]}
+{"type": "claim", "pulse": 74, "unit_id": "u1", "resource_class": "llm_pool", "strength": 0.4791170588420052}
+{"type": "schedule", "pulse": 74, "accepted": ["u1"], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 74, "task_id": "t000013", "unit_id": "u1", "resource_class": "llm_pool", "snapshot_id": "s000074", "input_delta_ids": [], "without_evidence": true}
+{"type": "pulse", "pulse": 75, "now": 4415.560107718, "dt": 1.0000756179997552}
+{"type": "view", "pulse": 75, "unit_id": "u0", "snapshot_id": "s000075", "delta_ids": []}
+{"type": "view", "pulse": 75, "unit_id": "u1", "snapshot_id": "s000075", "delta_ids": []}
+{"type": "view", "pulse": 75, "unit_id": "u2", "snapshot_id": "s000075", "delta_ids": []}
+{"type": "view", "pulse": 75, "unit_id": "u3", "snapshot_id": "s000075", "delta_ids": []}
+{"type": "schedule", "pulse": 75, "accepted": [], "rejected": [], "busy": ["u1"], "tie_broken": []}
+{"type": "pulse", "pulse": 76, "now": 4416.559238722, "dt": 0.9991310040004464}
+{"type": "task_completed", "pulse": 76, "task_id": "t000013", "unit_id": "u1", "started_pulse": 74, "status": "ok", "without_evidence": true, "output": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "error": null}
+{"type": "view", "pulse": 76, "unit_id": "u0", "snapshot_id": "s000076", "delta_ids": []}
+{"type": "view", "pulse": 76, "unit_id": "u1", "snapshot_id": "s000076", "delta_ids": []}
+{"type": "view", "pulse": 76, "unit_id": "u2", "snapshot_id": "s000076", "delta_ids": []}
+{"type": "view", "pulse": 76, "unit_id": "u3", "snapshot_id": "s000076", "delta_ids": []}
+{"type": "schedule", "pulse": 76, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 76, "delta_id": "d000022", "source_id": "u1", "output_port": "main", "target_id": "u2", "projection_weight": 0.4, "created_pulse": 76, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000074", "origin_task_id": "t000013", "expires_after_pulse": 86}
+{"type": "delta", "pulse": 76, "delta_id": "d000023", "source_id": "u1", "output_port": "main", "target_id": "u3", "projection_weight": 0.6, "created_pulse": 76, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000074", "origin_task_id": "t000013", "expires_after_pulse": 86}
+{"type": "pulse", "pulse": 77, "now": 4417.559728072, "dt": 1.0004893499999525}
+{"type": "view", "pulse": 77, "unit_id": "u0", "snapshot_id": "s000077", "delta_ids": []}
+{"type": "view", "pulse": 77, "unit_id": "u1", "snapshot_id": "s000077", "delta_ids": []}
+{"type": "view", "pulse": 77, "unit_id": "u2", "snapshot_id": "s000077", "delta_ids": ["d000022"]}
+{"type": "view", "pulse": 77, "unit_id": "u3", "snapshot_id": "s000077", "delta_ids": ["d000023"]}
+{"type": "claim", "pulse": 77, "unit_id": "u2", "resource_class": "llm_pool", "strength": 0.8196811222984025}
+{"type": "claim", "pulse": 77, "unit_id": "u3", "resource_class": "llm_pool", "strength": 1.0}
+{"type": "schedule", "pulse": 77, "accepted": ["u3"], "rejected": ["u2"], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 77, "task_id": "t000014", "unit_id": "u3", "resource_class": "llm_pool", "snapshot_id": "s000077", "input_delta_ids": ["d000023"], "without_evidence": false}
+{"type": "pulse", "pulse": 78, "now": 4418.559681731, "dt": 0.9999536589994023}
+{"type": "view", "pulse": 78, "unit_id": "u0", "snapshot_id": "s000078", "delta_ids": []}
+{"type": "view", "pulse": 78, "unit_id": "u1", "snapshot_id": "s000078", "delta_ids": []}
+{"type": "view", "pulse": 78, "unit_id": "u2", "snapshot_id": "s000078", "delta_ids": ["d000022"]}
+{"type": "view", "pulse": 78, "unit_id": "u3", "snapshot_id": "s000078", "delta_ids": ["d000023"]}
+{"type": "schedule", "pulse": 78, "accepted": [], "rejected": [], "busy": ["u3"], "tie_broken": []}
+{"type": "pulse", "pulse": 79, "now": 4419.559236784, "dt": 0.999555053000222}
+{"type": "task_completed", "pulse": 79, "task_id": "t000014", "unit_id": "u3", "started_pulse": 77, "status": "ok", "without_evidence": false, "output": "状況が不明なので、具体的な情報が得られていない。", "error": null}
+{"type": "view", "pulse": 79, "unit_id": "u0", "snapshot_id": "s000079", "delta_ids": []}
+{"type": "view", "pulse": 79, "unit_id": "u1", "snapshot_id": "s000079", "delta_ids": []}
+{"type": "view", "pulse": 79, "unit_id": "u2", "snapshot_id": "s000079", "delta_ids": ["d000022"]}
+{"type": "view", "pulse": 79, "unit_id": "u3", "snapshot_id": "s000079", "delta_ids": ["d000023"]}
+{"type": "schedule", "pulse": 79, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 79, "delta_id": "d000024", "source_id": "u3", "output_port": "main", "target_id": "effector.console", "projection_weight": 1.0, "created_pulse": 79, "kind": "content", "payload": "状況が不明なので、具体的な情報が得られていない。", "parent_delta_ids": ["d000023"], "origin_snapshot_id": "s000077", "origin_task_id": "t000014", "expires_after_pulse": 89}
+{"type": "effect", "pulse": 79, "delta_id": "d000024", "effector_id": "effector.console"}
+{"type": "pulse", "pulse": 80, "now": 4420.559795453, "dt": 1.0005586690003838}
+{"type": "view", "pulse": 80, "unit_id": "u0", "snapshot_id": "s000080", "delta_ids": []}
+{"type": "view", "pulse": 80, "unit_id": "u1", "snapshot_id": "s000080", "delta_ids": []}
+{"type": "view", "pulse": 80, "unit_id": "u2", "snapshot_id": "s000080", "delta_ids": ["d000022"]}
+{"type": "view", "pulse": 80, "unit_id": "u3", "snapshot_id": "s000080", "delta_ids": ["d000023"]}
+{"type": "schedule", "pulse": 80, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 81, "now": 4421.559346643, "dt": 0.9995511899996927}
+{"type": "view", "pulse": 81, "unit_id": "u0", "snapshot_id": "s000081", "delta_ids": []}
+{"type": "view", "pulse": 81, "unit_id": "u1", "snapshot_id": "s000081", "delta_ids": []}
+{"type": "view", "pulse": 81, "unit_id": "u2", "snapshot_id": "s000081", "delta_ids": ["d000022"]}
+{"type": "view", "pulse": 81, "unit_id": "u3", "snapshot_id": "s000081", "delta_ids": ["d000023"]}
+{"type": "schedule", "pulse": 81, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 82, "now": 4422.560160923, "dt": 1.0008142799997586}
+{"type": "view", "pulse": 82, "unit_id": "u0", "snapshot_id": "s000082", "delta_ids": []}
+{"type": "view", "pulse": 82, "unit_id": "u1", "snapshot_id": "s000082", "delta_ids": []}
+{"type": "view", "pulse": 82, "unit_id": "u2", "snapshot_id": "s000082", "delta_ids": ["d000022"]}
+{"type": "view", "pulse": 82, "unit_id": "u3", "snapshot_id": "s000082", "delta_ids": ["d000023"]}
+{"type": "schedule", "pulse": 82, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 83, "now": 4423.559788306, "dt": 0.9996273830001883}
+{"type": "view", "pulse": 83, "unit_id": "u0", "snapshot_id": "s000083", "delta_ids": []}
+{"type": "view", "pulse": 83, "unit_id": "u1", "snapshot_id": "s000083", "delta_ids": []}
+{"type": "view", "pulse": 83, "unit_id": "u2", "snapshot_id": "s000083", "delta_ids": ["d000022"]}
+{"type": "view", "pulse": 83, "unit_id": "u3", "snapshot_id": "s000083", "delta_ids": ["d000023"]}
+{"type": "schedule", "pulse": 83, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 84, "now": 4424.559321742, "dt": 0.9995334360000925}
+{"type": "view", "pulse": 84, "unit_id": "u0", "snapshot_id": "s000084", "delta_ids": []}
+{"type": "view", "pulse": 84, "unit_id": "u1", "snapshot_id": "s000084", "delta_ids": []}
+{"type": "view", "pulse": 84, "unit_id": "u2", "snapshot_id": "s000084", "delta_ids": ["d000022"]}
+{"type": "view", "pulse": 84, "unit_id": "u3", "snapshot_id": "s000084", "delta_ids": ["d000023"]}
+{"type": "schedule", "pulse": 84, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 85, "now": 4425.560183946, "dt": 1.0008622039995316}
+{"type": "view", "pulse": 85, "unit_id": "u0", "snapshot_id": "s000085", "delta_ids": []}
+{"type": "view", "pulse": 85, "unit_id": "u1", "snapshot_id": "s000085", "delta_ids": []}
+{"type": "view", "pulse": 85, "unit_id": "u2", "snapshot_id": "s000085", "delta_ids": ["d000022"]}
+{"type": "view", "pulse": 85, "unit_id": "u3", "snapshot_id": "s000085", "delta_ids": ["d000023"]}
+{"type": "schedule", "pulse": 85, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 86, "now": 4426.559802561, "dt": 0.9996186150001449}
+{"type": "view", "pulse": 86, "unit_id": "u0", "snapshot_id": "s000086", "delta_ids": []}
+{"type": "view", "pulse": 86, "unit_id": "u1", "snapshot_id": "s000086", "delta_ids": []}
+{"type": "view", "pulse": 86, "unit_id": "u2", "snapshot_id": "s000086", "delta_ids": ["d000022"]}
+{"type": "view", "pulse": 86, "unit_id": "u3", "snapshot_id": "s000086", "delta_ids": ["d000023"]}
+{"type": "claim", "pulse": 86, "unit_id": "u1", "resource_class": "llm_pool", "strength": 0.47910400357369837}
+{"type": "schedule", "pulse": 86, "accepted": ["u1"], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 86, "task_id": "t000015", "unit_id": "u1", "resource_class": "llm_pool", "snapshot_id": "s000086", "input_delta_ids": [], "without_evidence": true}
+{"type": "pulse", "pulse": 87, "now": 4427.559904255, "dt": 1.0001016940004774}
+{"type": "view", "pulse": 87, "unit_id": "u0", "snapshot_id": "s000087", "delta_ids": []}
+{"type": "view", "pulse": 87, "unit_id": "u1", "snapshot_id": "s000087", "delta_ids": []}
+{"type": "view", "pulse": 87, "unit_id": "u2", "snapshot_id": "s000087", "delta_ids": []}
+{"type": "view", "pulse": 87, "unit_id": "u3", "snapshot_id": "s000087", "delta_ids": []}
+{"type": "schedule", "pulse": 87, "accepted": [], "rejected": [], "busy": ["u1"], "tie_broken": []}
+{"type": "pulse", "pulse": 88, "now": 4428.560023324, "dt": 1.000119068999993}
+{"type": "task_completed", "pulse": 88, "task_id": "t000015", "unit_id": "u1", "started_pulse": 86, "status": "ok", "without_evidence": true, "output": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "error": null}
+{"type": "view", "pulse": 88, "unit_id": "u0", "snapshot_id": "s000088", "delta_ids": []}
+{"type": "view", "pulse": 88, "unit_id": "u1", "snapshot_id": "s000088", "delta_ids": []}
+{"type": "view", "pulse": 88, "unit_id": "u2", "snapshot_id": "s000088", "delta_ids": []}
+{"type": "view", "pulse": 88, "unit_id": "u3", "snapshot_id": "s000088", "delta_ids": []}
+{"type": "schedule", "pulse": 88, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 88, "delta_id": "d000025", "source_id": "u1", "output_port": "main", "target_id": "u2", "projection_weight": 0.4, "created_pulse": 88, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000086", "origin_task_id": "t000015", "expires_after_pulse": 98}
+{"type": "delta", "pulse": 88, "delta_id": "d000026", "source_id": "u1", "output_port": "main", "target_id": "u3", "projection_weight": 0.6, "created_pulse": 88, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000086", "origin_task_id": "t000015", "expires_after_pulse": 98}
+{"type": "pulse", "pulse": 89, "now": 4429.559497056, "dt": 0.9994737319993874}
+{"type": "view", "pulse": 89, "unit_id": "u0", "snapshot_id": "s000089", "delta_ids": []}
+{"type": "view", "pulse": 89, "unit_id": "u1", "snapshot_id": "s000089", "delta_ids": []}
+{"type": "view", "pulse": 89, "unit_id": "u2", "snapshot_id": "s000089", "delta_ids": ["d000025"]}
+{"type": "view", "pulse": 89, "unit_id": "u3", "snapshot_id": "s000089", "delta_ids": ["d000026"]}
+{"type": "claim", "pulse": 89, "unit_id": "u2", "resource_class": "llm_pool", "strength": 0.8196739497914397}
+{"type": "claim", "pulse": 89, "unit_id": "u3", "resource_class": "llm_pool", "strength": 1.0}
+{"type": "schedule", "pulse": 89, "accepted": ["u3"], "rejected": ["u2"], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 89, "task_id": "t000016", "unit_id": "u3", "resource_class": "llm_pool", "snapshot_id": "s000089", "input_delta_ids": ["d000026"], "without_evidence": false}
+{"type": "pulse", "pulse": 90, "now": 4430.560078997, "dt": 1.0005819410007462}
+{"type": "view", "pulse": 90, "unit_id": "u0", "snapshot_id": "s000090", "delta_ids": []}
+{"type": "view", "pulse": 90, "unit_id": "u1", "snapshot_id": "s000090", "delta_ids": []}
+{"type": "view", "pulse": 90, "unit_id": "u2", "snapshot_id": "s000090", "delta_ids": ["d000025"]}
+{"type": "view", "pulse": 90, "unit_id": "u3", "snapshot_id": "s000090", "delta_ids": ["d000026"]}
+{"type": "schedule", "pulse": 90, "accepted": [], "rejected": [], "busy": ["u3"], "tie_broken": []}
+{"type": "pulse", "pulse": 91, "now": 4431.560118423, "dt": 1.0000394259996028}
+{"type": "task_completed", "pulse": 91, "task_id": "t000016", "unit_id": "u3", "started_pulse": 89, "status": "ok", "without_evidence": false, "output": "状況が不明なので、具体的な情報が得られていない。", "error": null}
+{"type": "view", "pulse": 91, "unit_id": "u0", "snapshot_id": "s000091", "delta_ids": []}
+{"type": "view", "pulse": 91, "unit_id": "u1", "snapshot_id": "s000091", "delta_ids": []}
+{"type": "view", "pulse": 91, "unit_id": "u2", "snapshot_id": "s000091", "delta_ids": ["d000025"]}
+{"type": "view", "pulse": 91, "unit_id": "u3", "snapshot_id": "s000091", "delta_ids": ["d000026"]}
+{"type": "schedule", "pulse": 91, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 91, "delta_id": "d000027", "source_id": "u3", "output_port": "main", "target_id": "effector.console", "projection_weight": 1.0, "created_pulse": 91, "kind": "content", "payload": "状況が不明なので、具体的な情報が得られていない。", "parent_delta_ids": ["d000026"], "origin_snapshot_id": "s000089", "origin_task_id": "t000016", "expires_after_pulse": 101}
+{"type": "effect", "pulse": 91, "delta_id": "d000027", "effector_id": "effector.console"}
+{"type": "pulse", "pulse": 92, "now": 4432.558903328, "dt": 0.9987849050003206}
+{"type": "view", "pulse": 92, "unit_id": "u0", "snapshot_id": "s000092", "delta_ids": []}
+{"type": "view", "pulse": 92, "unit_id": "u1", "snapshot_id": "s000092", "delta_ids": []}
+{"type": "view", "pulse": 92, "unit_id": "u2", "snapshot_id": "s000092", "delta_ids": ["d000025"]}
+{"type": "view", "pulse": 92, "unit_id": "u3", "snapshot_id": "s000092", "delta_ids": ["d000026"]}
+{"type": "schedule", "pulse": 92, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 93, "now": 4433.559531886, "dt": 1.0006285579993346}
+{"type": "view", "pulse": 93, "unit_id": "u0", "snapshot_id": "s000093", "delta_ids": []}
+{"type": "view", "pulse": 93, "unit_id": "u1", "snapshot_id": "s000093", "delta_ids": []}
+{"type": "view", "pulse": 93, "unit_id": "u2", "snapshot_id": "s000093", "delta_ids": ["d000025"]}
+{"type": "view", "pulse": 93, "unit_id": "u3", "snapshot_id": "s000093", "delta_ids": ["d000026"]}
+{"type": "schedule", "pulse": 93, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 94, "now": 4434.560103693, "dt": 1.000571807000597}
+{"type": "view", "pulse": 94, "unit_id": "u0", "snapshot_id": "s000094", "delta_ids": []}
+{"type": "view", "pulse": 94, "unit_id": "u1", "snapshot_id": "s000094", "delta_ids": []}
+{"type": "view", "pulse": 94, "unit_id": "u2", "snapshot_id": "s000094", "delta_ids": ["d000025"]}
+{"type": "view", "pulse": 94, "unit_id": "u3", "snapshot_id": "s000094", "delta_ids": ["d000026"]}
+{"type": "schedule", "pulse": 94, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 95, "now": 4435.5598342, "dt": 0.9997305070000948}
+{"type": "view", "pulse": 95, "unit_id": "u0", "snapshot_id": "s000095", "delta_ids": []}
+{"type": "view", "pulse": 95, "unit_id": "u1", "snapshot_id": "s000095", "delta_ids": []}
+{"type": "view", "pulse": 95, "unit_id": "u2", "snapshot_id": "s000095", "delta_ids": ["d000025"]}
+{"type": "view", "pulse": 95, "unit_id": "u3", "snapshot_id": "s000095", "delta_ids": ["d000026"]}
+{"type": "schedule", "pulse": 95, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 96, "now": 4436.559484721, "dt": 0.9996505210001487}
+{"type": "view", "pulse": 96, "unit_id": "u0", "snapshot_id": "s000096", "delta_ids": []}
+{"type": "view", "pulse": 96, "unit_id": "u1", "snapshot_id": "s000096", "delta_ids": []}
+{"type": "view", "pulse": 96, "unit_id": "u2", "snapshot_id": "s000096", "delta_ids": ["d000025"]}
+{"type": "view", "pulse": 96, "unit_id": "u3", "snapshot_id": "s000096", "delta_ids": ["d000026"]}
+{"type": "schedule", "pulse": 96, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 97, "now": 4437.560113023, "dt": 1.0006283019993134}
+{"type": "view", "pulse": 97, "unit_id": "u0", "snapshot_id": "s000097", "delta_ids": []}
+{"type": "view", "pulse": 97, "unit_id": "u1", "snapshot_id": "s000097", "delta_ids": []}
+{"type": "view", "pulse": 97, "unit_id": "u2", "snapshot_id": "s000097", "delta_ids": ["d000025"]}
+{"type": "view", "pulse": 97, "unit_id": "u3", "snapshot_id": "s000097", "delta_ids": ["d000026"]}
+{"type": "schedule", "pulse": 97, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 98, "now": 4438.559665251, "dt": 0.9995522280005389}
+{"type": "view", "pulse": 98, "unit_id": "u0", "snapshot_id": "s000098", "delta_ids": []}
+{"type": "view", "pulse": 98, "unit_id": "u1", "snapshot_id": "s000098", "delta_ids": []}
+{"type": "view", "pulse": 98, "unit_id": "u2", "snapshot_id": "s000098", "delta_ids": ["d000025"]}
+{"type": "view", "pulse": 98, "unit_id": "u3", "snapshot_id": "s000098", "delta_ids": ["d000026"]}
+{"type": "claim", "pulse": 98, "unit_id": "u1", "resource_class": "llm_pool", "strength": 0.47910423554400483}
+{"type": "schedule", "pulse": 98, "accepted": ["u1"], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 98, "task_id": "t000017", "unit_id": "u1", "resource_class": "llm_pool", "snapshot_id": "s000098", "input_delta_ids": [], "without_evidence": true}
+{"type": "pulse", "pulse": 99, "now": 4439.55977677, "dt": 1.0001115189998018}
+{"type": "view", "pulse": 99, "unit_id": "u0", "snapshot_id": "s000099", "delta_ids": []}
+{"type": "view", "pulse": 99, "unit_id": "u1", "snapshot_id": "s000099", "delta_ids": []}
+{"type": "view", "pulse": 99, "unit_id": "u2", "snapshot_id": "s000099", "delta_ids": []}
+{"type": "view", "pulse": 99, "unit_id": "u3", "snapshot_id": "s000099", "delta_ids": []}
+{"type": "schedule", "pulse": 99, "accepted": [], "rejected": [], "busy": ["u1"], "tie_broken": []}
+{"type": "pulse", "pulse": 100, "now": 4440.559179681, "dt": 0.9994029110002884}
+{"type": "task_completed", "pulse": 100, "task_id": "t000017", "unit_id": "u1", "started_pulse": 98, "status": "ok", "without_evidence": true, "output": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "error": null}
+{"type": "view", "pulse": 100, "unit_id": "u0", "snapshot_id": "s000100", "delta_ids": []}
+{"type": "view", "pulse": 100, "unit_id": "u1", "snapshot_id": "s000100", "delta_ids": []}
+{"type": "view", "pulse": 100, "unit_id": "u2", "snapshot_id": "s000100", "delta_ids": []}
+{"type": "view", "pulse": 100, "unit_id": "u3", "snapshot_id": "s000100", "delta_ids": []}
+{"type": "schedule", "pulse": 100, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 100, "delta_id": "d000028", "source_id": "u1", "output_port": "main", "target_id": "u2", "projection_weight": 0.4, "created_pulse": 100, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000098", "origin_task_id": "t000017", "expires_after_pulse": 110}
+{"type": "delta", "pulse": 100, "delta_id": "d000029", "source_id": "u1", "output_port": "main", "target_id": "u3", "projection_weight": 0.6, "created_pulse": 100, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000098", "origin_task_id": "t000017", "expires_after_pulse": 110}
+{"type": "pulse", "pulse": 101, "now": 4441.55949802, "dt": 1.0003183389999322}
+{"type": "view", "pulse": 101, "unit_id": "u0", "snapshot_id": "s000101", "delta_ids": []}
+{"type": "view", "pulse": 101, "unit_id": "u1", "snapshot_id": "s000101", "delta_ids": []}
+{"type": "view", "pulse": 101, "unit_id": "u2", "snapshot_id": "s000101", "delta_ids": ["d000028"]}
+{"type": "view", "pulse": 101, "unit_id": "u3", "snapshot_id": "s000101", "delta_ids": ["d000029"]}
+{"type": "claim", "pulse": 101, "unit_id": "u2", "resource_class": "llm_pool", "strength": 0.8196775983024853}
+{"type": "claim", "pulse": 101, "unit_id": "u3", "resource_class": "llm_pool", "strength": 1.0}
+{"type": "schedule", "pulse": 101, "accepted": ["u3"], "rejected": ["u2"], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 101, "task_id": "t000018", "unit_id": "u3", "resource_class": "llm_pool", "snapshot_id": "s000101", "input_delta_ids": ["d000029"], "without_evidence": false}
+{"type": "pulse", "pulse": 102, "now": 4442.559467175, "dt": 0.9999691549992349}
+{"type": "task_completed", "pulse": 102, "task_id": "t000018", "unit_id": "u3", "started_pulse": 101, "status": "ok", "without_evidence": false, "output": "状況が不明なので、具体的な情報が得られていない。", "error": null}
+{"type": "view", "pulse": 102, "unit_id": "u0", "snapshot_id": "s000102", "delta_ids": []}
+{"type": "view", "pulse": 102, "unit_id": "u1", "snapshot_id": "s000102", "delta_ids": []}
+{"type": "view", "pulse": 102, "unit_id": "u2", "snapshot_id": "s000102", "delta_ids": ["d000028"]}
+{"type": "view", "pulse": 102, "unit_id": "u3", "snapshot_id": "s000102", "delta_ids": ["d000029"]}
+{"type": "schedule", "pulse": 102, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 102, "delta_id": "d000030", "source_id": "u3", "output_port": "main", "target_id": "effector.console", "projection_weight": 1.0, "created_pulse": 102, "kind": "content", "payload": "状況が不明なので、具体的な情報が得られていない。", "parent_delta_ids": ["d000029"], "origin_snapshot_id": "s000101", "origin_task_id": "t000018", "expires_after_pulse": 112}
+{"type": "effect", "pulse": 102, "delta_id": "d000030", "effector_id": "effector.console"}
+{"type": "pulse", "pulse": 103, "now": 4443.55993142, "dt": 1.0004642450003303}
+{"type": "view", "pulse": 103, "unit_id": "u0", "snapshot_id": "s000103", "delta_ids": []}
+{"type": "view", "pulse": 103, "unit_id": "u1", "snapshot_id": "s000103", "delta_ids": []}
+{"type": "view", "pulse": 103, "unit_id": "u2", "snapshot_id": "s000103", "delta_ids": ["d000028"]}
+{"type": "view", "pulse": 103, "unit_id": "u3", "snapshot_id": "s000103", "delta_ids": ["d000029"]}
+{"type": "schedule", "pulse": 103, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 104, "now": 4444.559613457, "dt": 0.9996820369997295}
+{"type": "view", "pulse": 104, "unit_id": "u0", "snapshot_id": "s000104", "delta_ids": []}
+{"type": "view", "pulse": 104, "unit_id": "u1", "snapshot_id": "s000104", "delta_ids": []}
+{"type": "view", "pulse": 104, "unit_id": "u2", "snapshot_id": "s000104", "delta_ids": ["d000028"]}
+{"type": "view", "pulse": 104, "unit_id": "u3", "snapshot_id": "s000104", "delta_ids": ["d000029"]}
+{"type": "schedule", "pulse": 104, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 105, "now": 4445.559357058, "dt": 0.9997436010007732}
+{"type": "view", "pulse": 105, "unit_id": "u0", "snapshot_id": "s000105", "delta_ids": []}
+{"type": "view", "pulse": 105, "unit_id": "u1", "snapshot_id": "s000105", "delta_ids": []}
+{"type": "view", "pulse": 105, "unit_id": "u2", "snapshot_id": "s000105", "delta_ids": ["d000028"]}
+{"type": "view", "pulse": 105, "unit_id": "u3", "snapshot_id": "s000105", "delta_ids": ["d000029"]}
+{"type": "schedule", "pulse": 105, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 106, "now": 4446.560182581, "dt": 1.0008255229995484}
+{"type": "view", "pulse": 106, "unit_id": "u0", "snapshot_id": "s000106", "delta_ids": []}
+{"type": "view", "pulse": 106, "unit_id": "u1", "snapshot_id": "s000106", "delta_ids": []}
+{"type": "view", "pulse": 106, "unit_id": "u2", "snapshot_id": "s000106", "delta_ids": ["d000028"]}
+{"type": "view", "pulse": 106, "unit_id": "u3", "snapshot_id": "s000106", "delta_ids": ["d000029"]}
+{"type": "schedule", "pulse": 106, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 107, "now": 4447.559993598, "dt": 0.9998110169999563}
+{"type": "view", "pulse": 107, "unit_id": "u0", "snapshot_id": "s000107", "delta_ids": []}
+{"type": "view", "pulse": 107, "unit_id": "u1", "snapshot_id": "s000107", "delta_ids": []}
+{"type": "view", "pulse": 107, "unit_id": "u2", "snapshot_id": "s000107", "delta_ids": ["d000028"]}
+{"type": "view", "pulse": 107, "unit_id": "u3", "snapshot_id": "s000107", "delta_ids": ["d000029"]}
+{"type": "schedule", "pulse": 107, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 108, "now": 4448.559906161, "dt": 0.9999125630001799}
+{"type": "view", "pulse": 108, "unit_id": "u0", "snapshot_id": "s000108", "delta_ids": []}
+{"type": "view", "pulse": 108, "unit_id": "u1", "snapshot_id": "s000108", "delta_ids": []}
+{"type": "view", "pulse": 108, "unit_id": "u2", "snapshot_id": "s000108", "delta_ids": ["d000028"]}
+{"type": "view", "pulse": 108, "unit_id": "u3", "snapshot_id": "s000108", "delta_ids": ["d000029"]}
+{"type": "schedule", "pulse": 108, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 109, "now": 4449.559616616, "dt": 0.9997104550002405}
+{"type": "view", "pulse": 109, "unit_id": "u0", "snapshot_id": "s000109", "delta_ids": []}
+{"type": "view", "pulse": 109, "unit_id": "u1", "snapshot_id": "s000109", "delta_ids": []}
+{"type": "view", "pulse": 109, "unit_id": "u2", "snapshot_id": "s000109", "delta_ids": ["d000028"]}
+{"type": "view", "pulse": 109, "unit_id": "u3", "snapshot_id": "s000109", "delta_ids": ["d000029"]}
+{"type": "schedule", "pulse": 109, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 110, "now": 4450.559432719, "dt": 0.99981610299983}
+{"type": "view", "pulse": 110, "unit_id": "u0", "snapshot_id": "s000110", "delta_ids": []}
+{"type": "view", "pulse": 110, "unit_id": "u1", "snapshot_id": "s000110", "delta_ids": []}
+{"type": "view", "pulse": 110, "unit_id": "u2", "snapshot_id": "s000110", "delta_ids": ["d000028"]}
+{"type": "view", "pulse": 110, "unit_id": "u3", "snapshot_id": "s000110", "delta_ids": ["d000029"]}
+{"type": "claim", "pulse": 110, "unit_id": "u1", "resource_class": "llm_pool", "strength": 0.47910184714004855}
+{"type": "schedule", "pulse": 110, "accepted": ["u1"], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 110, "task_id": "t000019", "unit_id": "u1", "resource_class": "llm_pool", "snapshot_id": "s000110", "input_delta_ids": [], "without_evidence": true}
+{"type": "pulse", "pulse": 111, "now": 4451.559416069, "dt": 0.9999833499996384}
+{"type": "view", "pulse": 111, "unit_id": "u0", "snapshot_id": "s000111", "delta_ids": []}
+{"type": "view", "pulse": 111, "unit_id": "u1", "snapshot_id": "s000111", "delta_ids": []}
+{"type": "view", "pulse": 111, "unit_id": "u2", "snapshot_id": "s000111", "delta_ids": []}
+{"type": "view", "pulse": 111, "unit_id": "u3", "snapshot_id": "s000111", "delta_ids": []}
+{"type": "schedule", "pulse": 111, "accepted": [], "rejected": [], "busy": ["u1"], "tie_broken": []}
+{"type": "pulse", "pulse": 112, "now": 4452.559414709, "dt": 0.9999986399998306}
+{"type": "task_completed", "pulse": 112, "task_id": "t000019", "unit_id": "u1", "started_pulse": 110, "status": "ok", "without_evidence": true, "output": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "error": null}
+{"type": "view", "pulse": 112, "unit_id": "u0", "snapshot_id": "s000112", "delta_ids": []}
+{"type": "view", "pulse": 112, "unit_id": "u1", "snapshot_id": "s000112", "delta_ids": []}
+{"type": "view", "pulse": 112, "unit_id": "u2", "snapshot_id": "s000112", "delta_ids": []}
+{"type": "view", "pulse": 112, "unit_id": "u3", "snapshot_id": "s000112", "delta_ids": []}
+{"type": "schedule", "pulse": 112, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 112, "delta_id": "d000031", "source_id": "u1", "output_port": "main", "target_id": "u2", "projection_weight": 0.4, "created_pulse": 112, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000110", "origin_task_id": "t000019", "expires_after_pulse": 122}
+{"type": "delta", "pulse": 112, "delta_id": "d000032", "source_id": "u1", "output_port": "main", "target_id": "u3", "projection_weight": 0.6, "created_pulse": 112, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000110", "origin_task_id": "t000019", "expires_after_pulse": 122}
+{"type": "pulse", "pulse": 113, "now": 4453.559247332, "dt": 0.9998326230006569}
+{"type": "view", "pulse": 113, "unit_id": "u0", "snapshot_id": "s000113", "delta_ids": []}
+{"type": "view", "pulse": 113, "unit_id": "u1", "snapshot_id": "s000113", "delta_ids": []}
+{"type": "view", "pulse": 113, "unit_id": "u2", "snapshot_id": "s000113", "delta_ids": ["d000031"]}
+{"type": "view", "pulse": 113, "unit_id": "u3", "snapshot_id": "s000113", "delta_ids": ["d000032"]}
+{"type": "claim", "pulse": 113, "unit_id": "u2", "resource_class": "llm_pool", "strength": 0.8196735081239623}
+{"type": "claim", "pulse": 113, "unit_id": "u3", "resource_class": "llm_pool", "strength": 1.0}
+{"type": "schedule", "pulse": 113, "accepted": ["u3"], "rejected": ["u2"], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 113, "task_id": "t000020", "unit_id": "u3", "resource_class": "llm_pool", "snapshot_id": "s000113", "input_delta_ids": ["d000032"], "without_evidence": false}
+{"type": "pulse", "pulse": 114, "now": 4454.559435618, "dt": 1.000188285999684}
+{"type": "view", "pulse": 114, "unit_id": "u0", "snapshot_id": "s000114", "delta_ids": []}
+{"type": "view", "pulse": 114, "unit_id": "u1", "snapshot_id": "s000114", "delta_ids": []}
+{"type": "view", "pulse": 114, "unit_id": "u2", "snapshot_id": "s000114", "delta_ids": ["d000031"]}
+{"type": "view", "pulse": 114, "unit_id": "u3", "snapshot_id": "s000114", "delta_ids": ["d000032"]}
+{"type": "schedule", "pulse": 114, "accepted": [], "rejected": [], "busy": ["u3"], "tie_broken": []}
+{"type": "pulse", "pulse": 115, "now": 4455.559071246, "dt": 0.9996356279998508}
+{"type": "task_completed", "pulse": 115, "task_id": "t000020", "unit_id": "u3", "started_pulse": 113, "status": "ok", "without_evidence": false, "output": "状況が不明なので、具体的な情報が得られていない。", "error": null}
+{"type": "view", "pulse": 115, "unit_id": "u0", "snapshot_id": "s000115", "delta_ids": []}
+{"type": "view", "pulse": 115, "unit_id": "u1", "snapshot_id": "s000115", "delta_ids": []}
+{"type": "view", "pulse": 115, "unit_id": "u2", "snapshot_id": "s000115", "delta_ids": ["d000031"]}
+{"type": "view", "pulse": 115, "unit_id": "u3", "snapshot_id": "s000115", "delta_ids": ["d000032"]}
+{"type": "schedule", "pulse": 115, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 115, "delta_id": "d000033", "source_id": "u3", "output_port": "main", "target_id": "effector.console", "projection_weight": 1.0, "created_pulse": 115, "kind": "content", "payload": "状況が不明なので、具体的な情報が得られていない。", "parent_delta_ids": ["d000032"], "origin_snapshot_id": "s000113", "origin_task_id": "t000020", "expires_after_pulse": 125}
+{"type": "effect", "pulse": 115, "delta_id": "d000033", "effector_id": "effector.console"}
+{"type": "pulse", "pulse": 116, "now": 4456.559797238, "dt": 1.000725992000298}
+{"type": "view", "pulse": 116, "unit_id": "u0", "snapshot_id": "s000116", "delta_ids": []}
+{"type": "view", "pulse": 116, "unit_id": "u1", "snapshot_id": "s000116", "delta_ids": []}
+{"type": "view", "pulse": 116, "unit_id": "u2", "snapshot_id": "s000116", "delta_ids": ["d000031"]}
+{"type": "view", "pulse": 116, "unit_id": "u3", "snapshot_id": "s000116", "delta_ids": ["d000032"]}
+{"type": "schedule", "pulse": 116, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 117, "now": 4457.5598698, "dt": 1.0000725620002413}
+{"type": "view", "pulse": 117, "unit_id": "u0", "snapshot_id": "s000117", "delta_ids": []}
+{"type": "view", "pulse": 117, "unit_id": "u1", "snapshot_id": "s000117", "delta_ids": []}
+{"type": "view", "pulse": 117, "unit_id": "u2", "snapshot_id": "s000117", "delta_ids": ["d000031"]}
+{"type": "view", "pulse": 117, "unit_id": "u3", "snapshot_id": "s000117", "delta_ids": ["d000032"]}
+{"type": "schedule", "pulse": 117, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 118, "now": 4458.559482518, "dt": 0.9996127179992982}
+{"type": "view", "pulse": 118, "unit_id": "u0", "snapshot_id": "s000118", "delta_ids": []}
+{"type": "view", "pulse": 118, "unit_id": "u1", "snapshot_id": "s000118", "delta_ids": []}
+{"type": "view", "pulse": 118, "unit_id": "u2", "snapshot_id": "s000118", "delta_ids": ["d000031"]}
+{"type": "view", "pulse": 118, "unit_id": "u3", "snapshot_id": "s000118", "delta_ids": ["d000032"]}
+{"type": "schedule", "pulse": 118, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 119, "now": 4459.559908261, "dt": 1.0004257430000507}
+{"type": "view", "pulse": 119, "unit_id": "u0", "snapshot_id": "s000119", "delta_ids": []}
+{"type": "view", "pulse": 119, "unit_id": "u1", "snapshot_id": "s000119", "delta_ids": []}
+{"type": "view", "pulse": 119, "unit_id": "u2", "snapshot_id": "s000119", "delta_ids": ["d000031"]}
+{"type": "view", "pulse": 119, "unit_id": "u3", "snapshot_id": "s000119", "delta_ids": ["d000032"]}
+{"type": "schedule", "pulse": 119, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 120, "now": 4460.559814862, "dt": 0.9999066010004753}
+{"type": "view", "pulse": 120, "unit_id": "u0", "snapshot_id": "s000120", "delta_ids": []}
+{"type": "view", "pulse": 120, "unit_id": "u1", "snapshot_id": "s000120", "delta_ids": []}
+{"type": "view", "pulse": 120, "unit_id": "u2", "snapshot_id": "s000120", "delta_ids": ["d000031"]}
+{"type": "view", "pulse": 120, "unit_id": "u3", "snapshot_id": "s000120", "delta_ids": ["d000032"]}
+{"type": "schedule", "pulse": 120, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 121, "now": 4461.559533216, "dt": 0.9997183539999241}
+{"type": "view", "pulse": 121, "unit_id": "u0", "snapshot_id": "s000121", "delta_ids": []}
+{"type": "view", "pulse": 121, "unit_id": "u1", "snapshot_id": "s000121", "delta_ids": []}
+{"type": "view", "pulse": 121, "unit_id": "u2", "snapshot_id": "s000121", "delta_ids": ["d000031"]}
+{"type": "view", "pulse": 121, "unit_id": "u3", "snapshot_id": "s000121", "delta_ids": ["d000032"]}
+{"type": "schedule", "pulse": 121, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 122, "now": 4462.560097763, "dt": 1.0005645470000673}
+{"type": "view", "pulse": 122, "unit_id": "u0", "snapshot_id": "s000122", "delta_ids": []}
+{"type": "view", "pulse": 122, "unit_id": "u1", "snapshot_id": "s000122", "delta_ids": []}
+{"type": "view", "pulse": 122, "unit_id": "u2", "snapshot_id": "s000122", "delta_ids": ["d000031"]}
+{"type": "view", "pulse": 122, "unit_id": "u3", "snapshot_id": "s000122", "delta_ids": ["d000032"]}
+{"type": "claim", "pulse": 122, "unit_id": "u1", "resource_class": "llm_pool", "strength": 0.47911881818745616}
+{"type": "schedule", "pulse": 122, "accepted": ["u1"], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 122, "task_id": "t000021", "unit_id": "u1", "resource_class": "llm_pool", "snapshot_id": "s000122", "input_delta_ids": [], "without_evidence": true}
+{"type": "pulse", "pulse": 123, "now": 4463.559889072, "dt": 0.999791309000102}
+{"type": "view", "pulse": 123, "unit_id": "u0", "snapshot_id": "s000123", "delta_ids": []}
+{"type": "view", "pulse": 123, "unit_id": "u1", "snapshot_id": "s000123", "delta_ids": []}
+{"type": "view", "pulse": 123, "unit_id": "u2", "snapshot_id": "s000123", "delta_ids": []}
+{"type": "view", "pulse": 123, "unit_id": "u3", "snapshot_id": "s000123", "delta_ids": []}
+{"type": "schedule", "pulse": 123, "accepted": [], "rejected": [], "busy": ["u1"], "tie_broken": []}
+{"type": "pulse", "pulse": 124, "now": 4464.559104747, "dt": 0.9992156749995047}
+{"type": "task_completed", "pulse": 124, "task_id": "t000021", "unit_id": "u1", "started_pulse": 122, "status": "ok", "without_evidence": true, "output": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "error": null}
+{"type": "view", "pulse": 124, "unit_id": "u0", "snapshot_id": "s000124", "delta_ids": []}
+{"type": "view", "pulse": 124, "unit_id": "u1", "snapshot_id": "s000124", "delta_ids": []}
+{"type": "view", "pulse": 124, "unit_id": "u2", "snapshot_id": "s000124", "delta_ids": []}
+{"type": "view", "pulse": 124, "unit_id": "u3", "snapshot_id": "s000124", "delta_ids": []}
+{"type": "schedule", "pulse": 124, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 124, "delta_id": "d000034", "source_id": "u1", "output_port": "main", "target_id": "u2", "projection_weight": 0.4, "created_pulse": 124, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000122", "origin_task_id": "t000021", "expires_after_pulse": 134}
+{"type": "delta", "pulse": 124, "delta_id": "d000035", "source_id": "u1", "output_port": "main", "target_id": "u3", "projection_weight": 0.6, "created_pulse": 124, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000122", "origin_task_id": "t000021", "expires_after_pulse": 134}
+{"type": "pulse", "pulse": 125, "now": 4465.560150145, "dt": 1.001045398000315}
+{"type": "view", "pulse": 125, "unit_id": "u0", "snapshot_id": "s000125", "delta_ids": []}
+{"type": "view", "pulse": 125, "unit_id": "u1", "snapshot_id": "s000125", "delta_ids": []}
+{"type": "view", "pulse": 125, "unit_id": "u2", "snapshot_id": "s000125", "delta_ids": ["d000034"]}
+{"type": "view", "pulse": 125, "unit_id": "u3", "snapshot_id": "s000125", "delta_ids": ["d000035"]}
+{"type": "claim", "pulse": 125, "unit_id": "u2", "resource_class": "llm_pool", "strength": 0.8196918888113961}
+{"type": "claim", "pulse": 125, "unit_id": "u3", "resource_class": "llm_pool", "strength": 1.0}
+{"type": "schedule", "pulse": 125, "accepted": ["u3"], "rejected": ["u2"], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 125, "task_id": "t000022", "unit_id": "u3", "resource_class": "llm_pool", "snapshot_id": "s000125", "input_delta_ids": ["d000035"], "without_evidence": false}
+{"type": "pulse", "pulse": 126, "now": 4466.559952197, "dt": 0.9998020519997226}
+{"type": "view", "pulse": 126, "unit_id": "u0", "snapshot_id": "s000126", "delta_ids": []}
+{"type": "view", "pulse": 126, "unit_id": "u1", "snapshot_id": "s000126", "delta_ids": []}
+{"type": "view", "pulse": 126, "unit_id": "u2", "snapshot_id": "s000126", "delta_ids": ["d000034"]}
+{"type": "view", "pulse": 126, "unit_id": "u3", "snapshot_id": "s000126", "delta_ids": ["d000035"]}
+{"type": "schedule", "pulse": 126, "accepted": [], "rejected": [], "busy": ["u3"], "tie_broken": []}
+{"type": "pulse", "pulse": 127, "now": 4467.559157583, "dt": 0.9992053860005399}
+{"type": "task_completed", "pulse": 127, "task_id": "t000022", "unit_id": "u3", "started_pulse": 125, "status": "ok", "without_evidence": false, "output": "状況が不明なので、具体的な情報が得られていない。", "error": null}
+{"type": "view", "pulse": 127, "unit_id": "u0", "snapshot_id": "s000127", "delta_ids": []}
+{"type": "view", "pulse": 127, "unit_id": "u1", "snapshot_id": "s000127", "delta_ids": []}
+{"type": "view", "pulse": 127, "unit_id": "u2", "snapshot_id": "s000127", "delta_ids": ["d000034"]}
+{"type": "view", "pulse": 127, "unit_id": "u3", "snapshot_id": "s000127", "delta_ids": ["d000035"]}
+{"type": "schedule", "pulse": 127, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 127, "delta_id": "d000036", "source_id": "u3", "output_port": "main", "target_id": "effector.console", "projection_weight": 1.0, "created_pulse": 127, "kind": "content", "payload": "状況が不明なので、具体的な情報が得られていない。", "parent_delta_ids": ["d000035"], "origin_snapshot_id": "s000125", "origin_task_id": "t000022", "expires_after_pulse": 137}
+{"type": "effect", "pulse": 127, "delta_id": "d000036", "effector_id": "effector.console"}
+{"type": "pulse", "pulse": 128, "now": 4468.559434564, "dt": 1.0002769809998426}
+{"type": "view", "pulse": 128, "unit_id": "u0", "snapshot_id": "s000128", "delta_ids": []}
+{"type": "view", "pulse": 128, "unit_id": "u1", "snapshot_id": "s000128", "delta_ids": []}
+{"type": "view", "pulse": 128, "unit_id": "u2", "snapshot_id": "s000128", "delta_ids": ["d000034"]}
+{"type": "view", "pulse": 128, "unit_id": "u3", "snapshot_id": "s000128", "delta_ids": ["d000035"]}
+{"type": "schedule", "pulse": 128, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 129, "now": 4469.559167177, "dt": 0.9997326129996509}
+{"type": "view", "pulse": 129, "unit_id": "u0", "snapshot_id": "s000129", "delta_ids": []}
+{"type": "view", "pulse": 129, "unit_id": "u1", "snapshot_id": "s000129", "delta_ids": []}
+{"type": "view", "pulse": 129, "unit_id": "u2", "snapshot_id": "s000129", "delta_ids": ["d000034"]}
+{"type": "view", "pulse": 129, "unit_id": "u3", "snapshot_id": "s000129", "delta_ids": ["d000035"]}
+{"type": "schedule", "pulse": 129, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 130, "now": 4470.560023832, "dt": 1.0008566550004616}
+{"type": "view", "pulse": 130, "unit_id": "u0", "snapshot_id": "s000130", "delta_ids": []}
+{"type": "view", "pulse": 130, "unit_id": "u1", "snapshot_id": "s000130", "delta_ids": []}
+{"type": "view", "pulse": 130, "unit_id": "u2", "snapshot_id": "s000130", "delta_ids": ["d000034"]}
+{"type": "view", "pulse": 130, "unit_id": "u3", "snapshot_id": "s000130", "delta_ids": ["d000035"]}
+{"type": "schedule", "pulse": 130, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 131, "now": 4471.559624116, "dt": 0.9996002839998255}
+{"type": "view", "pulse": 131, "unit_id": "u0", "snapshot_id": "s000131", "delta_ids": []}
+{"type": "view", "pulse": 131, "unit_id": "u1", "snapshot_id": "s000131", "delta_ids": []}
+{"type": "view", "pulse": 131, "unit_id": "u2", "snapshot_id": "s000131", "delta_ids": ["d000034"]}
+{"type": "view", "pulse": 131, "unit_id": "u3", "snapshot_id": "s000131", "delta_ids": ["d000035"]}
+{"type": "schedule", "pulse": 131, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 132, "now": 4472.559907166, "dt": 1.00028304999978}
+{"type": "view", "pulse": 132, "unit_id": "u0", "snapshot_id": "s000132", "delta_ids": []}
+{"type": "view", "pulse": 132, "unit_id": "u1", "snapshot_id": "s000132", "delta_ids": []}
+{"type": "view", "pulse": 132, "unit_id": "u2", "snapshot_id": "s000132", "delta_ids": ["d000034"]}
+{"type": "view", "pulse": 132, "unit_id": "u3", "snapshot_id": "s000132", "delta_ids": ["d000035"]}
+{"type": "schedule", "pulse": 132, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 133, "now": 4473.559629735, "dt": 0.9997225690003688}
+{"type": "view", "pulse": 133, "unit_id": "u0", "snapshot_id": "s000133", "delta_ids": []}
+{"type": "view", "pulse": 133, "unit_id": "u1", "snapshot_id": "s000133", "delta_ids": []}
+{"type": "view", "pulse": 133, "unit_id": "u2", "snapshot_id": "s000133", "delta_ids": ["d000034"]}
+{"type": "view", "pulse": 133, "unit_id": "u3", "snapshot_id": "s000133", "delta_ids": ["d000035"]}
+{"type": "schedule", "pulse": 133, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 134, "now": 4474.559328068, "dt": 0.9996983329992872}
+{"type": "view", "pulse": 134, "unit_id": "u0", "snapshot_id": "s000134", "delta_ids": []}
+{"type": "view", "pulse": 134, "unit_id": "u1", "snapshot_id": "s000134", "delta_ids": []}
+{"type": "view", "pulse": 134, "unit_id": "u2", "snapshot_id": "s000134", "delta_ids": ["d000034"]}
+{"type": "view", "pulse": 134, "unit_id": "u3", "snapshot_id": "s000134", "delta_ids": ["d000035"]}
+{"type": "claim", "pulse": 134, "unit_id": "u1", "resource_class": "llm_pool", "strength": 0.47909422203302543}
+{"type": "schedule", "pulse": 134, "accepted": ["u1"], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 134, "task_id": "t000023", "unit_id": "u1", "resource_class": "llm_pool", "snapshot_id": "s000134", "input_delta_ids": [], "without_evidence": true}
+{"type": "pulse", "pulse": 135, "now": 4475.559501184, "dt": 1.0001731160000418}
+{"type": "view", "pulse": 135, "unit_id": "u0", "snapshot_id": "s000135", "delta_ids": []}
+{"type": "view", "pulse": 135, "unit_id": "u1", "snapshot_id": "s000135", "delta_ids": []}
+{"type": "view", "pulse": 135, "unit_id": "u2", "snapshot_id": "s000135", "delta_ids": []}
+{"type": "view", "pulse": 135, "unit_id": "u3", "snapshot_id": "s000135", "delta_ids": []}
+{"type": "schedule", "pulse": 135, "accepted": [], "rejected": [], "busy": ["u1"], "tie_broken": []}
+{"type": "pulse", "pulse": 136, "now": 4476.558758656, "dt": 0.9992574719999539}
+{"type": "task_completed", "pulse": 136, "task_id": "t000023", "unit_id": "u1", "started_pulse": 134, "status": "ok", "without_evidence": true, "output": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "error": null}
+{"type": "view", "pulse": 136, "unit_id": "u0", "snapshot_id": "s000136", "delta_ids": []}
+{"type": "view", "pulse": 136, "unit_id": "u1", "snapshot_id": "s000136", "delta_ids": []}
+{"type": "view", "pulse": 136, "unit_id": "u2", "snapshot_id": "s000136", "delta_ids": []}
+{"type": "view", "pulse": 136, "unit_id": "u3", "snapshot_id": "s000136", "delta_ids": []}
+{"type": "schedule", "pulse": 136, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 136, "delta_id": "d000037", "source_id": "u1", "output_port": "main", "target_id": "u2", "projection_weight": 0.4, "created_pulse": 136, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000134", "origin_task_id": "t000023", "expires_after_pulse": 146}
+{"type": "delta", "pulse": 136, "delta_id": "d000038", "source_id": "u1", "output_port": "main", "target_id": "u3", "projection_weight": 0.6, "created_pulse": 136, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000134", "origin_task_id": "t000023", "expires_after_pulse": 146}
+{"type": "pulse", "pulse": 137, "now": 4477.559789858, "dt": 1.0010312020003767}
+{"type": "view", "pulse": 137, "unit_id": "u0", "snapshot_id": "s000137", "delta_ids": []}
+{"type": "view", "pulse": 137, "unit_id": "u1", "snapshot_id": "s000137", "delta_ids": []}
+{"type": "view", "pulse": 137, "unit_id": "u2", "snapshot_id": "s000137", "delta_ids": ["d000037"]}
+{"type": "view", "pulse": 137, "unit_id": "u3", "snapshot_id": "s000137", "delta_ids": ["d000038"]}
+{"type": "claim", "pulse": 137, "unit_id": "u2", "resource_class": "llm_pool", "strength": 0.8196757228811256}
+{"type": "claim", "pulse": 137, "unit_id": "u3", "resource_class": "llm_pool", "strength": 1.0}
+{"type": "schedule", "pulse": 137, "accepted": ["u3"], "rejected": ["u2"], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 137, "task_id": "t000024", "unit_id": "u3", "resource_class": "llm_pool", "snapshot_id": "s000137", "input_delta_ids": ["d000038"], "without_evidence": false}
+{"type": "pulse", "pulse": 138, "now": 4478.559851181, "dt": 1.0000613230004092}
+{"type": "view", "pulse": 138, "unit_id": "u0", "snapshot_id": "s000138", "delta_ids": []}
+{"type": "view", "pulse": 138, "unit_id": "u1", "snapshot_id": "s000138", "delta_ids": []}
+{"type": "view", "pulse": 138, "unit_id": "u2", "snapshot_id": "s000138", "delta_ids": ["d000037"]}
+{"type": "view", "pulse": 138, "unit_id": "u3", "snapshot_id": "s000138", "delta_ids": ["d000038"]}
+{"type": "schedule", "pulse": 138, "accepted": [], "rejected": [], "busy": ["u3"], "tie_broken": []}
+{"type": "pulse", "pulse": 139, "now": 4479.559845334, "dt": 0.999994152999534}
+{"type": "task_completed", "pulse": 139, "task_id": "t000024", "unit_id": "u3", "started_pulse": 137, "status": "ok", "without_evidence": false, "output": "状況が不明なので、具体的な情報が得られていない。", "error": null}
+{"type": "view", "pulse": 139, "unit_id": "u0", "snapshot_id": "s000139", "delta_ids": []}
+{"type": "view", "pulse": 139, "unit_id": "u1", "snapshot_id": "s000139", "delta_ids": []}
+{"type": "view", "pulse": 139, "unit_id": "u2", "snapshot_id": "s000139", "delta_ids": ["d000037"]}
+{"type": "view", "pulse": 139, "unit_id": "u3", "snapshot_id": "s000139", "delta_ids": ["d000038"]}
+{"type": "schedule", "pulse": 139, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 139, "delta_id": "d000039", "source_id": "u3", "output_port": "main", "target_id": "effector.console", "projection_weight": 1.0, "created_pulse": 139, "kind": "content", "payload": "状況が不明なので、具体的な情報が得られていない。", "parent_delta_ids": ["d000038"], "origin_snapshot_id": "s000137", "origin_task_id": "t000024", "expires_after_pulse": 149}
+{"type": "effect", "pulse": 139, "delta_id": "d000039", "effector_id": "effector.console"}
+{"type": "pulse", "pulse": 140, "now": 4480.559703237, "dt": 0.9998579029997927}
+{"type": "view", "pulse": 140, "unit_id": "u0", "snapshot_id": "s000140", "delta_ids": []}
+{"type": "view", "pulse": 140, "unit_id": "u1", "snapshot_id": "s000140", "delta_ids": []}
+{"type": "view", "pulse": 140, "unit_id": "u2", "snapshot_id": "s000140", "delta_ids": ["d000037"]}
+{"type": "view", "pulse": 140, "unit_id": "u3", "snapshot_id": "s000140", "delta_ids": ["d000038"]}
+{"type": "schedule", "pulse": 140, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 141, "now": 4481.559874649, "dt": 1.0001714120007819}
+{"type": "view", "pulse": 141, "unit_id": "u0", "snapshot_id": "s000141", "delta_ids": []}
+{"type": "view", "pulse": 141, "unit_id": "u1", "snapshot_id": "s000141", "delta_ids": []}
+{"type": "view", "pulse": 141, "unit_id": "u2", "snapshot_id": "s000141", "delta_ids": ["d000037"]}
+{"type": "view", "pulse": 141, "unit_id": "u3", "snapshot_id": "s000141", "delta_ids": ["d000038"]}
+{"type": "schedule", "pulse": 141, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 142, "now": 4482.559746735, "dt": 0.9998720859994137}
+{"type": "view", "pulse": 142, "unit_id": "u0", "snapshot_id": "s000142", "delta_ids": []}
+{"type": "view", "pulse": 142, "unit_id": "u1", "snapshot_id": "s000142", "delta_ids": []}
+{"type": "view", "pulse": 142, "unit_id": "u2", "snapshot_id": "s000142", "delta_ids": ["d000037"]}
+{"type": "view", "pulse": 142, "unit_id": "u3", "snapshot_id": "s000142", "delta_ids": ["d000038"]}
+{"type": "schedule", "pulse": 142, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 143, "now": 4483.559184045, "dt": 0.9994373099998484}
+{"type": "view", "pulse": 143, "unit_id": "u0", "snapshot_id": "s000143", "delta_ids": []}
+{"type": "view", "pulse": 143, "unit_id": "u1", "snapshot_id": "s000143", "delta_ids": []}
+{"type": "view", "pulse": 143, "unit_id": "u2", "snapshot_id": "s000143", "delta_ids": ["d000037"]}
+{"type": "view", "pulse": 143, "unit_id": "u3", "snapshot_id": "s000143", "delta_ids": ["d000038"]}
+{"type": "schedule", "pulse": 143, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 144, "now": 4484.559595195, "dt": 1.0004111500002182}
+{"type": "view", "pulse": 144, "unit_id": "u0", "snapshot_id": "s000144", "delta_ids": []}
+{"type": "view", "pulse": 144, "unit_id": "u1", "snapshot_id": "s000144", "delta_ids": []}
+{"type": "view", "pulse": 144, "unit_id": "u2", "snapshot_id": "s000144", "delta_ids": ["d000037"]}
+{"type": "view", "pulse": 144, "unit_id": "u3", "snapshot_id": "s000144", "delta_ids": ["d000038"]}
+{"type": "schedule", "pulse": 144, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 145, "now": 4485.559272548, "dt": 0.9996773530001519}
+{"type": "view", "pulse": 145, "unit_id": "u0", "snapshot_id": "s000145", "delta_ids": []}
+{"type": "view", "pulse": 145, "unit_id": "u1", "snapshot_id": "s000145", "delta_ids": []}
+{"type": "view", "pulse": 145, "unit_id": "u2", "snapshot_id": "s000145", "delta_ids": ["d000037"]}
+{"type": "view", "pulse": 145, "unit_id": "u3", "snapshot_id": "s000145", "delta_ids": ["d000038"]}
+{"type": "schedule", "pulse": 145, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 146, "now": 4486.559627109, "dt": 1.0003545609997673}
+{"type": "view", "pulse": 146, "unit_id": "u0", "snapshot_id": "s000146", "delta_ids": []}
+{"type": "view", "pulse": 146, "unit_id": "u1", "snapshot_id": "s000146", "delta_ids": []}
+{"type": "view", "pulse": 146, "unit_id": "u2", "snapshot_id": "s000146", "delta_ids": ["d000037"]}
+{"type": "view", "pulse": 146, "unit_id": "u3", "snapshot_id": "s000146", "delta_ids": ["d000038"]}
+{"type": "claim", "pulse": 146, "unit_id": "u1", "resource_class": "llm_pool", "strength": 0.47911149889203136}
+{"type": "schedule", "pulse": 146, "accepted": ["u1"], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 146, "task_id": "t000025", "unit_id": "u1", "resource_class": "llm_pool", "snapshot_id": "s000146", "input_delta_ids": [], "without_evidence": true}
+{"type": "pulse", "pulse": 147, "now": 4487.560051612, "dt": 1.0004245030004313}
+{"type": "view", "pulse": 147, "unit_id": "u0", "snapshot_id": "s000147", "delta_ids": []}
+{"type": "view", "pulse": 147, "unit_id": "u1", "snapshot_id": "s000147", "delta_ids": []}
+{"type": "view", "pulse": 147, "unit_id": "u2", "snapshot_id": "s000147", "delta_ids": []}
+{"type": "view", "pulse": 147, "unit_id": "u3", "snapshot_id": "s000147", "delta_ids": []}
+{"type": "schedule", "pulse": 147, "accepted": [], "rejected": [], "busy": ["u1"], "tie_broken": []}
+{"type": "pulse", "pulse": 148, "now": 4488.559295153, "dt": 0.9992435409994869}
+{"type": "task_completed", "pulse": 148, "task_id": "t000025", "unit_id": "u1", "started_pulse": 146, "status": "ok", "without_evidence": true, "output": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "error": null}
+{"type": "view", "pulse": 148, "unit_id": "u0", "snapshot_id": "s000148", "delta_ids": []}
+{"type": "view", "pulse": 148, "unit_id": "u1", "snapshot_id": "s000148", "delta_ids": []}
+{"type": "view", "pulse": 148, "unit_id": "u2", "snapshot_id": "s000148", "delta_ids": []}
+{"type": "view", "pulse": 148, "unit_id": "u3", "snapshot_id": "s000148", "delta_ids": []}
+{"type": "schedule", "pulse": 148, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 148, "delta_id": "d000040", "source_id": "u1", "output_port": "main", "target_id": "u2", "projection_weight": 0.4, "created_pulse": 148, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000146", "origin_task_id": "t000025", "expires_after_pulse": 158}
+{"type": "delta", "pulse": 148, "delta_id": "d000041", "source_id": "u1", "output_port": "main", "target_id": "u3", "projection_weight": 0.6, "created_pulse": 148, "kind": "content", "payload": "現在の状況や状況に関係のない情報がなく、具体的な内容はわかりません。", "parent_delta_ids": [], "origin_snapshot_id": "s000146", "origin_task_id": "t000025", "expires_after_pulse": 158}
+{"type": "pulse", "pulse": 149, "now": 4489.559526009, "dt": 1.0002308560005986}
+{"type": "view", "pulse": 149, "unit_id": "u0", "snapshot_id": "s000149", "delta_ids": []}
+{"type": "view", "pulse": 149, "unit_id": "u1", "snapshot_id": "s000149", "delta_ids": []}
+{"type": "view", "pulse": 149, "unit_id": "u2", "snapshot_id": "s000149", "delta_ids": ["d000040"]}
+{"type": "view", "pulse": 149, "unit_id": "u3", "snapshot_id": "s000149", "delta_ids": ["d000041"]}
+{"type": "claim", "pulse": 149, "unit_id": "u2", "resource_class": "llm_pool", "strength": 0.8196747748606368}
+{"type": "claim", "pulse": 149, "unit_id": "u3", "resource_class": "llm_pool", "strength": 1.0}
+{"type": "schedule", "pulse": 149, "accepted": ["u3"], "rejected": ["u2"], "busy": [], "tie_broken": []}
+{"type": "task_started", "pulse": 149, "task_id": "t000026", "unit_id": "u3", "resource_class": "llm_pool", "snapshot_id": "s000149", "input_delta_ids": ["d000041"], "without_evidence": false}
+{"type": "pulse", "pulse": 150, "now": 4490.55947109, "dt": 0.9999450810000781}
+{"type": "view", "pulse": 150, "unit_id": "u0", "snapshot_id": "s000150", "delta_ids": []}
+{"type": "view", "pulse": 150, "unit_id": "u1", "snapshot_id": "s000150", "delta_ids": []}
+{"type": "view", "pulse": 150, "unit_id": "u2", "snapshot_id": "s000150", "delta_ids": ["d000040"]}
+{"type": "view", "pulse": 150, "unit_id": "u3", "snapshot_id": "s000150", "delta_ids": ["d000041"]}
+{"type": "schedule", "pulse": 150, "accepted": [], "rejected": [], "busy": ["u3"], "tie_broken": []}
+{"type": "pulse", "pulse": 151, "now": 4491.559813598, "dt": 1.0003425079994486}
+{"type": "task_completed", "pulse": 151, "task_id": "t000026", "unit_id": "u3", "started_pulse": 149, "status": "ok", "without_evidence": false, "output": "状況が不明なので、具体的な情報が得られていない。", "error": null}
+{"type": "view", "pulse": 151, "unit_id": "u0", "snapshot_id": "s000151", "delta_ids": []}
+{"type": "view", "pulse": 151, "unit_id": "u1", "snapshot_id": "s000151", "delta_ids": []}
+{"type": "view", "pulse": 151, "unit_id": "u2", "snapshot_id": "s000151", "delta_ids": ["d000040"]}
+{"type": "view", "pulse": 151, "unit_id": "u3", "snapshot_id": "s000151", "delta_ids": ["d000041"]}
+{"type": "schedule", "pulse": 151, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "delta", "pulse": 151, "delta_id": "d000042", "source_id": "u3", "output_port": "main", "target_id": "effector.console", "projection_weight": 1.0, "created_pulse": 151, "kind": "content", "payload": "状況が不明なので、具体的な情報が得られていない。", "parent_delta_ids": ["d000041"], "origin_snapshot_id": "s000149", "origin_task_id": "t000026", "expires_after_pulse": 161}
+{"type": "effect", "pulse": 151, "delta_id": "d000042", "effector_id": "effector.console"}
+{"type": "pulse", "pulse": 152, "now": 4492.559480772, "dt": 0.9996671740000238}
+{"type": "view", "pulse": 152, "unit_id": "u0", "snapshot_id": "s000152", "delta_ids": []}
+{"type": "view", "pulse": 152, "unit_id": "u1", "snapshot_id": "s000152", "delta_ids": []}
+{"type": "view", "pulse": 152, "unit_id": "u2", "snapshot_id": "s000152", "delta_ids": ["d000040"]}
+{"type": "view", "pulse": 152, "unit_id": "u3", "snapshot_id": "s000152", "delta_ids": ["d000041"]}
+{"type": "schedule", "pulse": 152, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 153, "now": 4493.560080445, "dt": 1.0005996729996696}
+{"type": "view", "pulse": 153, "unit_id": "u0", "snapshot_id": "s000153", "delta_ids": []}
+{"type": "view", "pulse": 153, "unit_id": "u1", "snapshot_id": "s000153", "delta_ids": []}
+{"type": "view", "pulse": 153, "unit_id": "u2", "snapshot_id": "s000153", "delta_ids": ["d000040"]}
+{"type": "view", "pulse": 153, "unit_id": "u3", "snapshot_id": "s000153", "delta_ids": ["d000041"]}
+{"type": "schedule", "pulse": 153, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 154, "now": 4494.559612901, "dt": 0.9995324560004519}
+{"type": "view", "pulse": 154, "unit_id": "u0", "snapshot_id": "s000154", "delta_ids": []}
+{"type": "view", "pulse": 154, "unit_id": "u1", "snapshot_id": "s000154", "delta_ids": []}
+{"type": "view", "pulse": 154, "unit_id": "u2", "snapshot_id": "s000154", "delta_ids": ["d000040"]}
+{"type": "view", "pulse": 154, "unit_id": "u3", "snapshot_id": "s000154", "delta_ids": ["d000041"]}
+{"type": "schedule", "pulse": 154, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 155, "now": 4495.559358286, "dt": 0.9997453850000966}
+{"type": "view", "pulse": 155, "unit_id": "u0", "snapshot_id": "s000155", "delta_ids": []}
+{"type": "view", "pulse": 155, "unit_id": "u1", "snapshot_id": "s000155", "delta_ids": []}
+{"type": "view", "pulse": 155, "unit_id": "u2", "snapshot_id": "s000155", "delta_ids": ["d000040"]}
+{"type": "view", "pulse": 155, "unit_id": "u3", "snapshot_id": "s000155", "delta_ids": ["d000041"]}
+{"type": "schedule", "pulse": 155, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 156, "now": 4496.560112445, "dt": 1.0007541590002802}
+{"type": "view", "pulse": 156, "unit_id": "u0", "snapshot_id": "s000156", "delta_ids": []}
+{"type": "view", "pulse": 156, "unit_id": "u1", "snapshot_id": "s000156", "delta_ids": []}
+{"type": "view", "pulse": 156, "unit_id": "u2", "snapshot_id": "s000156", "delta_ids": ["d000040"]}
+{"type": "view", "pulse": 156, "unit_id": "u3", "snapshot_id": "s000156", "delta_ids": ["d000041"]}
+{"type": "schedule", "pulse": 156, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}
+{"type": "pulse", "pulse": 157, "now": 4497.55999908, "dt": 0.9998866349997115}
+{"type": "view", "pulse": 157, "unit_id": "u0", "snapshot_id": "s000157", "delta_ids": []}
+{"type": "view", "pulse": 157, "unit_id": "u1", "snapshot_id": "s000157", "delta_ids": []}
+{"type": "view", "pulse": 157, "unit_id": "u2", "snapshot_id": "s000157", "delta_ids": ["d000040"]}
+{"type": "view", "pulse": 157, "unit_id": "u3", "snapshot_id": "s000157", "delta_ids": ["d000041"]}
+{"type": "schedule", "pulse": 157, "accepted": [], "rejected": [], "busy": [], "tie_broken": []}

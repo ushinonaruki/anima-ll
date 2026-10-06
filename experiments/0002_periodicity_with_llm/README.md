@@ -44,18 +44,33 @@ seed 44 は参考として同じ指標を記録する（LLM が入って周期�
 
 ## 操作
 
-- 環境：`config/environment/l1-ollama-console.yaml`（Ollama、モデル `anima-llm`、sampling は seed 0・temperature 0.3 で固定）
-- 入力：一切与えない（標準入力を閉じる）
+- 環境：`config/environment/l1-ollama-silent.yaml`（Ollama、モデル `anima-llm`、sampling は seed 0・temperature 0.3 で固定。入力は何も出さない台本入力）
+- 入力：一切与えない
 - 時間：1800 Pulse（1 Pulse = 1 秒、**実時間**。実際の LLM は時計と無関係に時間がかかるので `--clock fast` は使えない）
-- 個体の seed：42, 43, 44（1 本ずつ、順番に）
+- 個体の seed：42, 43, 44（1 本ずつ、順番に。合計約 90 分）
 - 実行前に `docker compose logs ollama` で、モデルが登録済みであること・GGUF の SHA-256・Ollama のバージョンを記録する
 - ログは `data/logs/0002/l1/` に分ける。各ログの先頭には、設定ファイルのパスと SHA-256、実行環境（モデル・sampling）、個体の seed、コードの版（git commit）が記録される
+
+Windows（PowerShell）：
+
+```powershell
+$env:ANIMA_GIT_COMMIT = git rev-parse HEAD
+docker compose up -d ollama
+foreach ($s in 42, 43, 44) {
+  docker compose run --rm -T anima python -m anima_ll `
+    --environment config/environment/l1-ollama-silent.yaml --pulses 1800 --seed $s --log-group 0002/l1
+}
+docker compose run --rm --no-deps anima sh -c "python experiments/0002_periodicity_with_llm/analyze.py data/logs/0002/l1/*.jsonl"
+```
+
+mac / Linux：
 
 ```bash
 export ANIMA_GIT_COMMIT=$(git rev-parse HEAD)
 docker compose up -d ollama
 for s in 42 43 44; do
-  docker compose run --rm -T anima python -m anima_ll --pulses 1800 --seed $s --log-group 0002/l1 < /dev/null
+  docker compose run --rm -T anima python -m anima_ll \
+    --environment config/environment/l1-ollama-silent.yaml --pulses 1800 --seed $s --log-group 0002/l1
 done
 python experiments/0002_periodicity_with_llm/analyze.py data/logs/0002/l1/*.jsonl
 ```
@@ -73,6 +88,7 @@ python experiments/0002_periodicity_with_llm/analyze.py data/logs/0002/l1/*.json
 |---|---|
 | H1 | u1, u2, u3 それぞれの claim（＝発火して計算を要求した）間隔の変動係数（標準偏差 / 平均） |
 | H2 | effector への出力の間隔の変動係数 |
+| 補助 | 壁時計での発火・発話間隔の変動係数と、Pulse 間隔の最大値（Pulse が遅れていないかの確認。判定には使わない） |
 | 参考 | 根拠なしの計算の割合、外からの根拠のない発話の割合（この実験では入力がないので 100% のはず）、Kernel の失敗数 |
 
 ## 判定（seed ごと）
@@ -90,9 +106,14 @@ python experiments/0002_periodicity_with_llm/analyze.py data/logs/0002/l1/*.json
   - c. `utter` テンプレートから「黙る」を外す。発話の間引きだけで H2 が崩れているのか
 - **Kernel の失敗が多い**（started の 1 割以上）場合は、その run を無効とし（`analyze.py` が判定不能にする）、原因を直してやり直す
 
+## 評価の対象外
+
+発話の **内容**（質・人格らしさ）は評価しない。入力なしの条件なので、発話はほぼすべて根拠なしの計算と cognitive leakage（LLM の事前分布による穴埋め）になる見込みで、0002 が見るのは時間構造だけである（0003 の観察を参照）。
+
 ## 登録内容の修正（測定前）
 
 - 2026-10-06：レビュー（ChatGPT）を受けて `analyze.py` を修正。判定を seed 42/43 だけに限定（seed 44 が判定に混ざるバグ）、seed と実行環境をログの run 記録から読む、実行環境の混在を拒否、Kernel の失敗率 1 割以上を無効に。ログの置き場所を `data/logs/0002/l0|l1/` に分けた。仮説・指標・閾値は変えていない
+- 2026-10-06：L1 初回起動の観察（0003）とレビュー（ChatGPT）を受けて、(1) 入力なしの条件を標準入力に頼らず作るため環境を `l1-ollama-silent.yaml` に変更（LLM と sampling は同じ）、(2) 補助指標として壁時計での間隔の変動係数と Pulse 間隔の最大値を追加、(3) 発話内容を評価対象外と明記。仮説・判定基準・閾値は変えていない
 
 ## 結果
 

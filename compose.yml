@@ -34,6 +34,7 @@ services:
     volumes:
       - ./config:/app/config:ro   # 設定はビルドし直さずに差し替えられる
       - ./data:/app/data          # 来歴ログと個体のスナップショットは手元に残す
+      - ./experiments:/app/experiments:ro   # 実験の集計スクリプトをコンテナ内で動かすため
 
   ollama:
     <<: *common

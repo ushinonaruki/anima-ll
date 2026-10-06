@@ -26,8 +26,8 @@ MAX_ERROR_RATE = 0.1
 DEFAULT_PRIMARY_SEEDS = (42, 43)
 
 
-def coefficient_of_variation(pulses: list[int]) -> float | None:
-    """発生した Pulse の列から、間隔の変動係数（標準偏差 / 平均）を出す。間隔が 2 つ未満なら None。"""
+def coefficient_of_variation(pulses: list[float]) -> float | None:
+    """発生した時点の列から、間隔の変動係数（標準偏差 / 平均）を出す。間隔が 2 つ未満なら None。"""
     intervals = [b - a for a, b in zip(pulses, pulses[1:])]
     if len(intervals) < 2:
         return None
@@ -62,11 +62,16 @@ def analyze(events: list[dict]) -> dict:
     started = without_evidence = errors = 0
     receptor_inputs = 0
     last_pulse = 0
+    pulse_time: dict[int, float] = {}
+    pulse_dt: list[float] = []
 
     for e in events:
         t = e["type"]
         last_pulse = max(last_pulse, e.get("pulse", 0))
-        if t == "claim":
+        if t == "pulse":
+            pulse_time[e["pulse"]] = e["now"]
+            pulse_dt.append(e["dt"])
+        elif t == "claim":
             claims[e["unit_id"]].append(e["pulse"])
         elif t == "effect":
             effects.append(e["pulse"])
@@ -99,6 +104,14 @@ def analyze(events: list[dict]) -> dict:
 
     unit_cv = {u: coefficient_of_variation(claims.get(u, [])) for u in KERNEL_UNITS}
     utterance_cv = coefficient_of_variation(effects)
+
+    # 補助指標（判定には使わない）：壁時計での間隔。Pulse が遅れていれば Pulse 上の CV とずれる
+    def wall(pulses: list[int]) -> list[float]:
+        return [pulse_time[p] for p in pulses if p in pulse_time]
+
+    unit_cv_wall = {u: coefficient_of_variation(wall(claims.get(u, []))) for u in KERNEL_UNITS}
+    utterance_cv_wall = coefficient_of_variation(wall(effects))
+    max_pulse_dt = max(pulse_dt[1:], default=None)  # 最初の Pulse は起動待ちを含むので除く
     ungrounded = sum(not grounded(d) for d in effect_deltas)
 
     error_rate = errors / started if started else 0.0
@@ -126,6 +139,9 @@ def analyze(events: list[dict]) -> dict:
         "unit_cv": unit_cv,
         "utterances": len(effects),
         "utterance_cv": utterance_cv,
+        "unit_cv_wall": unit_cv_wall,
+        "utterance_cv_wall": utterance_cv_wall,
+        "max_pulse_dt": max_pulse_dt,
         "tasks_started": started,
         "tasks_without_evidence": without_evidence,
         "kernel_errors": errors,
@@ -174,6 +190,8 @@ def main() -> int:
             print("  H1 発火間隔の CV: " + "  ".join(f"{u}={fmt(r['unit_cv'][u])}(n={r['claims'][u]})" for u in KERNEL_UNITS)
                   + f"  → {LABEL[r['H1_periodic']]}")
             print(f"  H2 発話間隔の CV: {fmt(r['utterance_cv'])}(n={r['utterances']})  → {LABEL[r['H2_periodic']]}")
+            print("  （補助）壁時計の CV: " + "  ".join(f"{u}={fmt(r['unit_cv_wall'][u])}" for u in KERNEL_UNITS)
+                  + f"  発話={fmt(r['utterance_cv_wall'])}  Pulse 間隔の最大={fmt(r['max_pulse_dt'])} 秒")
             print(f"  根拠なしの計算: {r['tasks_without_evidence']}/{r['tasks_started']}"
                   f"  外からの根拠のない発話: {r['ungrounded_utterances']}/{r['utterances']}")
 
