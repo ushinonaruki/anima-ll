@@ -1,9 +1,13 @@
-# --- IGNORE ---
+# --- 実行時に生成されるもの ---
 /data/**
-/models/**
-**/__pycache__/
-*.py[cod]
-.env
+!/data/.gitkeep
 
-# --- UNIGNORE ---
-!.gitkeep
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+
+# --- ローカル設定 ---
+.env
