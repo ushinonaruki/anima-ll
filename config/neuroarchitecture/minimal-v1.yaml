@@ -1,0 +1,61 @@
+# AnIma-ll 最軽量版 脳の設計図（Neuroarchitecture Manifest）v1
+#
+# 【位置づけ】minimal-v1 = minimal-v0 の動作テスト用の配線（smoke-test topology）
+#                        ＋ L2-1 で検証した発火履歴への順応（実験 0004・0005）
+#   v1 は v0 より「脳として正しい」設計図ではない。配線は v0 と同じく動作テスト用で、脳についての主張は込めていない。
+#   minimal-v0 は L0・L1・実験 0001〜0005 の比較基準として凍結し、書き換えない。
+#   L2 以降の変更は、この v1 に 1 つずつ足して比べ、確定したら v2・v3… として積み上げる。
+#
+# - Unit に役割は書かない（role: memory などは読み込み時にエラーになる）
+# - 違いは配線（projections）と部品・パラメータだけで表す
+# - Unit の名前は番号だけ。「u0 は感覚野」などとは決めない
+# - 外とつながる口は ID だけを宣言する。何をつなぐかは config/environment/ が決める
+# - seed（初期値のばらつきの元）は個体の設定 config/individual/ にある
+
+version: 1
+delta_ttl_pulses: 10     # Delta が BrainState に残る Pulse 数
+
+interfaces:
+  resources: [llm_pool]
+  receptors: [receptor.console]
+  effectors: [effector.console]
+
+defaults:
+  dynamics:
+    kind: simple_activity
+    decay: 0.85          # 1 秒あたりの減衰率
+    threshold: 0.5
+    refractory_pulses: 3   # 不応期。生物の再現ではなく単純な計算仮説の1つ
+    intrinsic_drive: 0.08  # 入力がなくても活動がゆっくり動き続ける（内容非依存）
+                           # 平衡値 ≒ drive / (1 - decay) ≒ 0.53 で閾値をわずかに上回る。
+                           # 0.05 だと平衡値 ≒ 0.33 で、入力がない限り一度も発火しない
+    jitter: 0.1          # Unit ごとのパラメータのばらつき（±10%）
+    # L2-1 の現行参照値（reference parameter）
+    #   実験 0004（入力なしで落ち着く）と 0005（発火に必要な最小の入力が上がる）がともに支持され、
+    #   事前登録した規則（両方を満たす中で α × τ_a が最小）で、現在の minimal の配線の上で選ばれた値。
+    #   生物学的な定数ではない。配線・Pulse の時間解像度・内在的駆動などを変えたら再検証の対象
+    adaptation_increment: 0.01   # α：1 回の発火で実効閾値に上乗せされる量
+    adaptation_tau: 300          # τ_a（秒）：上乗せが戻る時定数
+
+units:
+  - id: u0
+    output: relay
+  - id: u1
+    output: { kind: kernel_request, resource: llm_pool, io_template: associate }
+  - id: u2
+    output: { kind: kernel_request, resource: llm_pool, io_template: associate }
+  - id: u3
+    output: { kind: kernel_request, resource: llm_pool, io_template: utter }
+
+# receptor.console ─→ u0 ─┬─→ u1 ─┐
+#                         │   ↕   ├─→ u3 ─→ effector.console
+#                         └─→ u2 ─┘
+projections:
+  - { from: receptor.console.main, to: u0, weight: 1.0 }
+  - { from: u0.main, to: u1, weight: 1.0 }   # 分岐
+  - { from: u0.main, to: u2, weight: 1.0 }
+  - { from: u1.main, to: u2, weight: 0.4 }   # 弱い相互作用（再帰）
+  - { from: u2.main, to: u1, weight: 0.4 }
+  - { from: u1.main, to: u3, weight: 0.6 }   # 再収束
+  - { from: u2.main, to: u3, weight: 0.6 }
+  - { from: u3.main, to: effector.console }
