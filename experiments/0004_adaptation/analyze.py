@@ -29,6 +29,13 @@ H2_WEIGHT = 0.6              # 判定に使う probe の強さ（閾値付近）
 H2_MIN_DIFFERENCE = 0.3      # 「conditioning 側が弱く反応した個体の割合」が α = 0 より 0.3 以上高い
 H2_REFERENCE = H1_REFERENCE
 
+# ---- 事前登録した実行条件（これと完全に一致しない結果は判定しない） ------------------
+EXPECTED_SEEDS = list(range(1, 21))
+EXPECTED_CONDITIONS = [(0.0, 0)] + [(a, t) for a in (0.005, 0.01, 0.02) for t in (30, 300, 1200)]
+EXPECTED_SILENT_PULSES = 3600
+EXPECTED_PROTOCOL = {"warmup": 600, "conditioning": [600, 605, 610, 615, 620], "probe": 650,
+                     "pulses": 700, "probe_weights": [0.6, 1.0]}
+
 
 def in_window(pulses: list[int], window: tuple[int, int]) -> int:
     lo, hi = window
@@ -61,6 +68,38 @@ def cv(pulses: list[int]) -> float | None:
 
 def key(r: dict) -> tuple[float, float]:
     return (r["alpha"], r["tau"])
+
+
+def completeness_problems(data: dict) -> list[str]:
+    """事前登録した全条件・全個体がちょうど 1 本ずつそろっているかを調べる。"""
+    meta = data["meta"]
+    problems = []
+    if meta.get("quick"):
+        problems.append("quick（動作確認用）の結果")
+    if list(meta.get("seeds", [])) != EXPECTED_SEEDS:
+        problems.append(f"seed が 1〜20 ではない: {meta.get('seeds')}")
+    if meta.get("silent_pulses") != EXPECTED_SILENT_PULSES:
+        problems.append(f"入力なしの Pulse 数が {EXPECTED_SILENT_PULSES} ではない: {meta.get('silent_pulses')}")
+    if json.loads(json.dumps(meta.get("protocol"))) != EXPECTED_PROTOCOL:
+        problems.append(f"パート B の手順が事前登録と違う: {meta.get('protocol')}")
+    if [tuple(c) for c in meta.get("conditions", [])] != EXPECTED_CONDITIONS:
+        problems.append(f"条件が事前登録と違う: {meta.get('conditions')}")
+
+    expected_silent = {(a, t, s) for a, t in EXPECTED_CONDITIONS for s in EXPECTED_SEEDS}
+    got_silent = [(r["alpha"], r["tau"], r["seed"]) for r in data["silent"]]
+    if len(got_silent) != len(set(got_silent)):
+        problems.append("パート A に重複がある")
+    if set(got_silent) != expected_silent:
+        problems.append(f"パート A の本数が足りない／余分がある（{len(set(got_silent))}/{len(expected_silent)}）")
+
+    expected_probe = {(w, a, t, s) for w in EXPECTED_PROTOCOL["probe_weights"]
+                      for a, t in EXPECTED_CONDITIONS for s in EXPECTED_SEEDS}
+    got_probe = [(r["weight"], r["alpha"], r["tau"], r["seed"]) for r in data["probe"]]
+    if len(got_probe) != len(set(got_probe)):
+        problems.append("パート B に重複がある")
+    if set(got_probe) != expected_probe:
+        problems.append(f"パート B の本数が足りない／余分がある（{len(set(got_probe))}/{len(expected_probe)}）")
+    return problems
 
 
 # ---- パート A ---------------------------------------------------------------------
@@ -160,8 +199,9 @@ def main() -> int:
     with gzip.open(args.results, "rt", encoding="utf-8") as f:
         data = json.load(f)
     meta = data["meta"]
-    if meta.get("quick"):
-        print("quick（動作確認用）の結果なので判定しません")
+    problems = completeness_problems(data)
+    if problems:
+        print("事前登録した実行条件とそろっていないので判定しません（判定不能）:\n  " + "\n  ".join(problems))
         return 2
     print(f"commit={meta['git_commit']}  seeds={len(meta['seeds'])}")
 
