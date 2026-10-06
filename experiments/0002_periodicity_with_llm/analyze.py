@@ -12,6 +12,7 @@
 """
 
 import argparse
+import gzip
 import json
 import statistics
 import sys
@@ -36,7 +37,8 @@ def coefficient_of_variation(pulses: list[float]) -> float | None:
 
 
 def load(path: Path) -> list[dict]:
-    with path.open(encoding="utf-8") as f:
+    opener = gzip.open if path.suffix == ".gz" else open
+    with opener(path, "rt", encoding="utf-8") as f:
         return [json.loads(line) for line in f if line.strip()]
 
 
