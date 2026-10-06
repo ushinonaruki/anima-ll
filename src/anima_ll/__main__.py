@@ -36,7 +36,7 @@ def main() -> None:
         event_log=event_log,
         snapshot_store=JsonSnapshotStore(args.data_dir / "snapshots"),
     )
-    print(f"[anima_ll] log: {event_log._path}")  # noqa: SLF001  起動時の案内のみ
+    print(f"[anima_ll] log: {event_log.path}")
     try:
         asyncio.run(app.lifecycle.run(max_pulses=args.pulses))
     except KeyboardInterrupt:

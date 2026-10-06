@@ -12,6 +12,10 @@ class JsonlEventLog:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._file = self._path.open("a", encoding="utf-8")
 
+    @property
+    def path(self) -> Path:
+        return self._path
+
     def append(self, event: RuntimeEvent) -> None:
         record = {"type": event.type, "pulse": event.pulse, **event.data}
         self._file.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")

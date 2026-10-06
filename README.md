@@ -3,7 +3,7 @@
 生活空間の隣で継続して存在する AI 生命体 / AI 隣人。
 
 設計の正本は Obsidian vault の `【プログラム】Anima-ll/設計書/` を参照。
-このリポジトリの新しい実装は `src/anima_ll/`（最軽量版 L0）。旧実装 `src/brain/` などは L1 完成後に `src/legacy/` へ移す。
+現在の実装は最軽量版 L0（Python 3.11 以上、外部依存は PyYAML のみ）。
 
 ## 構成（src/anima_ll）
 

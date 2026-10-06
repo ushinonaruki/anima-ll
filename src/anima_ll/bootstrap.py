@@ -6,7 +6,6 @@ Manifest の文字列キー（kind）と実装クラスの対応表もここに�
 import random
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any
 
 from anima_ll.adapter.clock.fixed_step_clock import FixedStepClock
 from anima_ll.adapter.clock.system_clock import SystemClock
@@ -44,6 +43,7 @@ from anima_ll.unit.dynamics.simple_activity_dynamics import SimpleActivityDynami
 from anima_ll.unit.generic_cognitive_unit import GenericCognitiveUnit
 from anima_ll.unit.output.kernel_request_output import KernelRequestOutput
 from anima_ll.unit.output.relay_output import RelayOutput
+from anima_ll.unit.output.unit_output import UnitOutput
 
 
 # ---- Manifest の kind → 実装 ----------------------------------------------
@@ -103,8 +103,9 @@ def _build_unit(spec: UnitSpec, rng: random.Random) -> GenericCognitiveUnit:
     initial = ActivityState(activity=rng.uniform(0.0, threshold * 0.5))
 
     o = spec.output
+    output: UnitOutput
     if o.kind == "relay":
-        output: Any = RelayOutput()
+        output = RelayOutput()
     elif o.kind == "kernel_request":
         output = KernelRequestOutput(
             resource_class=str(o.params["resource"]),
