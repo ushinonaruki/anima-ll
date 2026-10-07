@@ -1,8 +1,7 @@
+# docker/anima/Dockerfile 専用の除外指定（文脈はリポジトリ直下。BuildKit が読む）
 .git
 .gitignore
 .gitattributes
-.dockerignore
-Dockerfile
 compose.yml
 data
 experiments
@@ -16,3 +15,4 @@ build
 dist
 models
 docker
+.ruff_cache
