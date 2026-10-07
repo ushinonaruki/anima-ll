@@ -23,8 +23,7 @@ from anima_ll.domain.model.kernel_task import KernelResult, KernelStatus, Kernel
 from anima_ll.domain.model.pulse import PulseContext
 from anima_ll.domain.model.runtime_event import RuntimeEventType as T
 from anima_ll.domain.model.unit_step import UnitStepResult
-
-from tests.integration.test_l0_runtime import BASE, silent
+from anima_test_support import BASE, silent
 
 
 class ManualKernel:
