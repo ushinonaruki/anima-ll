@@ -131,6 +131,17 @@ python experiments/0007_compute_boundary/analyze.py              # 判定
 
 **判定：境界は実装された。**
 
+### 事後注記：実際に変更した範囲（判定基準は変えていない）
+
+事前登録の「実装の範囲」には「変えるのは Runtime（実行基盤）と Environment の設定だけ」と書いたが、文字どおりには正しくない。実際の変更範囲は次のとおり。
+
+- **変更していない**：Unit の力学（`src/anima_ll/unit/dynamics/`）・`ActivityState`・`minimal-v1.yaml`・脳の設計図のスキーマ。A0 の判定対象はここで、すべて差分なし
+- **変更した（Runtime・Environment 以外）**：
+  - Domain の要求の契約：`domain/model/claim.py` を `compute_request.py` にし、`ComputeRequest` から claim の強さを外した
+  - Unit の出力部品：`unit/output/kernel_request_output.py` が計算の要求を作るときに、発火時の activity（strength）を載せないようにした
+- どちらも認知の力学ではなく、「発火の結果からどんな計算の要求を作るか」という境界の部分で、claim の強さを実行基盤から切り離すため（仕様 §7）の変更である。発火の時刻・材料は変わらない（A0 の振る舞いの一致で確認）
+- 発火時の strength は dynamics の出力として残っている（dynamics に触れないため）。計算の要求には使われない
+
 ### 測定のあとで直したこと（判定基準は変えていない）
 
 - `analyze.py` が、意図が 1 件も生まれない run（seed 9：入力なしでは、どの Unit も一度も発火しない個体）で例外を出して止まった。意図の一生の集計が「意図がある」前提になっていたため
