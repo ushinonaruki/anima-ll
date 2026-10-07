@@ -12,6 +12,9 @@
 # - 外とつながる口は ID だけを宣言する。何をつなぐかは config/environment/ が決める
 # - seed（初期値のばらつきの元）は個体の設定 config/individual/ にある
 
+# 2026-10-07 追記：コードの隠れた既定値だった max_inputs: 8 を明示した（値も振る舞いも変えていない。
+#   変更の前後で来歴ログが一致することを確認）。凍結の対象は値と仕組みで、表記の明示はその例外とする
+
 version: 1
 delta_ttl_pulses: 10     # Delta が BrainState に残る Pulse 数
 
@@ -41,11 +44,11 @@ units:
   - id: u0
     output: relay
   - id: u1
-    output: { kind: kernel_request, resource: llm_pool, io_template: associate }
+    output: { kind: kernel_request, resource: llm_pool, io_template: associate, max_inputs: 8 }
   - id: u2
-    output: { kind: kernel_request, resource: llm_pool, io_template: associate }
+    output: { kind: kernel_request, resource: llm_pool, io_template: associate, max_inputs: 8 }
   - id: u3
-    output: { kind: kernel_request, resource: llm_pool, io_template: utter }
+    output: { kind: kernel_request, resource: llm_pool, io_template: utter, max_inputs: 8 }
 
 # receptor.console ─→ u0 ─┬─→ u1 ─┐
 #                         │   ↕   ├─→ u3 ─→ effector.console

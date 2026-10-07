@@ -18,6 +18,7 @@ CONFIG = ROOT / "config"
 
 def base() -> dict:
     return {
+        "delta_ttl_pulses": 10,
         "interfaces": {
             "resources": ["llm_pool"],
             "receptors": ["receptor.console"],
@@ -26,10 +27,10 @@ def base() -> dict:
         "defaults": {"dynamics": {"kind": "simple_activity"}},
         "units": [
             {"id": "u0", "output": "relay"},
-            {"id": "u1", "output": {"kind": "kernel_request", "resource": "llm_pool"}},
+            {"id": "u1", "output": {"kind": "kernel_request", "resource": "llm_pool", "max_inputs": 8}},
         ],
         "projections": [
-            {"from": "receptor.console.main", "to": "u0"},
+            {"from": "receptor.console.main", "to": "u0", "weight": 1.0},
             {"from": "u0", "to": "u1", "weight": 0.5},
             {"from": "u1.main", "to": "effector.console"},
         ],
@@ -141,3 +142,19 @@ def test_minimal_v2_is_v1_without_refractory_only() -> None:
     for a, b in zip(v1.units, v2.units):
         assert a.output == b.output
         assert b.dynamics.params == {**a.dynamics.params, "refractory_pulses": 0}
+
+
+
+def test_cognitive_values_have_no_hidden_defaults() -> None:
+    """認知の力学に効く値は、設計図に書かなければ読み込めない（コードに隠れた既定値を持たせない）。"""
+    raw = base()
+    del raw["delta_ttl_pulses"]
+    with pytest.raises(ConfigError, match="delta_ttl_pulses"):
+        parse_neuroarchitecture(raw)
+    raw = base()
+    del raw["projections"][0]["weight"]
+    with pytest.raises(ConfigError, match="weight"):
+        parse_neuroarchitecture(raw)
+    raw = base()
+    assert "weight" not in raw["projections"][2]  # Effector への結合は重みを書かなくてよい（使われない）
+    parse_neuroarchitecture(raw)

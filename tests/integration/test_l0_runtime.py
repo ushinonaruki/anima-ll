@@ -243,3 +243,18 @@ def test_old_snapshots_without_adaptation_still_load() -> None:
     unit = app.units.get("u1")
     unit.import_state({"activity": 0.2, "refractory_remaining": 0})
     assert unit.export_state()["adaptation"] == 0.0
+
+
+def test_dynamics_values_have_no_hidden_defaults() -> None:
+    """力学と出力の値は、設計図に書かなければ起動しない（不応期の書き忘れで 3 に戻る、などを防ぐ）。"""
+    from anima_ll.bootstrap import MissingParameter
+
+    for key in ("decay", "threshold", "refractory_pulses", "intrinsic_drive", "jitter"):
+        cfg = copy.deepcopy(BASE)
+        del cfg["neuro"]["defaults"]["dynamics"][key]
+        with pytest.raises(MissingParameter, match=key):
+            run(cfg, 1)
+    cfg = copy.deepcopy(BASE)
+    del cfg["neuro"]["units"][1]["output"]["max_inputs"]
+    with pytest.raises(MissingParameter, match="max_inputs"):
+        run(cfg, 1)
