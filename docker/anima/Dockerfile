@@ -1,5 +1,7 @@
 # AnIma-ll 本体のイメージ
 #
+#   文脈はリポジトリ直下（compose.yml の build.context: .）。パスは直下からの相対
+#
 #   runtime : 本体を動かす（既定）
 #   dev     : テストを動かす（runtime ＋ pytest ＋ tests/）
 

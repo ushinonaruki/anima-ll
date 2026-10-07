@@ -1,5 +1,10 @@
 # AnIma-ll の実行環境
 #
+# Docker 関連のファイルは docker/ の下にある（このファイル以外）:
+#   docker/anima/   本体と test のイメージ（Dockerfile・Dockerfile.dockerignore）
+#   docker/ollama/  ローカル LLM のイメージ
+# Dockerfile.dockerignore は BuildKit（Docker Engine 23 以降・Docker Desktop の既定）で読まれる
+#
 #   docker compose build
 #   docker compose up -d ollama                 # ローカル LLM（初回は models/ の GGUF を登録する）
 #   docker compose logs -f ollama               # 登録の様子を見る
@@ -21,7 +26,8 @@ services:
   anima:
     <<: *common
     build:
-      context: .
+      context: .                              # ソース・設定をイメージに入れるため、文脈はリポジトリ直下
+      dockerfile: docker/anima/Dockerfile     # 除外の指定は docker/anima/Dockerfile.dockerignore
       target: runtime
     image: anima-ll:runtime
     environment:
@@ -73,6 +79,7 @@ services:
     <<: *common
     build:
       context: .
+      dockerfile: docker/anima/Dockerfile
       target: dev
     image: anima-ll:dev
     environment:
