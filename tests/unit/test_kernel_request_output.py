@@ -56,7 +56,7 @@ def test_fresh_firing_coalesces_into_one_request() -> None:
     req = only_request(out.advance(VIEW, CTX, 0.9))
     out.on_compute_outcome(req, ComputeOutcome.REJECTED_CAPACITY)
     merged = only_request(out.advance(VIEW, CTX, 0.3))  # 1 Pulse に 1 本だけ
-    assert merged.origin == RequestOrigin.FIRING
+    assert merged.origin == RequestOrigin.MERGED
     assert abs(merged.claim.strength - 0.9 * math.exp(-1 / 5)) < 1e-12  # 強い方
 
 
@@ -78,3 +78,13 @@ def test_pending_survives_snapshot() -> None:
     fresh = output()
     fresh.import_state({})  # L2-1 までのスナップショット
     assert fresh.pending == 0.0
+
+
+def test_fresh_firing_after_giving_up_is_a_new_request_not_a_merge() -> None:
+    """持ち越しが p_min 未満に弱まって諦めた Pulse に新しく発火したら、統合ではなく新しい要求。"""
+    out = output(tau=1.0, floor=0.3)
+    req = only_request(out.advance(VIEW, CTX, 0.5))
+    out.on_compute_outcome(req, ComputeOutcome.REJECTED_CAPACITY)
+    fresh = only_request(out.advance(VIEW, CTX, 0.6))  # 0.5 × e^-1 ≒ 0.18 < 0.3 で諦めた直後の発火
+    assert fresh.origin == RequestOrigin.FIRING
+    assert fresh.claim.strength == 0.6

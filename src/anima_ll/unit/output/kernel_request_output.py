@@ -63,7 +63,12 @@ class KernelRequestOutput:
         if firing_strength is None and pending == 0.0:
             return UnitStepResult.empty()
         strength = max(pending, firing_strength or 0.0)
-        origin = RequestOrigin.FIRING if firing_strength is not None else RequestOrigin.PENDING
+        if firing_strength is None:
+            origin = RequestOrigin.PENDING
+        elif pending > 0.0:
+            origin = RequestOrigin.MERGED  # 持ち越しの要求が生きている間の新しい発火
+        else:
+            origin = RequestOrigin.FIRING  # 持ち越しがない、または弱まりきって諦めた直後の新しい発火
         return UnitStepResult(compute_requests=(self._request(view, strength, origin),))
 
     def on_compute_outcome(self, request: ComputeRequest, outcome: str) -> None:

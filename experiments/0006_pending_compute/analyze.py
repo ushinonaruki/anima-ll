@@ -23,6 +23,7 @@ INFORMATIVE_BASELINE = 3         # τ_p = 0 で取り残しのある個体がこ
 H1_MAX_STARVED = 1               # 判定に使う τ_p で、取り残しのある個体が 20 中これ以下
 H2_MIN_RECOVERY = 0.5            # 負けた要求のエピソードのうち、後で計算が始まった割合がこれ以上
 STARTED, REJECTED, BUSY = "started", "rejected_capacity", "dropped_busy"
+CONTINUING = ("pending", "merged")  # 前のエピソードを引き継ぐ要求の由来。"firing" は新しいエピソード
 
 
 def completeness_problems(data: dict) -> list[str]:
@@ -50,8 +51,9 @@ def episodes(run: dict) -> list[dict]:
     """同じ Unit の、連続する Pulse の要求の並びを 1 つのエピソードにまとめる。
 
     エピソードは、要求が「容量の取り合いに負けた」で終わらない限り終わる（始まった／busy で捨てた）。
-    負けたあと次の Pulse に要求がなければ「諦めた」で終わる。持ち越し中に新しい発火と統合された要求も、
-    連続していれば同じエピソードに含める。
+    負けたあと次の Pulse の要求が持ち越しの再提示（pending）か統合（merged）なら同じエピソードを続ける。
+    次の Pulse に要求がない、または持ち越しを諦めた直後の新しい発火（firing）なら、前のエピソードは
+    「諦めた」で終わり、新しいエピソードが始まる。
     """
     by_unit: dict[str, list] = defaultdict(list)
     for pulse, unit, origin, strength, outcome in run["claims"]:
@@ -60,7 +62,9 @@ def episodes(run: dict) -> list[dict]:
     for unit, claims in by_unit.items():
         current: list = []
         for claim in claims:
-            if current and (claim[0] != current[-1][0] + 1 or current[-1][2] != REJECTED):
+            continues = (claim[0] == current[-1][0] + 1 and current[-1][2] == REJECTED
+                         and claim[1] in CONTINUING) if current else False
+            if current and not continues:
                 result.append(_close(unit, current))
                 current = []
             current.append(claim)
@@ -75,7 +79,7 @@ def _close(unit: str, claims: list) -> dict:
     rejected = any(c[2] == REJECTED for c in claims)
     return {"unit": unit, "start": claims[0][0], "length": len(claims), "end": end,
             "rejected": rejected, "wait": claims[-1][0] - claims[0][0] if end == "started" else None,
-            "retries": sum(c[1] == "pending" for c in claims)}
+            "retries": sum(c[1] in CONTINUING for c in claims)}
 
 
 def analyze(data: dict) -> dict:
@@ -96,7 +100,7 @@ def analyze(data: dict) -> dict:
                     "waits": [e["wait"] for e in rej if e["end"] == "started"],
                     "tasks": len(r["started"]),
                     "claims": len(r["claims"]),
-                    "retries": sum(c[2] == "pending" for c in r["claims"]),
+                    "retries": sum(c[2] in CONTINUING for c in r["claims"]),
                     "without_evidence": sum(s[2] for s in r["started"]),
                     "effects": r["effects"],
                     "fires": sum(v[-1][1] for v in r["fire_counts"].values()),
@@ -172,7 +176,7 @@ def main() -> int:
     judged_delays = [d for d in EXPECTED["kernel_delays"] if informative[d]]
     h1 = bool(judged_delays) and all(cell_holds(report, d, t, True)["h1"] for d in judged_delays for t in JUDGED_TAUS)
     h2 = all(cell_holds(report, d, t, informative[d])["h2"] for d in EXPECTED["kernel_delays"] for t in JUDGED_TAUS)
-    print(f"\n判定：H1（永久に取り残されない）{'判定不能（基準の取り残しが少ない）' if not judged_delays else ('支持' if h1 else '不支持')}"
+    print(f"\n判定：H1（観測期間内の取り残しがほぼなくなる）{'判定不能（基準の取り残しが少ない）' if not judged_delays else ('支持' if h1 else '不支持')}"
           f" / H2（負けた要求が後で計算される）{'支持' if h2 else '不支持'}")
 
     print("\n## 参照値（H1・H2 の正式判定がともに支持された場合に限る）")

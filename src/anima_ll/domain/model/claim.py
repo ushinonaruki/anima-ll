@@ -26,8 +26,9 @@ class KernelTaskDraft:
 class RequestOrigin:
     """要求がどこから来たか。観察用で、Scheduler には渡さない。"""
 
-    FIRING = "firing"    # 発火から生じた新しい要求（持ち越し中の要求と統合された場合も含む）
+    FIRING = "firing"    # 発火から生じた新しい要求（持ち越している要求はなかった）
     PENDING = "pending"  # 競合に負けて持ち越している要求の再提示（発火ではない）
+    MERGED = "merged"    # 生きている持ち越しの要求と、この Pulse の新しい発火を 1 本に統合した要求
 
 
 @dataclass(frozen=True)
