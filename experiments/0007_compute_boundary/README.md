@@ -102,3 +102,15 @@ A0〜A5 が通ったら、新しい実行基盤を正しい足場として採用
 - Kernel の速さへの感度（遅延 10 秒など）は、必要になったらそこで扱う
 
 それまで、0004 の H1 の支持は「要求が消える旧基盤の上でのもの」として前提つきで読む。
+
+## 実行
+
+```bash
+python -m pytest -q                                              # 契約テストを含む全テスト
+python experiments/0007_compute_boundary/run.py                  # stop 60 本 ＋ smoke 40 本
+python experiments/0007_compute_boundary/analyze.py              # 判定
+```
+
+- OLD は main `3ae66e7` の `src` を `git archive` で取り出し、別プロセスで動かす（Docker では `--old-src` で渡す。使い方は run.py の先頭）
+- `run.py` は判定に必要な要素（Unit の状態の推移・意図の列・意図の一生の整合）だけを保存する。発火・計算・発話の量は保存しない
+- `run.py`・`analyze.py` は、`--seeds 2 --quick`（結果は使わない）で動作を確かめてから、測定の前にコミットした
