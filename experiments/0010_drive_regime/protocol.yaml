@@ -1,13 +1,17 @@
 # 実験 0010 の実行条件と判定基準（事前登録の一部。測定の前にコミットする）
 #
 # なぜこの条件なのかは README.md に書く。ここには、run.py と analyze.py が実際に使う値だけを書く。
+# 判定の値（16 個体・0.3 など）の正本もここ。analyze.py は 0004・0005 の analyzer から生の集計（落ち着いた個体数・
+# α = 0 との差）だけを再利用し、成り立つかどうかはここの値で決める
 # 値はどれも、この実験の手順を決めるもので、AnIma-ll の脳の値ではない。
 
 base_neuroarchitecture: config/neuroarchitecture/minimal-v2.yaml
 
-# ρ = intrinsic_drive / ((1 − decay) × threshold)。decay・threshold は設計図の値を使い、変えない
-rho_values: [0.67, 0.90, 1.00, 1.07, 1.30, 1.60, 2.00]
-current_rho: 1.07                 # 今の値（0.08）。0009 の K1・K2 と同じ設定になる
+# 正本は、実際に操作する intrinsic_drive の値。ρ はここから計算する（表示用の丸めた値から逆算しない）
+#   ρ = intrinsic_drive / ((1 − decay) × threshold)。decay・threshold は設計図の値（0.85・0.5）を使い、変えない
+#   0.0500 → ρ 0.667、0.0675 → 0.900、0.0750 → 1.000、0.0800 → 1.067、0.0975 → 1.300、0.1200 → 1.600、0.1500 → 2.000
+intrinsic_drive_values: [0.0500, 0.0675, 0.0750, 0.0800, 0.0975, 0.1200, 0.1500]
+current_intrinsic_drive: 0.0800   # 今の値（minimal-v2）。0009 の K1・K2 とまったく同じ設定になる
 
 # 0004・0005 と同じ手順（関数は 0004・0005 の run.py をそのまま使う）
 adaptation_conditions:            # [α, τ_a]
