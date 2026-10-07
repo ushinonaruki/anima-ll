@@ -6,6 +6,8 @@
 resources:
   llm_pool:
     capacity: 1
+    # queue_capacity: 実行待ちの列の上限。書かなければ上限なし（計算資源境界 仕様 §3.3）。
+    #   超えたら新しい意図を受け付けず、run を劣化として記録する
     kernel: ollama
     base_url: http://ollama:11434
     model: anima-llm

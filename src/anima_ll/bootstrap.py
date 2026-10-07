@@ -31,13 +31,13 @@ from anima_ll.domain.port.snapshot_store import SnapshotStore
 from anima_ll.runtime.brain_state_integrator import BrainStateIntegrator
 from anima_ll.runtime.delta_canonicalizer import DeltaCanonicalizer
 from anima_ll.runtime.effector_dispatcher import EffectorDispatcher
+from anima_ll.runtime.execution_queue import ExecutionQueue
 from anima_ll.runtime.external_event_intake import ExternalEventIntake
 from anima_ll.runtime.identifier_issuer import IdentifierIssuer
 from anima_ll.runtime.kernel_task_coordinator import KernelTaskCoordinator
 from anima_ll.runtime.projection_router import ProjectionRouter
 from anima_ll.runtime.pulse_runtime import PulseRuntime
 from anima_ll.runtime.receptive_view_builder import ReceptiveViewBuilder
-from anima_ll.runtime.resource_scheduler import ResourceScheduler
 from anima_ll.runtime.runtime_lifecycle import RuntimeLifecycle
 from anima_ll.runtime.unit_registry import UnitRegistry
 from anima_ll.unit.dynamics.activity_dynamics import ActivityState
@@ -226,7 +226,7 @@ def build_application(
         router=ProjectionRouter(manifest),
         canonicalizer=DeltaCanonicalizer(issuer, manifest.delta_ttl_pulses),
         integrator=BrainStateIntegrator(),
-        scheduler=ResourceScheduler(),
+        queue=ExecutionQueue(environment.queue_capacities()),
         coordinator=coordinator,
         dispatcher=EffectorDispatcher(list(effectors.values())),
         issuer=issuer,

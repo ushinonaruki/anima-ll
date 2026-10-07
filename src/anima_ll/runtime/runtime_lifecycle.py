@@ -55,6 +55,7 @@ class RuntimeLifecycle:
                 )
                 last = now
         finally:
+            self._pulse_runtime.record_outstanding(self._pulse)
             await self._coordinator.shutdown()
             self.save_snapshot()
 

@@ -1,10 +1,13 @@
+import hashlib
+import json
 from dataclasses import asdict
 
 from anima_ll.domain.model.brain_state import BrainState, BrainStateSnapshot
-from anima_ll.domain.model.claim import ComputeRequest
+from anima_ll.domain.model.compute_request import ComputeRequest, KernelTaskDraft
 from anima_ll.domain.model.delta import ProposedDelta, StateDelta
 from anima_ll.domain.model.identifiers import (
     ComponentId,
+    PulseNumber,
     DeltaId,
     ResourceClass,
     SnapshotId,
@@ -14,17 +17,19 @@ from anima_ll.domain.model.identifiers import (
 )
 from anima_ll.domain.model.pulse import PulseContext
 from anima_ll.domain.model.runtime_event import RuntimeEvent, RuntimeEventType
+from anima_ll.domain.model.kernel_task import KernelStatus
 from anima_ll.domain.model.unit_step import UnitStepResult
 from anima_ll.domain.port.event_log import EventLog
 from anima_ll.runtime.brain_state_integrator import BrainStateIntegrator
+from anima_ll.runtime.compute_intent import ComputeIntent
 from anima_ll.runtime.delta_canonicalizer import DeltaCanonicalizer
 from anima_ll.runtime.effector_dispatcher import EffectorDispatcher
+from anima_ll.runtime.execution_queue import ExecutionQueue
 from anima_ll.runtime.external_event_intake import ExternalEventIntake
 from anima_ll.runtime.identifier_issuer import IdentifierIssuer
 from anima_ll.runtime.kernel_task_coordinator import KernelTaskCoordinator
 from anima_ll.runtime.projection_router import ProjectionRouter
 from anima_ll.runtime.receptive_view_builder import ReceptiveViewBuilder
-from anima_ll.runtime.resource_scheduler import ClaimEntry, ResourceScheduler
 from anima_ll.runtime.unit_registry import UnitRegistry
 
 _PendingRequest = tuple[UnitId, ComputeRequest, SnapshotId]
@@ -37,6 +42,12 @@ def _without_evidence(input_delta_ids: tuple[DeltaId, ...]) -> bool:
     このような計算は禁止せずに印をつけて観察する（v1.4 §6）。
     """
     return len(input_delta_ids) == 0
+
+
+def _draft_hash(draft: KernelTaskDraft) -> str:
+    """凍結した下書きの指紋（Worker の数で意図の中身が変わらないことの確認用）。"""
+    text = json.dumps(asdict(draft), sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
 class PulseRuntime:
@@ -52,7 +63,7 @@ class PulseRuntime:
         router: ProjectionRouter,
         canonicalizer: DeltaCanonicalizer,
         integrator: BrainStateIntegrator,
-        scheduler: ResourceScheduler,
+        queue: ExecutionQueue,
         coordinator: KernelTaskCoordinator,
         dispatcher: EffectorDispatcher,
         issuer: IdentifierIssuer,
@@ -67,7 +78,9 @@ class PulseRuntime:
         self._router = router
         self._canonicalizer = canonicalizer
         self._integrator = integrator
-        self._scheduler = scheduler
+        self._queue = queue
+        self._intent_seq = 0
+        self._degraded = False
         self._coordinator = coordinator
         self._dispatcher = dispatcher
         self._issuer = issuer
@@ -78,6 +91,11 @@ class PulseRuntime:
     @property
     def brain_state(self) -> BrainState:
         return self._state
+
+    @property
+    def degraded(self) -> bool:
+        """列があふれたことがあるか。あふれた run の結果は認知として解釈しない（仕様 §3.3）。"""
+        return self._degraded
 
     async def run_pulse(self, context: PulseContext) -> None:
         pulse = context.pulse
@@ -95,12 +113,15 @@ class PulseRuntime:
         snapshot = BrainStateSnapshot(self._issuer.snapshot_id(), pulse, self._state)
 
         # 3. 前の Pulse までに終わった思考を、依頼元の Unit に返す
-        for task, result in self._coordinator.collect_completed():
+        for intent, task, result in self._coordinator.collect_completed():
+            event_type = (RuntimeEventType.INTENT_COMPLETED if result.status == KernelStatus.OK
+                          else RuntimeEventType.INTENT_KERNEL_ERROR)
             self._log.append(
                 RuntimeEvent(
-                    RuntimeEventType.TASK_COMPLETED,
+                    event_type,
                     pulse,
-                    {"task_id": task.task_id, "unit_id": task.unit_id,
+                    {"intent_id": intent.intent_id, "task_id": task.task_id,
+                     "unit_id": task.unit_id, "created_pulse": intent.created_pulse,
                      "started_pulse": task.started_pulse, "status": result.status,
                      "without_evidence": _without_evidence(task.input_delta_ids),
                      "output": result.output, "error": result.error},
@@ -128,8 +149,9 @@ class PulseRuntime:
                 unit.unit_id, step, view.delta_ids(), snapshot.snapshot_id, None, pulse, pending
             )
 
-        # 5. 計算資源の割り当て（Scheduler に見せるのは claim の数値だけ）
-        self._schedule(pending, pulse)
+        # 5. 計算の意図を受理して列に並べ、空いた Worker に渡す（中身・強さは見ない）
+        self._admit(pending, pulse)
+        self._dispatch(pulse)
 
         # 6. Pulse の境界で反映（ここで確定した Delta は次の Pulse から見える）
         for delta in produced:
@@ -205,58 +227,93 @@ class PulseRuntime:
             self._violation(pulse, source_id, "unknown_effector", {"targets": unknown})
         return [d for d in outcome.deltas if d.target_id not in unknown]
 
-    def _schedule(self, pending: list[_PendingRequest], pulse: int) -> None:
-        busy = self._coordinator.busy_units()
-        eligible: list[_PendingRequest] = []
+    def _admit(self, pending: list[_PendingRequest], pulse: PulseNumber) -> None:
+        """合法な要求を ComputeIntent として凍結し、列に受理する。
+
+        容量不足や計算中を理由に捨てない。捨てるのは列の上限を超えたとき（tail-drop）だけで、
+        それも明示的に記録し、run を劣化として扱う。
+        """
         seen_units: set[UnitId] = set()
         for unit_id, request, snapshot_id in pending:
-            claim = request.claim
-            self._log.append(
-                RuntimeEvent(RuntimeEventType.CLAIM, pulse,
-                             {"unit_id": unit_id, "resource_class": claim.resource_class,
-                              "strength": claim.strength})
-            )
-            if claim.resource_class not in self._claim_permissions.get(unit_id, frozenset()):
+            if request.resource_class not in self._claim_permissions.get(unit_id, frozenset()):
                 self._violation(pulse, unit_id, "resource_not_allowed",
-                                {"resource_class": claim.resource_class})
+                                {"resource_class": request.resource_class})
                 continue
             if unit_id in seen_units:
-                # 1 Unit が 1 Pulse に出せる計算依頼は 1 件まで。2 件目以降は棄却して記録する
+                # 1 Unit が 1 Pulse に出せる計算の要求は 1 件まで（Runtime の暫定の契約）。
+                # 2 件目以降は棄却して記録する
                 self._violation(pulse, unit_id, "extra_compute_request",
-                                {"resource_class": claim.resource_class})
+                                {"resource_class": request.resource_class})
                 continue
             seen_units.add(unit_id)
-            if unit_id in busy:
-                continue  # 思考中の Unit は新しい依頼を出せない（1 Unit 1 タスク。schedule.busy に残る）
-            eligible.append((unit_id, request, snapshot_id))
-
-        entries = [ClaimEntry(unit_id, request.claim) for unit_id, request, _ in eligible]
-        decision = self._scheduler.select(entries, self._coordinator.free_capacity(), pulse)
-        accepted_units = {entry.unit_id for entry in decision.accepted}
-        self._log.append(
-            RuntimeEvent(RuntimeEventType.SCHEDULE, pulse,
-                         {"accepted": sorted(accepted_units),
-                          "rejected": sorted(e.unit_id for e in decision.rejected),
-                          "busy": sorted(busy),
-                          "tie_broken": list(decision.tie_broken)})
-        )
-        for unit_id, request, snapshot_id in eligible:
-            if unit_id not in accepted_units:
-                continue
-            task = self._coordinator.start(
+            self._intent_seq += 1
+            intent = ComputeIntent(
+                intent_id=self._issuer.intent_id(),
+                intent_seq=self._intent_seq,
                 unit_id=unit_id,
-                resource_class=request.claim.resource_class,
+                created_pulse=pulse,
+                resource_class=request.resource_class,
+                origin_snapshot_id=snapshot_id,
                 draft=request.draft,
-                snapshot_id=snapshot_id,
-                pulse=pulse,
             )
             self._log.append(
-                RuntimeEvent(RuntimeEventType.TASK_STARTED, pulse,
-                             {"task_id": task.task_id, "unit_id": unit_id,
-                              "resource_class": task.resource_class,
-                              "snapshot_id": snapshot_id,
-                              "input_delta_ids": list(task.input_delta_ids),
-                              "without_evidence": _without_evidence(task.input_delta_ids)})
+                RuntimeEvent(RuntimeEventType.INTENT_CREATED, pulse,
+                             {"intent_id": intent.intent_id, "intent_seq": intent.intent_seq,
+                              "unit_id": unit_id, "resource_class": intent.resource_class,
+                              "origin_snapshot_id": snapshot_id,
+                              "input_delta_ids": list(intent.input_delta_ids),
+                              "draft_hash": _draft_hash(intent.draft),
+                              "without_evidence": _without_evidence(intent.input_delta_ids)})
+            )
+            if self._queue.admit(intent):
+                self._log.append(
+                    RuntimeEvent(RuntimeEventType.INTENT_ADMITTED, pulse,
+                                 {"intent_id": intent.intent_id,
+                                  "waiting": len(self._queue.waiting(intent.resource_class))})
+                )
+                continue
+            self._log.append(
+                RuntimeEvent(RuntimeEventType.INTENT_REJECTED_OVERFLOW, pulse,
+                             {"intent_id": intent.intent_id, "unit_id": unit_id,
+                              "resource_class": intent.resource_class})
+            )
+            if not self._degraded:
+                self._degraded = True
+                self._log.append(
+                    RuntimeEvent(RuntimeEventType.RUNTIME_DEGRADED, pulse,
+                                 {"reason": "queue_overflow",
+                                  "resource_class": intent.resource_class})
+                )
+
+    def _dispatch(self, pulse: PulseNumber) -> None:
+        for intent in self._queue.take_dispatchable(
+            self._coordinator.free_capacity(), self._coordinator.busy_units()
+        ):
+            task = self._coordinator.start(intent, pulse)
+            self._log.append(
+                RuntimeEvent(RuntimeEventType.INTENT_STARTED, pulse,
+                             {"intent_id": intent.intent_id, "task_id": task.task_id,
+                              "unit_id": intent.unit_id,
+                              "resource_class": intent.resource_class,
+                              "created_pulse": intent.created_pulse,
+                              "snapshot_id": intent.origin_snapshot_id,
+                              "input_delta_ids": list(intent.input_delta_ids),
+                              "without_evidence": _without_evidence(intent.input_delta_ids)})
+            )
+
+    def record_outstanding(self, pulse: PulseNumber) -> None:
+        """run の終了時点で実行中・待ちのまま残った意図を記録する（消えたのではない）。"""
+        for intent in sorted(self._coordinator.in_flight(), key=lambda i: i.intent_seq):
+            self._log.append(
+                RuntimeEvent(RuntimeEventType.INTENT_OUTSTANDING, pulse,
+                             {"intent_id": intent.intent_id, "unit_id": intent.unit_id,
+                              "state": "running"})
+            )
+        for intent in self._queue.waiting():
+            self._log.append(
+                RuntimeEvent(RuntimeEventType.INTENT_OUTSTANDING, pulse,
+                             {"intent_id": intent.intent_id, "unit_id": intent.unit_id,
+                              "state": "waiting"})
             )
 
     def _violation(self, pulse: int, source_id: ComponentId, rule: str, detail: dict) -> None:

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from anima_ll.domain.model.claim import ComputeRequest
+from anima_ll.domain.model.compute_request import ComputeRequest
 from anima_ll.domain.model.delta import ProposedDelta
 
 
