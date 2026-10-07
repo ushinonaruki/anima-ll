@@ -1,0 +1,61 @@
+{
+  "git_commit": "8192bb5dfd70714e59f3fc160c51dae6348711b7",
+  "complete": true,
+  "valid": true,
+  "details": {
+    "A0": {
+      "code_unchanged_since_3ae66e7": true,
+      "contract_tests": true,
+      "state_trajectories_identical": true,
+      "mismatched_seeds": []
+    },
+    "A1": {
+      "contract_tests": true,
+      "no_unaccounted_intents": true,
+      "no_claim_or_schedule_logs": true
+    },
+    "A2": {
+      "contract_tests": true,
+      "stop_intents_identical_new1_new4": true,
+      "stop_intents_compared": 442
+    },
+    "A3": {
+      "contract_tests": true,
+      "runs_serialized_in_order": true
+    },
+    "A4": {
+      "contract_tests": true
+    },
+    "A5": {
+      "contract_tests": true
+    }
+  },
+  "verdict": {
+    "A0": true,
+    "A1": true,
+    "A2": true,
+    "A3": true,
+    "A4": true,
+    "A5": true
+  },
+  "boundary_implemented": true,
+  "runs_without_any_intent": [
+    [
+      "NEW-1",
+      9
+    ],
+    [
+      "NEW-4",
+      9
+    ],
+    [
+      "NEW-1",
+      9
+    ],
+    [
+      "NEW-4",
+      9
+    ]
+  ],
+  "problems": []
+}

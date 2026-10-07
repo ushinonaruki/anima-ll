@@ -95,4 +95,5 @@ L1 環境の Ollama の場所は `config/environment/l1-ollama-console.yaml` の
   - L2-1 発火履歴に依存する順応（済）：実験 `0004_adaptation/`（入力なしで落ち着く）、`0005_response_threshold/`（発火に必要な入力が上がる）→ `minimal-v1`
   - L2-2 計算の要求の持ち越し（**不採用**）：実験 `0006_pending_compute/`。実行基盤の制約を認知状態に写していたため
   - **今：恣意性監査**（`docs/arbitrariness-audit.md`）。新しい機能に進む前に、L0〜L2-1 のすべての仕組みと値を、仮説か足場かで棚卸しする
+    - §3.1 計算資源の取り合い（済）：仕様 `docs/compute-boundary-spec.md`。実行基盤は意図を黙って捨てない。実装確認は実験 `0007_compute_boundary/`。新基盤での baseline の取り直しは 0008 で別に事前登録する
 - L3：睡眠（Replay・恒常性）

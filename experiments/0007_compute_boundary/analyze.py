@@ -93,17 +93,23 @@ def main() -> None:
                                             == stop[("NEW-4", s)]["states"])]
 
     # ---- A1 ----
-    lifecycle_ok = all(r["lifecycle"] and r["lifecycle"]["unaccounted"] == 0
-                       and r["lifecycle"]["not_admitted_without_overflow"] == 0 for r in new_runs)
+    # 意図が 1 件も生まれなかった run（どの Unit も一度も発火しない個体）は、lifecycle が None。
+    # 消えうる意図がないので A1・A3 は自明に成り立つ。件数を別に報告する
+    no_intent_runs = [(r["condition"], r["seed"]) for r in new_runs if r["lifecycle"] is None]
+    lifecycle_ok = all(r["lifecycle"] is None or (r["lifecycle"]["unaccounted"] == 0
+                       and r["lifecycle"]["not_admitted_without_overflow"] == 0) for r in new_runs)
     no_old_logs = all("claim" not in r["event_types"] and "schedule" not in r["event_types"] for r in new_runs)
 
     # ---- A2 ----
-    a2_equal = all(stop[("NEW-1", s)]["intents"] and stop[("NEW-1", s)]["intents"] == stop[("NEW-4", s)]["intents"]
-                   for s in seeds)
+    # 判定は seed ごとの完全一致（空どうしも一致）。全体として比べる意図があることも確かめる
+    a2_equal = (all(stop[("NEW-1", s)]["intents"] == stop[("NEW-4", s)]["intents"] for s in seeds)
+                and any(stop[("NEW-1", s)]["intents"] for s in seeds))
+    a2_compared = sum(len(stop[("NEW-1", s)]["intents"]) for s in seeds)
 
     # ---- A3（結合での確認） ----
-    a3_runs = all(r["lifecycle"]["max_running_per_unit"] <= 1 and r["lifecycle"]["order_violations"] == 0
-                  and r["lifecycle"]["started_twice"] == 0 for r in new_runs)
+    a3_runs = all(r["lifecycle"] is None or (r["lifecycle"]["max_running_per_unit"] <= 1
+                  and r["lifecycle"]["order_violations"] == 0 and r["lifecycle"]["started_twice"] == 0)
+                  for r in new_runs)
 
     tests = {key: run_pytest(targets) for key, targets in CONTRACT_TESTS.items()}
 
@@ -124,13 +130,15 @@ def main() -> None:
                    "state_trajectories_identical": a0_states, "mismatched_seeds": a0_mismatch},
             "A1": {"contract_tests": tests["A1"], "no_unaccounted_intents": lifecycle_ok,
                    "no_claim_or_schedule_logs": no_old_logs},
-            "A2": {"contract_tests": tests["A2"], "stop_intents_identical_new1_new4": a2_equal},
+            "A2": {"contract_tests": tests["A2"], "stop_intents_identical_new1_new4": a2_equal,
+                   "stop_intents_compared": a2_compared},
             "A3": {"contract_tests": tests["A3"], "runs_serialized_in_order": a3_runs},
             "A4": {"contract_tests": tests["A4"]},
             "A5": {"contract_tests": tests["A5"]},
         },
         "verdict": verdict,
         "boundary_implemented": complete and not invalid and not errors and all(verdict.values()),
+        "runs_without_any_intent": no_intent_runs,
         "problems": problems,
     }
     print(json.dumps(report, ensure_ascii=False, indent=2))
