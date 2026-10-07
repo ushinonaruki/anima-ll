@@ -73,3 +73,14 @@ K1 の手順の run で、不応期 3（= 0008 の NEW）と不応期 0 を並�
   ```
 - 要再検証になった知見があれば、恣意性監査に記録し、扱いを別に決める
 - 結果を見たあとの分析は「事後の探索的観察」として分けて書き、上の判定は変えない
+
+## 実行
+
+```bash
+python experiments/0009_refractory_removal/run.py        # K1 200 本 ＋ K2 4000 本（不応期 0）
+python experiments/0009_refractory_removal/analyze.py    # 判定と記録
+```
+
+- 設定は 0004・0005 の `run.py`（`neuro_raw`・`environment_raw`・`run_once`）をそのまま使い、設計図の不応期だけを 0 にする。判定は 0004 の `analyze_silent`、0005 の `analyze`・`choose_reference` をそのまま使う
+- 不応期 3 の比較の基準は 0008 の NEW（同じ新しい基盤）
+- `run.py`・`analyze.py` は、`--seeds 1`（結果は使わない）で動作を確かめてから、測定の前にコミットした
