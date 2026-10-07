@@ -169,13 +169,18 @@ def _projection(raw: dict[str, Any], sources: set[str], targets: set[str]) -> Pr
 
 # ---- 実行環境 ---------------------------------------------------------------
 
+def _optional_int(value: Any) -> int | None:
+    return None if value is None else int(value)
+
+
 def parse_environment(raw: dict[str, Any]) -> EnvironmentSpec:
     resources = tuple(
         ResourceSpec(
             resource_class=str(name),
             capacity=int(spec["capacity"]),
             kernel=str(spec["kernel"]),
-            params={k: v for k, v in spec.items() if k not in ("capacity", "kernel")},
+            queue_capacity=_optional_int(spec.get("queue_capacity")),
+            params={k: v for k, v in spec.items() if k not in ("capacity", "kernel", "queue_capacity")},
         )
         for name, spec in (raw.get("resources") or {}).items()
     )

@@ -102,3 +102,54 @@ A0〜A5 が通ったら、新しい実行基盤を正しい足場として採用
 - Kernel の速さへの感度（遅延 10 秒など）は、必要になったらそこで扱う
 
 それまで、0004 の H1 の支持は「要求が消える旧基盤の上でのもの」として前提つきで読む。
+
+## 実行
+
+```bash
+python -m pytest -q                                              # 契約テストを含む全テスト
+python experiments/0007_compute_boundary/run.py                  # stop 60 本 ＋ smoke 40 本
+python experiments/0007_compute_boundary/analyze.py              # 判定
+```
+
+- OLD は main `3ae66e7` の `src` を `git archive` で取り出し、別プロセスで動かす（Docker では `--old-src` で渡す。使い方は run.py の先頭）
+- `run.py` は判定に必要な要素（Unit の状態の推移・意図の列・意図の一生の整合）だけを保存する。発火・計算・発話の量は保存しない
+- `run.py`・`analyze.py` は、`--seeds 2 --quick`（結果は使わない）で動作を確かめてから、測定の前にコミットした
+
+## 結果（2026-10-07）
+
+- 測定：commit `8192bb5`（実装 ＋ run.py・analyze.py）。データ `results.json.gz`、判定 `report.json`（このフォルダ）
+- 完全性：seed 1〜20・全条件そろい（stop 60 本・smoke 40 本）。正常系の run であふれ・例外は 0 件（invalid なし）
+
+| 判定 | 結果 | 内訳 |
+|---|---|---|
+| **A0** Unit の力学を変えていない | **成立** | `src/anima_ll/unit/dynamics/`・`manifest.py`・`minimal-v1.yaml` は `3ae66e7` から差分なし。構造テスト通過。stop で OLD・NEW-1・NEW-4 の全 Unit の状態の推移（300 Pulse × 4 Unit）が 20 seed すべてで完全一致 |
+| **A1** silent drop がない | **成立** | 契約テスト通過。新基盤の stop・smoke の全 run で、消えた意図 0 件。旧来の claim・schedule のログなし |
+| **A2** Worker の数で意図が変わらない | **成立** | 契約テスト（空き Worker 0・1・4）通過。stop で NEW-1 と NEW-4 の意図の列が 20 seed すべてで完全一致（比べた意図 442 件） |
+| **A3** Unit ごとの FIFO と 1 in-flight | **成立** | 契約テスト通過。新基盤の全 run で、同じ Unit の同時実行は最大 1 件、開始順の逆転 0 件、二重実行 0 件 |
+| **A4** Worker を遊ばせない | **成立** | 契約テスト通過 |
+| **A5** あふれは明示的な劣化 | **成立** | 契約テスト通過（上限 2 で 3 件目を `intent_rejected_overflow`、`runtime_degraded` を 1 回記録、受理済みは捨てない。Kernel の失敗とは別の状態） |
+
+**判定：境界は実装された。**
+
+### 事後注記：実際に変更した範囲（判定基準は変えていない）
+
+事前登録の「実装の範囲」には「変えるのは Runtime（実行基盤）と Environment の設定だけ」と書いたが、文字どおりには正しくない。実際の変更範囲は次のとおり。
+
+- **変更していない**：Unit の力学（`src/anima_ll/unit/dynamics/`）・`ActivityState`・`minimal-v1.yaml`・脳の設計図のスキーマ。A0 の判定対象はここで、すべて差分なし
+- **変更した（Runtime・Environment 以外）**：
+  - Domain の要求の契約：`domain/model/claim.py` を `compute_request.py` にし、`ComputeRequest` から claim の強さを外した
+  - Unit の出力部品：`unit/output/kernel_request_output.py` が計算の要求を作るときに、発火時の activity（strength）を載せないようにした
+- どちらも認知の力学ではなく、「発火の結果からどんな計算の要求を作るか」という境界の部分で、claim の強さを実行基盤から切り離すため（仕様 §7）の変更である。発火の時刻・材料は変わらない（A0 の振る舞いの一致で確認）
+- 発火時の strength は dynamics の出力として残っている（dynamics に触れないため）。計算の要求には使われない
+
+### 測定のあとで直したこと（判定基準は変えていない）
+
+- `analyze.py` が、意図が 1 件も生まれない run（seed 9：入力なしでは、どの Unit も一度も発火しない個体）で例外を出して止まった。意図の一生の集計が「意図がある」前提になっていたため
+- 修正：意図が 0 件の run は、消えうる意図がないので A1・A3 は自明に成り立つものとして扱い、件数を別に報告する（`runs_without_any_intent`）。A2 は事前登録どおり「seed ごとの完全一致」で判定し（空どうしも一致）、全体として比べる意図があること（442 件）も確かめる。修正前の script は A2 に「各 seed で意図が 1 件以上」という、事前登録にない条件を足していたので、それを外した
+- 修正後の script は、このコミットに含める
+
+### 次へ
+
+- 新しい実行基盤を正しい足場として採用する
+- 新基盤での `minimal-v1` の baseline（旧基盤との比較、0004 の「落ち着く」の再確認、活動量・列の長さ・待ち時間の観察）は、0008 として別に事前登録する
+- 並行して、恣意性監査の次の項目（§3.2 不応期）に進む

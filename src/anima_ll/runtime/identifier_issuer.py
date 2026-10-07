@@ -20,5 +20,8 @@ class IdentifierIssuer:
     def task_id(self) -> TaskId:
         return self._issue("t")
 
+    def intent_id(self) -> str:
+        return self._issue("i")
+
     def snapshot_id(self) -> SnapshotId:
         return self._issue("s")

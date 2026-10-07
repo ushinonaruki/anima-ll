@@ -1,23 +1,18 @@
 import asyncio
 from collections.abc import Mapping
 
-from anima_ll.domain.model.claim import KernelTaskDraft
-from anima_ll.domain.model.identifiers import (
-    PulseNumber,
-    ResourceClass,
-    SnapshotId,
-    TaskId,
-    UnitId,
-)
+from anima_ll.domain.model.identifiers import PulseNumber, ResourceClass, TaskId, UnitId
 from anima_ll.domain.model.kernel_task import KernelResult, KernelStatus, KernelTask
 from anima_ll.domain.port.compute_kernel import ComputeKernel
+from anima_ll.runtime.compute_intent import ComputeIntent
 from anima_ll.runtime.identifier_issuer import IdentifierIssuer
 
 
 class KernelTaskCoordinator:
-    """採択された依頼を Kernel に投げ、終わったものを回収する。
+    """列から取り出された意図を Kernel に投げ、終わったものを回収する。
 
     Kernel の推論は複数 Pulse にまたがってよい。その間も Pulse は進む。
+    Kernel に渡すのは凍結した下書き（KernelTask）だけで、意図の一生の状態は渡さない。
     """
 
     def __init__(
@@ -29,52 +24,53 @@ class KernelTaskCoordinator:
         self._kernels = dict(kernels)
         self._capacities = dict(capacities)
         self._issuer = issuer
-        self._in_flight: dict[TaskId, tuple[KernelTask, asyncio.Task[KernelResult]]] = {}
+        self._in_flight: dict[TaskId, tuple[ComputeIntent, KernelTask, asyncio.Task[KernelResult]]] = {}
 
     def busy_units(self) -> frozenset[UnitId]:
-        return frozenset(task.unit_id for task, _ in self._in_flight.values())
+        return frozenset(task.unit_id for _, task, _ in self._in_flight.values())
 
     def free_capacity(self) -> dict[ResourceClass, int]:
         used: dict[ResourceClass, int] = {}
-        for task, _ in self._in_flight.values():
+        for _, task, _ in self._in_flight.values():
             used[task.resource_class] = used.get(task.resource_class, 0) + 1
         return {rc: cap - used.get(rc, 0) for rc, cap in self._capacities.items()}
 
-    def start(
-        self,
-        *,
-        unit_id: UnitId,
-        resource_class: ResourceClass,
-        draft: KernelTaskDraft,
-        snapshot_id: SnapshotId,
-        pulse: PulseNumber,
-    ) -> KernelTask:
+    def in_flight(self) -> tuple[ComputeIntent, ...]:
+        return tuple(intent for intent, _, _ in self._in_flight.values())
+
+    def start(self, intent: ComputeIntent, pulse: PulseNumber) -> KernelTask:
+        draft = intent.draft
         task = KernelTask(
             task_id=self._issuer.task_id(),
-            unit_id=unit_id,
-            resource_class=resource_class,
-            snapshot_id=snapshot_id,
+            unit_id=intent.unit_id,
+            resource_class=intent.resource_class,
+            snapshot_id=intent.origin_snapshot_id,
             input_delta_ids=draft.input_delta_ids,
             started_pulse=pulse,
             inputs=draft.inputs,
             io_template=draft.io_template,
         )
-        kernel = self._kernels[resource_class]
-        self._in_flight[task.task_id] = (task, asyncio.create_task(self._execute(kernel, task)))
+        kernel = self._kernels[intent.resource_class]
+        job = asyncio.create_task(self._execute(kernel, task))
+        self._in_flight[task.task_id] = (intent, task, job)
         return task
 
-    def collect_completed(self) -> tuple[tuple[KernelTask, KernelResult], ...]:
-        done_ids = sorted(tid for tid, (_, job) in self._in_flight.items() if job.done())
+    def collect_completed(self) -> tuple[tuple[ComputeIntent, KernelTask, KernelResult], ...]:
+        done = sorted(
+            (tid for tid, (_, _, job) in self._in_flight.items() if job.done()),
+            key=lambda tid: self._in_flight[tid][0].intent_seq,
+        )
         completed = []
-        for task_id in done_ids:
-            task, job = self._in_flight.pop(task_id)
-            completed.append((task, job.result()))
+        for task_id in done:
+            intent, task, job = self._in_flight.pop(task_id)
+            completed.append((intent, task, job.result()))
         return tuple(completed)
 
     async def shutdown(self) -> None:
-        for _, job in self._in_flight.values():
+        jobs = [job for _, _, job in self._in_flight.values()]
+        for job in jobs:
             job.cancel()
-        await asyncio.gather(*(job for _, job in self._in_flight.values()), return_exceptions=True)
+        await asyncio.gather(*jobs, return_exceptions=True)
         self._in_flight.clear()
 
     @staticmethod

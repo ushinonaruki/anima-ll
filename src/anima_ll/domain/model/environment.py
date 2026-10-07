@@ -14,8 +14,12 @@ from anima_ll.domain.model.manifest import NeuroarchitectureManifest
 class ResourceSpec:
     resource_class: ResourceClass
     capacity: int
+    """同時に計算できる数（Worker の数）。"""
     kernel: str
     """Kernel 実装を指すキー（例: "fake_delayed", "ollama"）。"""
+    queue_capacity: int | None = None
+    """実行待ちの列の上限。None なら上限なし。超えたら新しい意図を受け付けず、
+    実行基盤の劣化として記録する（計算資源境界 仕様 v0.3.1 §3.3）。"""
     params: dict[str, JsonValue] = field(default_factory=dict)
 
 
@@ -36,6 +40,9 @@ class EnvironmentSpec:
 
     def capacities(self) -> dict[ResourceClass, int]:
         return {r.resource_class: r.capacity for r in self.resources}
+
+    def queue_capacities(self) -> dict[ResourceClass, int | None]:
+        return {r.resource_class: r.queue_capacity for r in self.resources}
 
     def binding_mismatches(self, manifest: NeuroarchitectureManifest) -> list[str]:
         """設計図が宣言した口と、この環境がつないだ口の食い違いを列挙する。"""
