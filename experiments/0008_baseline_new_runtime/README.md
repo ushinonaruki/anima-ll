@@ -100,3 +100,14 @@ OLD の 10 条件 × 20 個体の発火の記録が、0004 の `results.json.gz`
 ## 結果を見たあとで
 
 - 結果を見たあとの分析は「事後の探索的観察」として分けて書き、上の判定は変えない
+
+## 実行
+
+```bash
+python experiments/0008_baseline_new_runtime/run.py        # OLD・NEW 各 200 本 ＋ 0005 の再実行 4000 本
+python experiments/0008_baseline_new_runtime/analyze.py    # 判定と記録
+```
+
+- OLD は main `3ae66e7` の `src` を `git archive` で取り出し、別プロセスで動かす（Docker では `--old-src` で渡す。使い方は run.py の先頭）
+- 設定は 0004 の `run.py` の `neuro_raw`・`environment_raw` をそのまま使う。H1-new の判定は 0004 の `analyze.py` の `analyze_silent`、0005 の w\* は 0005 の `analyze.py` の `w_star` をそのまま使う（基準を 0004・0005 とそろえるため）
+- `run.py`・`analyze.py` は、`--seeds 2 --skip-0005`（結果は使わない）で動作を確かめてから、測定の前にコミットした
