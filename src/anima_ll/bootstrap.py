@@ -106,6 +106,19 @@ EFFECTORS: dict[str, Callable[[ComponentSpec], Effector]] = {
 
 # ---- Unit の組み立て --------------------------------------------------------
 
+class MissingParameter(ValueError):
+    """脳の設計図に、認知の力学に効く値が書かれていない。
+
+    コードに隠れた既定値を持たせない（恣意性監査：値は設計図に見える形で置く）。
+    """
+
+
+def _required(params: Mapping[str, JsonValue], key: str, where: str) -> JsonValue:
+    if key not in params:
+        raise MissingParameter(f"{where}: {key} が脳の設計図に書かれていません（コードに既定値は持たせません）")
+    return params[key]
+
+
 def _build_unit(spec: UnitSpec, rng: random.Random) -> GenericCognitiveUnit:
     """部品を組み合わせて Unit を作る。初期値に seed 付きの小さなばらつきを入れる。
 
@@ -115,18 +128,20 @@ def _build_unit(spec: UnitSpec, rng: random.Random) -> GenericCognitiveUnit:
     d = spec.dynamics
     if d.kind != "simple_activity":
         raise ValueError(f"未知の dynamics: {d.kind}")
-    jitter = float(d.params.get("jitter", 0.0))
+    where = f"{spec.unit_id} の dynamics"
+    jitter = float(_required(d.params, "jitter", where))
 
     def vary(value: float) -> float:
         return value * (1.0 + rng.uniform(-jitter, jitter))
 
-    threshold = vary(float(d.params.get("threshold", 0.5)))
+    threshold = vary(float(_required(d.params, "threshold", where)))
     dynamics = SimpleActivityDynamics(
-        decay_per_second=float(d.params.get("decay", 0.85)),
+        decay_per_second=float(_required(d.params, "decay", where)),
         threshold=threshold,
-        refractory_pulses=int(d.params.get("refractory_pulses", 3)),
-        intrinsic_drive_per_second=vary(float(d.params.get("intrinsic_drive", 0.0))),
+        refractory_pulses=int(_required(d.params, "refractory_pulses", where)),
+        intrinsic_drive_per_second=vary(float(_required(d.params, "intrinsic_drive", where))),
         # 順応のパラメータには個体差（jitter）を掛けない。乱数の消費順も変えない（α = 0 で L1 と同一）
+        # 順応は「書かなければ仕組みがない」（0 は仕組みが働かないことを表す中立の値）
         adaptation_increment=float(d.params.get("adaptation_increment", 0.0)),
         adaptation_tau_seconds=float(d.params.get("adaptation_tau", 0.0)),
     )
@@ -140,7 +155,7 @@ def _build_unit(spec: UnitSpec, rng: random.Random) -> GenericCognitiveUnit:
         output = KernelRequestOutput(
             resource_class=str(o.params["resource"]),
             io_template=o.params.get("io_template"),
-            max_inputs=int(o.params.get("max_inputs", 8)),
+            max_inputs=int(_required(o.params, "max_inputs", f"{spec.unit_id} の output")),
         )
     else:
         raise ValueError(f"未知の output: {o.kind}")

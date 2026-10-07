@@ -96,7 +96,7 @@ def parse_neuroarchitecture(raw: dict[str, Any]) -> NeuroarchitectureManifest:
 
     return NeuroarchitectureManifest(
         version=int(raw.get("version", 0)),
-        delta_ttl_pulses=int(raw.get("delta_ttl_pulses", 10)),
+        delta_ttl_pulses=int(_required_key(raw, "delta_ttl_pulses", "脳の設計図")),
         resource_classes=resource_classes,
         receptor_ids=receptor_ids,
         effector_ids=effector_ids,
@@ -159,15 +159,22 @@ def _projection(raw: dict[str, Any], sources: set[str], targets: set[str]) -> Pr
     target_id = str(raw["to"])
     if target_id not in targets:
         raise ConfigError(f"projection の to が不明です: {target_id}")
-    return ProjectionSpec(
-        source_id=source_id,
-        source_port=port,
-        target_id=target_id,
-        weight=float(raw.get("weight", 1.0)),
-    )
+    if target_id.startswith(EFFECTOR_PREFIX):
+        # Effector は力学を持たず、結合の重みを使わない。書かなくてよい（書いても効かない）
+        weight = float(raw.get("weight", 1.0))
+    else:
+        weight = float(_required_key(raw, "weight", f"projection {source_ref} → {target_id}"))
+    return ProjectionSpec(source_id=source_id, source_port=port, target_id=target_id, weight=weight)
 
 
 # ---- 実行環境 ---------------------------------------------------------------
+
+def _required_key(raw: dict[str, Any], key: str, where: str) -> Any:
+    """認知の力学に効く値は、設計図に明示させる（コードに隠れた既定値を持たせない）。"""
+    if key not in raw:
+        raise ConfigError(f"{where}: {key} が書かれていません（コードに既定値は持たせません）")
+    return raw[key]
+
 
 def _optional_int(value: Any) -> int | None:
     return None if value is None else int(value)
