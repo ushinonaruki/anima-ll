@@ -30,14 +30,17 @@ k1:
   silent_pulses: 3600
   reference_conditions: [[0.01, 300], [0.01, 1200], [0.02, 300], [0.02, 1200]]
   min_calmed_seeds: 16            # 0004 と同じ
-  applicability:                  # 該当しない（N/A）の基準：α = 0 で序盤に 1 回でも発火した個体がこれ未満
-    early_window: [1, 600]
+  applicability:                  # 該当しない（N/A）の基準：α = 0 の終盤に 1 回以上発火した個体がこれ未満
+    window: [1801, 3600]          # 0004 の終盤と同じ
     min_active_seeds: 16
 k2:
   reference_conditions: [[0.01, 300], [0.01, 1200], [0.02, 300], [0.02, 1200]]
   min_difference_from_alpha0: 0.3 # 0005 と同じ
 k3:
   reference_value: [0.01, 300]
+  # 選び方の規則（0005 と同じ）：K1・K2 を条件別にともに満たす条件（α = 0 を除く）のうち、
+  # α × τ_a が最小、同じなら α が小さい方。条件別の成立は上の k1・k2 の値で判定した表を使う
+  selection: min_alpha_times_tau_then_alpha
 
 environment:                      # 0004〜0009 と同じ
   workers: 1
