@@ -1,0 +1,2686 @@
+{
+  "protocol_vs_old_constants": {
+    "k1_min_calmed_seeds": [
+      16,
+      16
+    ],
+    "k1_reference": [
+      true
+    ],
+    "k2_min_difference": [
+      0.3,
+      0.3
+    ],
+    "k2_reference": [
+      true
+    ]
+  },
+  "drives": {
+    "0.0500": {
+      "rho": 0.6667,
+      "git_commit": "a4d64cf38837375c2c35632a2eacf0eaa95d6f72",
+      "problems": [],
+      "K1": {
+        "applicable": false,
+        "baseline_active_seeds": 0,
+        "result": "N/A",
+        "calmed_seeds": {
+          "0.0/0": 0,
+          "0.005/30": 0,
+          "0.005/300": 0,
+          "0.005/1200": 0,
+          "0.01/30": 0,
+          "0.01/300": 0,
+          "0.01/1200": 0,
+          "0.02/30": 0,
+          "0.02/300": 0,
+          "0.02/1200": 0
+        },
+        "per_condition": {
+          "0.0/0": false,
+          "0.005/30": false,
+          "0.005/300": false,
+          "0.005/1200": false,
+          "0.01/30": false,
+          "0.01/300": false,
+          "0.01/1200": false,
+          "0.02/30": false,
+          "0.02/300": false,
+          "0.02/1200": false
+        }
+      },
+      "K2": {
+        "result": "holds",
+        "difference_from_alpha0": {
+          "0.0/0": 0.0,
+          "0.005/30": 0.05,
+          "0.005/300": 0.25,
+          "0.005/1200": 0.35,
+          "0.01/30": 0.1,
+          "0.01/300": 0.9,
+          "0.01/1200": 0.9,
+          "0.02/30": 0.45,
+          "0.02/300": 0.95,
+          "0.02/1200": 0.95
+        },
+        "per_condition": {
+          "0.0/0": false,
+          "0.005/30": false,
+          "0.005/300": false,
+          "0.005/1200": true,
+          "0.01/30": false,
+          "0.01/300": true,
+          "0.01/1200": true,
+          "0.02/30": true,
+          "0.02/300": true,
+          "0.02/1200": true
+        }
+      },
+      "K3": {
+        "result": "N/A",
+        "chosen": null
+      },
+      "records": {
+        "by_condition": {
+          "0.0/0": {
+            "early_fires_per_10min": 0.0,
+            "late_fires_per_10min": 0.0,
+            "late_fires_per_10min_by_unit": {
+              "u0": 0.0,
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "utterances": 0.0,
+            "computed_by_unit": {
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "seeds_where_u2_computed": 0,
+            "intents": 0,
+            "completed": 0,
+            "queue_max": 0,
+            "queue_mean": 0,
+            "queue_end_mean": 0,
+            "queue_late_slope_mean": 0,
+            "seeds_with_growing_queue": 0,
+            "wait_median": null,
+            "wait_p90": null,
+            "wait_max": null,
+            "overflow": 0
+          },
+          "0.005/30": {
+            "early_fires_per_10min": 0.0,
+            "late_fires_per_10min": 0.0,
+            "late_fires_per_10min_by_unit": {
+              "u0": 0.0,
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "utterances": 0.0,
+            "computed_by_unit": {
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "seeds_where_u2_computed": 0,
+            "intents": 0,
+            "completed": 0,
+            "queue_max": 0,
+            "queue_mean": 0,
+            "queue_end_mean": 0,
+            "queue_late_slope_mean": 0,
+            "seeds_with_growing_queue": 0,
+            "wait_median": null,
+            "wait_p90": null,
+            "wait_max": null,
+            "overflow": 0
+          },
+          "0.005/300": {
+            "early_fires_per_10min": 0.0,
+            "late_fires_per_10min": 0.0,
+            "late_fires_per_10min_by_unit": {
+              "u0": 0.0,
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "utterances": 0.0,
+            "computed_by_unit": {
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "seeds_where_u2_computed": 0,
+            "intents": 0,
+            "completed": 0,
+            "queue_max": 0,
+            "queue_mean": 0,
+            "queue_end_mean": 0,
+            "queue_late_slope_mean": 0,
+            "seeds_with_growing_queue": 0,
+            "wait_median": null,
+            "wait_p90": null,
+            "wait_max": null,
+            "overflow": 0
+          },
+          "0.005/1200": {
+            "early_fires_per_10min": 0.0,
+            "late_fires_per_10min": 0.0,
+            "late_fires_per_10min_by_unit": {
+              "u0": 0.0,
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "utterances": 0.0,
+            "computed_by_unit": {
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "seeds_where_u2_computed": 0,
+            "intents": 0,
+            "completed": 0,
+            "queue_max": 0,
+            "queue_mean": 0,
+            "queue_end_mean": 0,
+            "queue_late_slope_mean": 0,
+            "seeds_with_growing_queue": 0,
+            "wait_median": null,
+            "wait_p90": null,
+            "wait_max": null,
+            "overflow": 0
+          },
+          "0.01/30": {
+            "early_fires_per_10min": 0.0,
+            "late_fires_per_10min": 0.0,
+            "late_fires_per_10min_by_unit": {
+              "u0": 0.0,
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "utterances": 0.0,
+            "computed_by_unit": {
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "seeds_where_u2_computed": 0,
+            "intents": 0,
+            "completed": 0,
+            "queue_max": 0,
+            "queue_mean": 0,
+            "queue_end_mean": 0,
+            "queue_late_slope_mean": 0,
+            "seeds_with_growing_queue": 0,
+            "wait_median": null,
+            "wait_p90": null,
+            "wait_max": null,
+            "overflow": 0
+          },
+          "0.01/300": {
+            "early_fires_per_10min": 0.0,
+            "late_fires_per_10min": 0.0,
+            "late_fires_per_10min_by_unit": {
+              "u0": 0.0,
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "utterances": 0.0,
+            "computed_by_unit": {
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "seeds_where_u2_computed": 0,
+            "intents": 0,
+            "completed": 0,
+            "queue_max": 0,
+            "queue_mean": 0,
+            "queue_end_mean": 0,
+            "queue_late_slope_mean": 0,
+            "seeds_with_growing_queue": 0,
+            "wait_median": null,
+            "wait_p90": null,
+            "wait_max": null,
+            "overflow": 0
+          },
+          "0.01/1200": {
+            "early_fires_per_10min": 0.0,
+            "late_fires_per_10min": 0.0,
+            "late_fires_per_10min_by_unit": {
+              "u0": 0.0,
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "utterances": 0.0,
+            "computed_by_unit": {
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "seeds_where_u2_computed": 0,
+            "intents": 0,
+            "completed": 0,
+            "queue_max": 0,
+            "queue_mean": 0,
+            "queue_end_mean": 0,
+            "queue_late_slope_mean": 0,
+            "seeds_with_growing_queue": 0,
+            "wait_median": null,
+            "wait_p90": null,
+            "wait_max": null,
+            "overflow": 0
+          },
+          "0.02/30": {
+            "early_fires_per_10min": 0.0,
+            "late_fires_per_10min": 0.0,
+            "late_fires_per_10min_by_unit": {
+              "u0": 0.0,
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "utterances": 0.0,
+            "computed_by_unit": {
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "seeds_where_u2_computed": 0,
+            "intents": 0,
+            "completed": 0,
+            "queue_max": 0,
+            "queue_mean": 0,
+            "queue_end_mean": 0,
+            "queue_late_slope_mean": 0,
+            "seeds_with_growing_queue": 0,
+            "wait_median": null,
+            "wait_p90": null,
+            "wait_max": null,
+            "overflow": 0
+          },
+          "0.02/300": {
+            "early_fires_per_10min": 0.0,
+            "late_fires_per_10min": 0.0,
+            "late_fires_per_10min_by_unit": {
+              "u0": 0.0,
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "utterances": 0.0,
+            "computed_by_unit": {
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "seeds_where_u2_computed": 0,
+            "intents": 0,
+            "completed": 0,
+            "queue_max": 0,
+            "queue_mean": 0,
+            "queue_end_mean": 0,
+            "queue_late_slope_mean": 0,
+            "seeds_with_growing_queue": 0,
+            "wait_median": null,
+            "wait_p90": null,
+            "wait_max": null,
+            "overflow": 0
+          },
+          "0.02/1200": {
+            "early_fires_per_10min": 0.0,
+            "late_fires_per_10min": 0.0,
+            "late_fires_per_10min_by_unit": {
+              "u0": 0.0,
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "utterances": 0.0,
+            "computed_by_unit": {
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.0
+            },
+            "seeds_where_u2_computed": 0,
+            "intents": 0,
+            "completed": 0,
+            "queue_max": 0,
+            "queue_mean": 0,
+            "queue_end_mean": 0,
+            "queue_late_slope_mean": 0,
+            "seeds_with_growing_queue": 0,
+            "wait_median": null,
+            "wait_p90": null,
+            "wait_max": null,
+            "overflow": 0
+          }
+        },
+        "unit_rho_above_1_fraction": 0.0,
+        "unit_rho_range": [
+          0.5503452030045322,
+          0.7884290432033602
+        ],
+        "never_firing_seeds_by_condition": {
+          "0.0/0": 20,
+          "0.005/30": 20,
+          "0.005/300": 20,
+          "0.005/1200": 20,
+          "0.01/30": 20,
+          "0.01/300": 20,
+          "0.01/1200": 20,
+          "0.02/30": 20,
+          "0.02/300": 20,
+          "0.02/1200": 20
+        },
+        "late_periodic_patterns_reference_condition": {
+          "few": 80
+        }
+      }
+    },
+    "0.0675": {
+      "rho": 0.9,
+      "git_commit": "a4d64cf38837375c2c35632a2eacf0eaa95d6f72",
+      "problems": [],
+      "K1": {
+        "applicable": false,
+        "baseline_active_seeds": 8,
+        "result": "N/A",
+        "calmed_seeds": {
+          "0.0/0": 0,
+          "0.005/30": 0,
+          "0.005/300": 3,
+          "0.005/1200": 8,
+          "0.01/30": 0,
+          "0.01/300": 4,
+          "0.01/1200": 8,
+          "0.02/30": 1,
+          "0.02/300": 8,
+          "0.02/1200": 8
+        },
+        "per_condition": {
+          "0.0/0": false,
+          "0.005/30": false,
+          "0.005/300": false,
+          "0.005/1200": false,
+          "0.01/30": false,
+          "0.01/300": false,
+          "0.01/1200": false,
+          "0.02/30": false,
+          "0.02/300": false,
+          "0.02/1200": false
+        }
+      },
+      "K2": {
+        "result": "holds",
+        "difference_from_alpha0": {
+          "0.0/0": 0.0,
+          "0.005/30": 0.35,
+          "0.005/300": 0.85,
+          "0.005/1200": 0.9,
+          "0.01/30": 0.55,
+          "0.01/300": 0.9,
+          "0.01/1200": 0.9,
+          "0.02/30": 0.75,
+          "0.02/300": 0.9,
+          "0.02/1200": 0.9
+        },
+        "per_condition": {
+          "0.0/0": false,
+          "0.005/30": true,
+          "0.005/300": true,
+          "0.005/1200": true,
+          "0.01/30": true,
+          "0.01/300": true,
+          "0.01/1200": true,
+          "0.02/30": true,
+          "0.02/300": true,
+          "0.02/1200": true
+        }
+      },
+      "K3": {
+        "result": "N/A",
+        "chosen": null
+      },
+      "records": {
+        "by_condition": {
+          "0.0/0": {
+            "early_fires_per_10min": 42.0,
+            "late_fires_per_10min": 43.18333333333333,
+            "late_fires_per_10min_by_unit": {
+              "u0": 4.0166666666666675,
+              "u1": 9.383333333333333,
+              "u2": 9.366666666666667,
+              "u3": 20.416666666666664
+            },
+            "utterances": 121.5,
+            "computed_by_unit": {
+              "u1": 56.05,
+              "u2": 55.95,
+              "u3": 121.65
+            },
+            "seeds_where_u2_computed": 5,
+            "intents": 779.6666666666666,
+            "completed": 777.8333333333334,
+            "queue_max": 2,
+            "queue_mean": 1.0338888888888889,
+            "queue_end_mean": 0.8333333333333334,
+            "queue_late_slope_mean": -7.716051764213505e-08,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 3,
+            "wait_p90": 7,
+            "wait_max": 7,
+            "overflow": 0
+          },
+          "0.005/30": {
+            "early_fires_per_10min": 41.55,
+            "late_fires_per_10min": 42.733333333333334,
+            "late_fires_per_10min_by_unit": {
+              "u0": 3.7,
+              "u1": 9.383333333333333,
+              "u2": 9.366666666666667,
+              "u3": 20.283333333333335
+            },
+            "utterances": 120.7,
+            "computed_by_unit": {
+              "u1": 56.05,
+              "u2": 55.95,
+              "u3": 120.8
+            },
+            "seeds_where_u2_computed": 5,
+            "intents": 776.8333333333334,
+            "completed": 775.1666666666666,
+            "queue_max": 2,
+            "queue_mean": 1.0338888888888889,
+            "queue_end_mean": 0.8333333333333334,
+            "queue_late_slope_mean": -7.716051764213505e-08,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 3,
+            "wait_p90": 7,
+            "wait_max": 7,
+            "overflow": 0
+          },
+          "0.005/300": {
+            "early_fires_per_10min": 38.65,
+            "late_fires_per_10min": 39.11666666666667,
+            "late_fires_per_10min_by_unit": {
+              "u0": 1.0333333333333332,
+              "u1": 9.383333333333333,
+              "u2": 9.366666666666667,
+              "u3": 19.333333333333336
+            },
+            "utterances": 115.3,
+            "computed_by_unit": {
+              "u1": 56.05,
+              "u2": 55.95,
+              "u3": 115.4
+            },
+            "seeds_where_u2_computed": 5,
+            "intents": 758.8333333333334,
+            "completed": 757.1666666666666,
+            "queue_max": 2,
+            "queue_mean": 1.0338888888888889,
+            "queue_end_mean": 0.8333333333333334,
+            "queue_late_slope_mean": -7.716051764213505e-08,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 3,
+            "wait_p90": 7,
+            "wait_max": 7,
+            "overflow": 0
+          },
+          "0.005/1200": {
+            "early_fires_per_10min": 37.6,
+            "late_fires_per_10min": 0.4,
+            "late_fires_per_10min_by_unit": {
+              "u0": 0.2666666666666667,
+              "u1": 0.0,
+              "u2": 0.0,
+              "u3": 0.13333333333333333
+            },
+            "utterances": 40.05,
+            "computed_by_unit": {
+              "u1": 23.05,
+              "u2": 23.0,
+              "u3": 40.05
+            },
+            "seeds_where_u2_computed": 5,
+            "intents": 287.0,
+            "completed": 287.0,
+            "queue_max": 2,
+            "queue_mean": 0.33814814814814814,
+            "queue_end_mean": 0.0,
+            "queue_late_slope_mean": 0.0,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 3,
+            "wait_p90": 7,
+            "wait_max": 7,
+            "overflow": 0
+          },
+          "0.01/30": {
+            "early_fires_per_10min": 41.15,
+            "late_fires_per_10min": 42.3,
+            "late_fires_per_10min_by_unit": {
+              "u0": 3.383333333333333,
+              "u1": 9.383333333333333,
+              "u2": 9.366666666666667,
+              "u3": 20.166666666666664
+            },
+            "utterances": 120.1,
+            "computed_by_unit": {
+              "u1": 56.05,
+              "u2": 55.95,
+              "u3": 120.2
+            },
+            "seeds_where_u2_computed": 5,
+            "intents": 774.8333333333334,
+            "completed": 773.1666666666666,
+            "queue_max": 2,
+            "queue_mean": 1.0338888888888889,
+            "queue_end_mean": 0.8333333333333334,
+            "queue_late_slope_mean": -7.716051764213505e-08,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 3,
+            "wait_p90": 7,
+            "wait_max": 7,
+            "overflow": 0
+          },
+          "0.01/300": {
+            "early_fires_per_10min": 37.65,
+            "late_fires_per_10min": 38.233333333333334,
+            "late_fires_per_10min_by_unit": {
+              "u0": 0.5833333333333334,
+              "u1": 9.5,
+              "u2": 9.5,
+              "u3": 18.65
+            },
+            "utterances": 111.7,
+            "computed_by_unit": {
+              "u1": 56.6,
+              "u2": 56.5,
+              "u3": 111.85
+            },
+            "seeds_where_u2_computed": 5,
+            "intents": 750.8333333333334,
+            "completed": 749.0,
+            "queue_max": 2,
+            "queue_mean": 1.008148148148148,
+            "queue_end_mean": 1.0,
+            "queue_late_slope_mean": 9.81481784407959e-06,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 3,
+            "wait_p90": 7,
+            "wait_max": 7,
+            "overflow": 0
+          },
+          "0.01/1200": {
+            "early_fires_per_10min": 33.2,
+            "late_fires_per_10min": 2.166666666666667,
+            "late_fires_per_10min_by_unit": {
+              "u0": 0.13333333333333333,
+              "u1": 0.5,
+              "u2": 0.5,
+              "u3": 1.0333333333333334
+            },
+            "utterances": 18.35,
+            "computed_by_unit": {
+              "u1": 10.3,
+              "u2": 10.2,
+              "u3": 18.4
+            },
+            "seeds_where_u2_computed": 5,
+            "intents": 130.33333333333334,
+            "completed": 129.16666666666666,
+            "queue_max": 2,
+            "queue_mean": 0.1561574074074074,
+            "queue_end_mean": 0.6666666666666666,
+            "queue_late_slope_mean": 0.00014740436648282888,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 3,
+            "wait_p90": 7,
+            "wait_max": 7,
+            "overflow": 0
+          },
+          "0.02/30": {
+            "early_fires_per_10min": 40.5,
+            "late_fires_per_10min": 41.61666666666667,
+            "late_fires_per_10min_by_unit": {
+              "u0": 2.8666666666666667,
+              "u1": 9.383333333333333,
+              "u2": 9.366666666666667,
+              "u3": 20.0
+            },
+            "utterances": 119.05,
+            "computed_by_unit": {
+              "u1": 56.05,
+              "u2": 55.95,
+              "u3": 119.15
+            },
+            "seeds_where_u2_computed": 5,
+            "intents": 771.3333333333334,
+            "completed": 769.6666666666666,
+            "queue_max": 2,
+            "queue_mean": 1.0338888888888889,
+            "queue_end_mean": 0.8333333333333334,
+            "queue_late_slope_mean": -7.716051764213505e-08,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 3,
+            "wait_p90": 7,
+            "wait_max": 7,
+            "overflow": 0
+          },
+          "0.02/300": {
+            "early_fires_per_10min": 23.15,
+            "late_fires_per_10min": 11.15,
+            "late_fires_per_10min_by_unit": {
+              "u0": 0.35,
+              "u1": 2.916666666666667,
+              "u2": 2.9,
+              "u3": 4.9833333333333325
+            },
+            "utterances": 33.2,
+            "computed_by_unit": {
+              "u1": 19.5,
+              "u2": 19.25,
+              "u3": 33.25
+            },
+            "seeds_where_u2_computed": 5,
+            "intents": 240.33333333333334,
+            "completed": 239.66666666666666,
+            "queue_max": 2,
+            "queue_mean": 0.2764814814814815,
+            "queue_end_mean": 0.3333333333333333,
+            "queue_late_slope_mean": 8.669875789742188e-05,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 3,
+            "wait_p90": 7,
+            "wait_max": 7,
+            "overflow": 0
+          },
+          "0.02/1200": {
+            "early_fires_per_10min": 15.35,
+            "late_fires_per_10min": 2.95,
+            "late_fires_per_10min_by_unit": {
+              "u0": 0.1,
+              "u1": 0.7666666666666666,
+              "u2": 0.75,
+              "u3": 1.3333333333333333
+            },
+            "utterances": 11.1,
+            "computed_by_unit": {
+              "u1": 6.35,
+              "u2": 6.25,
+              "u3": 11.1
+            },
+            "seeds_where_u2_computed": 5,
+            "intents": 79.0,
+            "completed": 79.0,
+            "queue_max": 2,
+            "queue_mean": 0.09180555555555554,
+            "queue_end_mean": 0.0,
+            "queue_late_slope_mean": 0.00014545837822789454,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 3,
+            "wait_p90": 7,
+            "wait_max": 7,
+            "overflow": 0
+          }
+        },
+        "unit_rho_above_1_fraction": 0.125,
+        "unit_rho_range": [
+          0.7429660240561184,
+          1.064379208324536
+        ],
+        "never_firing_seeds_by_condition": {
+          "0.0/0": 12,
+          "0.005/30": 12,
+          "0.005/300": 12,
+          "0.005/1200": 12,
+          "0.01/30": 12,
+          "0.01/300": 12,
+          "0.01/1200": 12,
+          "0.02/30": 12,
+          "0.02/300": 12,
+          "0.02/1200": 12
+        },
+        "late_periodic_patterns_reference_condition": {
+          "period-1": 18,
+          "few": 62
+        }
+      }
+    },
+    "0.0750": {
+      "rho": 1.0,
+      "git_commit": "a4d64cf38837375c2c35632a2eacf0eaa95d6f72",
+      "problems": [],
+      "K1": {
+        "applicable": true,
+        "baseline_active_seeds": 19,
+        "result": "fails",
+        "calmed_seeds": {
+          "0.0/0": 0,
+          "0.005/30": 2,
+          "0.005/300": 16,
+          "0.005/1200": 19,
+          "0.01/30": 3,
+          "0.01/300": 14,
+          "0.01/1200": 19,
+          "0.02/30": 5,
+          "0.02/300": 19,
+          "0.02/1200": 19
+        },
+        "per_condition": {
+          "0.0/0": false,
+          "0.005/30": false,
+          "0.005/300": true,
+          "0.005/1200": true,
+          "0.01/30": false,
+          "0.01/300": false,
+          "0.01/1200": true,
+          "0.02/30": false,
+          "0.02/300": true,
+          "0.02/1200": true
+        }
+      },
+      "K2": {
+        "result": "holds",
+        "difference_from_alpha0": {
+          "0.0/0": 0.0,
+          "0.005/30": 0.3,
+          "0.005/300": 0.3,
+          "0.005/1200": 0.85,
+          "0.01/30": 0.35,
+          "0.01/300": 0.7,
+          "0.01/1200": 0.9,
+          "0.02/30": 0.45,
+          "0.02/300": 0.85,
+          "0.02/1200": 0.8
+        },
+        "per_condition": {
+          "0.0/0": false,
+          "0.005/30": true,
+          "0.005/300": true,
+          "0.005/1200": true,
+          "0.01/30": true,
+          "0.01/300": true,
+          "0.01/1200": true,
+          "0.02/30": true,
+          "0.02/300": true,
+          "0.02/1200": true
+        }
+      },
+      "K3": {
+        "result": "N/A",
+        "chosen": null
+      },
+      "records": {
+        "by_condition": {
+          "0.0/0": {
+            "early_fires_per_10min": 146.65,
+            "late_fires_per_10min": 149.53333333333333,
+            "late_fires_per_10min_by_unit": {
+              "u0": 21.4,
+              "u1": 34.08333333333333,
+              "u2": 33.266666666666666,
+              "u3": 60.78333333333334
+            },
+            "utterances": 315.65,
+            "computed_by_unit": {
+              "u1": 170.8,
+              "u2": 167.25,
+              "u3": 315.95
+            },
+            "seeds_where_u2_computed": 14,
+            "intents": 900.8823529411765,
+            "completed": 768.5294117647059,
+            "queue_max": 407,
+            "queue_mean": 65.28877450980391,
+            "queue_end_mean": 131.47058823529412,
+            "queue_late_slope_mean": 0.036337851992437976,
+            "seeds_with_growing_queue": 8,
+            "wait_median": 79,
+            "wait_p90": 667,
+            "wait_max": 1107,
+            "overflow": 0
+          },
+          "0.005/30": {
+            "early_fires_per_10min": 137.4,
+            "late_fires_per_10min": 138.68333333333334,
+            "late_fires_per_10min_by_unit": {
+              "u0": 19.616666666666667,
+              "u1": 30.75,
+              "u2": 29.56666666666667,
+              "u3": 58.75
+            },
+            "utterances": 324.2,
+            "computed_by_unit": {
+              "u1": 166.05,
+              "u2": 161.55,
+              "u3": 324.55
+            },
+            "seeds_where_u2_computed": 14,
+            "intents": 839.2352941176471,
+            "completed": 766.3529411764706,
+            "queue_max": 294,
+            "queue_mean": 36.89040849673203,
+            "queue_end_mean": 72.0,
+            "queue_late_slope_mean": 0.019586115098595192,
+            "seeds_with_growing_queue": 5,
+            "wait_median": 7,
+            "wait_p90": 527,
+            "wait_max": 883,
+            "overflow": 0
+          },
+          "0.005/300": {
+            "early_fires_per_10min": 119.2,
+            "late_fires_per_10min": 114.66666666666667,
+            "late_fires_per_10min_by_unit": {
+              "u0": 8.283333333333333,
+              "u1": 26.25,
+              "u2": 26.25,
+              "u3": 53.88333333333334
+            },
+            "utterances": 321.3,
+            "computed_by_unit": {
+              "u1": 157.75,
+              "u2": 157.4,
+              "u3": 321.55
+            },
+            "seeds_where_u2_computed": 14,
+            "intents": 753.4705882352941,
+            "completed": 748.2352941176471,
+            "queue_max": 18,
+            "queue_mean": 4.417794117647058,
+            "queue_end_mean": 4.411764705882353,
+            "queue_late_slope_mean": 1.0893249549477894e-07,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 7,
+            "wait_p90": 59,
+            "wait_max": 71,
+            "overflow": 0
+          },
+          "0.005/1200": {
+            "early_fires_per_10min": 113.0,
+            "late_fires_per_10min": 12.216666666666667,
+            "late_fires_per_10min_by_unit": {
+              "u0": 2.2333333333333334,
+              "u1": 2.95,
+              "u2": 2.9833333333333334,
+              "u3": 4.05
+            },
+            "utterances": 146.8,
+            "computed_by_unit": {
+              "u1": 90.05,
+              "u2": 89.7,
+              "u3": 146.85
+            },
+            "seeds_where_u2_computed": 14,
+            "intents": 384.47058823529414,
+            "completed": 384.05882352941177,
+            "queue_max": 12,
+            "queue_mean": 1.2891013071895423,
+            "queue_end_mean": 0.23529411764705882,
+            "queue_late_slope_mean": -0.00014677509976718762,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 7,
+            "wait_p90": 35,
+            "wait_max": 47,
+            "overflow": 0
+          },
+          "0.01/30": {
+            "early_fires_per_10min": 133.8,
+            "late_fires_per_10min": 134.58333333333331,
+            "late_fires_per_10min_by_unit": {
+              "u0": 18.4,
+              "u1": 29.51666666666667,
+              "u2": 28.81666666666667,
+              "u3": 57.85
+            },
+            "utterances": 325.6,
+            "computed_by_unit": {
+              "u1": 163.7,
+              "u2": 160.7,
+              "u3": 326.0
+            },
+            "seeds_where_u2_computed": 14,
+            "intents": 820.0,
+            "completed": 764.2941176470588,
+            "queue_max": 248,
+            "queue_mean": 28.288039215686272,
+            "queue_end_mean": 54.8235294117647,
+            "queue_late_slope_mean": 0.014487199642018769,
+            "seeds_with_growing_queue": 4,
+            "wait_median": 7,
+            "wait_p90": 471,
+            "wait_max": 771,
+            "overflow": 0
+          },
+          "0.01/300": {
+            "early_fires_per_10min": 112.5,
+            "late_fires_per_10min": 110.53333333333333,
+            "late_fires_per_10min_by_unit": {
+              "u0": 4.8,
+              "u1": 26.3,
+              "u2": 26.2,
+              "u3": 53.233333333333334
+            },
+            "utterances": 317.8,
+            "computed_by_unit": {
+              "u1": 157.35,
+              "u2": 157.3,
+              "u3": 318.1
+            },
+            "seeds_where_u2_computed": 14,
+            "intents": 746.6470588235294,
+            "completed": 743.5882352941177,
+            "queue_max": 8,
+            "queue_mean": 2.2956372549019606,
+            "queue_end_mean": 2.235294117647059,
+            "queue_late_slope_mean": 1.0893249549477894e-07,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 7,
+            "wait_p90": 31,
+            "wait_max": 31,
+            "overflow": 0
+          },
+          "0.01/1200": {
+            "early_fires_per_10min": 105.05,
+            "late_fires_per_10min": 18.933333333333334,
+            "late_fires_per_10min_by_unit": {
+              "u0": 1.1833333333333333,
+              "u1": 4.733333333333333,
+              "u2": 4.733333333333333,
+              "u3": 8.283333333333335
+            },
+            "utterances": 75.35,
+            "computed_by_unit": {
+              "u1": 44.25,
+              "u2": 44.25,
+              "u3": 75.5
+            },
+            "seeds_where_u2_computed": 14,
+            "intents": 193.1764705882353,
+            "completed": 192.64705882352942,
+            "queue_max": 8,
+            "queue_mean": 0.37343137254901965,
+            "queue_end_mean": 0.23529411764705882,
+            "queue_late_slope_mean": 0.00015885274813295914,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 4,
+            "wait_p90": 19,
+            "wait_max": 31,
+            "overflow": 0
+          },
+          "0.02/30": {
+            "early_fires_per_10min": 128.7,
+            "late_fires_per_10min": 128.3,
+            "late_fires_per_10min_by_unit": {
+              "u0": 16.083333333333336,
+              "u1": 27.81666666666667,
+              "u2": 27.75,
+              "u3": 56.65
+            },
+            "utterances": 326.15,
+            "computed_by_unit": {
+              "u1": 160.45,
+              "u2": 160.15,
+              "u3": 326.5
+            },
+            "seeds_where_u2_computed": 14,
+            "intents": 793.5882352941177,
+            "completed": 760.4117647058823,
+            "queue_max": 175,
+            "queue_mean": 17.737091503267976,
+            "queue_end_mean": 32.294117647058826,
+            "queue_late_slope_mean": 0.007898152885534956,
+            "seeds_with_growing_queue": 4,
+            "wait_median": 7,
+            "wait_p90": 295,
+            "wait_max": 583,
+            "overflow": 0
+          },
+          "0.02/300": {
+            "early_fires_per_10min": 87.15,
+            "late_fires_per_10min": 44.6,
+            "late_fires_per_10min_by_unit": {
+              "u0": 2.6166666666666667,
+              "u1": 11.7,
+              "u2": 11.683333333333334,
+              "u3": 18.6
+            },
+            "utterances": 128.25,
+            "computed_by_unit": {
+              "u1": 79.75,
+              "u2": 79.7,
+              "u3": 128.35
+            },
+            "seeds_where_u2_computed": 14,
+            "intents": 338.7647058823529,
+            "completed": 338.29411764705884,
+            "queue_max": 4,
+            "queue_mean": 0.3777941176470588,
+            "queue_end_mean": 0.17647058823529413,
+            "queue_late_slope_mean": 3.151193177867658e-05,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 3,
+            "wait_p90": 7,
+            "wait_max": 15,
+            "overflow": 0
+          },
+          "0.02/1200": {
+            "early_fires_per_10min": 51.6,
+            "late_fires_per_10min": 12.866666666666665,
+            "late_fires_per_10min_by_unit": {
+              "u0": 0.6833333333333333,
+              "u1": 3.2833333333333337,
+              "u2": 3.3166666666666673,
+              "u3": 5.583333333333334
+            },
+            "utterances": 39.8,
+            "computed_by_unit": {
+              "u1": 23.25,
+              "u2": 23.35,
+              "u3": 39.85
+            },
+            "seeds_where_u2_computed": 14,
+            "intents": 101.76470588235294,
+            "completed": 101.6470588235294,
+            "queue_max": 4,
+            "queue_mean": 0.1223202614379085,
+            "queue_end_mean": 0.058823529411764705,
+            "queue_late_slope_mean": 3.9842725925798974e-05,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 3,
+            "wait_p90": 7,
+            "wait_max": 15,
+            "overflow": 0
+          }
+        },
+        "unit_rho_above_1_fraction": 0.5125,
+        "unit_rho_range": [
+          0.8255178045067981,
+          1.18264356480504
+        ],
+        "never_firing_seeds_by_condition": {
+          "0.0/0": 1,
+          "0.005/30": 1,
+          "0.005/300": 1,
+          "0.005/1200": 1,
+          "0.01/30": 1,
+          "0.01/300": 1,
+          "0.01/1200": 1,
+          "0.02/30": 1,
+          "0.02/300": 1,
+          "0.02/1200": 1
+        },
+        "late_periodic_patterns_reference_condition": {
+          "period-1": 48,
+          "few": 24,
+          "period-4": 6,
+          "period-3": 2
+        }
+      }
+    },
+    "0.0800": {
+      "rho": 1.0667,
+      "git_commit": "a4d64cf38837375c2c35632a2eacf0eaa95d6f72",
+      "problems": [],
+      "K1": {
+        "applicable": true,
+        "baseline_active_seeds": 20,
+        "result": "holds",
+        "calmed_seeds": {
+          "0.0/0": 0,
+          "0.005/30": 1,
+          "0.005/300": 19,
+          "0.005/1200": 20,
+          "0.01/30": 3,
+          "0.01/300": 19,
+          "0.01/1200": 20,
+          "0.02/30": 8,
+          "0.02/300": 20,
+          "0.02/1200": 20
+        },
+        "per_condition": {
+          "0.0/0": false,
+          "0.005/30": false,
+          "0.005/300": true,
+          "0.005/1200": true,
+          "0.01/30": false,
+          "0.01/300": true,
+          "0.01/1200": true,
+          "0.02/30": false,
+          "0.02/300": true,
+          "0.02/1200": true
+        }
+      },
+      "K2": {
+        "result": "holds",
+        "difference_from_alpha0": {
+          "0.0/0": 0.0,
+          "0.005/30": 0.15,
+          "0.005/300": 0.05,
+          "0.005/1200": 0.75,
+          "0.01/30": 0.3,
+          "0.01/300": 0.35,
+          "0.01/1200": 0.7,
+          "0.02/30": 0.15,
+          "0.02/300": 0.7,
+          "0.02/1200": 0.8
+        },
+        "per_condition": {
+          "0.0/0": false,
+          "0.005/30": false,
+          "0.005/300": false,
+          "0.005/1200": true,
+          "0.01/30": true,
+          "0.01/300": true,
+          "0.01/1200": true,
+          "0.02/30": false,
+          "0.02/300": true,
+          "0.02/1200": true
+        }
+      },
+      "K3": {
+        "result": "same as reference",
+        "chosen": [
+          0.01,
+          300
+        ]
+      },
+      "records": {
+        "by_condition": {
+          "0.0/0": {
+            "early_fires_per_10min": 212.2,
+            "late_fires_per_10min": 214.73333333333335,
+            "late_fires_per_10min_by_unit": {
+              "u0": 37.2,
+              "u1": 50.16666666666667,
+              "u2": 49.6,
+              "u3": 77.76666666666667
+            },
+            "utterances": 361.75,
+            "computed_by_unit": {
+              "u1": 229.0,
+              "u2": 226.55,
+              "u3": 362.25
+            },
+            "seeds_where_u2_computed": 18,
+            "intents": 1118.421052631579,
+            "completed": 859.8421052631579,
+            "queue_max": 419,
+            "queue_mean": 128.5934941520468,
+            "queue_end_mean": 257.57894736842104,
+            "queue_late_slope_mean": 0.07175874453242603,
+            "seeds_with_growing_queue": 15,
+            "wait_median": 367,
+            "wait_p90": 839,
+            "wait_max": 1143,
+            "overflow": 0
+          },
+          "0.005/30": {
+            "early_fires_per_10min": 205.2,
+            "late_fires_per_10min": 207.03333333333336,
+            "late_fires_per_10min_by_unit": {
+              "u0": 35.33333333333333,
+              "u1": 47.8,
+              "u2": 47.35,
+              "u3": 76.55
+            },
+            "utterances": 367.8,
+            "computed_by_unit": {
+              "u1": 225.55,
+              "u2": 223.5,
+              "u3": 368.2
+            },
+            "seeds_where_u2_computed": 18,
+            "intents": 1083.0,
+            "completed": 859.3157894736842,
+            "queue_max": 456,
+            "queue_mean": 111.7867105263158,
+            "queue_end_mean": 222.73684210526315,
+            "queue_late_slope_mean": 0.06143764436834378,
+            "seeds_with_growing_queue": 14,
+            "wait_median": 307,
+            "wait_p90": 783,
+            "wait_max": 1211,
+            "overflow": 0
+          },
+          "0.005/300": {
+            "early_fires_per_10min": 167.5,
+            "late_fires_per_10min": 154.88333333333333,
+            "late_fires_per_10min_by_unit": {
+              "u0": 17.766666666666666,
+              "u1": 34.3,
+              "u2": 34.28333333333333,
+              "u3": 68.53333333333333
+            },
+            "utterances": 403.1,
+            "computed_by_unit": {
+              "u1": 204.45,
+              "u2": 204.25,
+              "u3": 403.45
+            },
+            "seeds_where_u2_computed": 18,
+            "intents": 874.5263157894736,
+            "completed": 853.9473684210526,
+            "queue_max": 95,
+            "queue_mean": 14.729780701754386,
+            "queue_end_mean": 19.63157894736842,
+            "queue_late_slope_mean": 0.002584906039309319,
+            "seeds_with_growing_queue": 3,
+            "wait_median": 39,
+            "wait_p90": 160,
+            "wait_max": 355,
+            "overflow": 0
+          },
+          "0.005/1200": {
+            "early_fires_per_10min": 155.9,
+            "late_fires_per_10min": 34.66666666666667,
+            "late_fires_per_10min_by_unit": {
+              "u0": 5.216666666666667,
+              "u1": 9.3,
+              "u2": 9.233333333333333,
+              "u3": 10.916666666666668
+            },
+            "utterances": 216.0,
+            "computed_by_unit": {
+              "u1": 136.9,
+              "u2": 136.8,
+              "u3": 216.15
+            },
+            "seeds_where_u2_computed": 18,
+            "intents": 516.0,
+            "completed": 515.421052631579,
+            "queue_max": 22,
+            "queue_mean": 3.641374269005848,
+            "queue_end_mean": 0.3684210526315789,
+            "queue_late_slope_mean": -0.001134436672421975,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 19,
+            "wait_p90": 59,
+            "wait_max": 87,
+            "overflow": 0
+          },
+          "0.01/30": {
+            "early_fires_per_10min": 192.7,
+            "late_fires_per_10min": 194.28333333333333,
+            "late_fires_per_10min_by_unit": {
+              "u0": 32.85,
+              "u1": 43.6,
+              "u2": 43.4,
+              "u3": 74.43333333333334
+            },
+            "utterances": 379.3,
+            "computed_by_unit": {
+              "u1": 218.3,
+              "u2": 218.75,
+              "u3": 379.75
+            },
+            "seeds_where_u2_computed": 18,
+            "intents": 1019.4736842105264,
+            "completed": 858.8421052631579,
+            "queue_max": 394,
+            "queue_mean": 80.47885964912281,
+            "queue_end_mean": 159.68421052631578,
+            "queue_late_slope_mean": 0.04358298052972653,
+            "seeds_with_growing_queue": 12,
+            "wait_median": 179,
+            "wait_p90": 676,
+            "wait_max": 1099,
+            "overflow": 0
+          },
+          "0.01/300": {
+            "early_fires_per_10min": 153.25,
+            "late_fires_per_10min": 146.01666666666668,
+            "late_fires_per_10min_by_unit": {
+              "u0": 10.633333333333333,
+              "u1": 33.8,
+              "u2": 33.7,
+              "u3": 67.88333333333334
+            },
+            "utterances": 404.3,
+            "computed_by_unit": {
+              "u1": 202.55,
+              "u2": 202.75,
+              "u3": 404.9
+            },
+            "seeds_where_u2_computed": 18,
+            "intents": 858.5263157894736,
+            "completed": 851.8947368421053,
+            "queue_max": 14,
+            "queue_mean": 5.416783625730994,
+            "queue_end_mean": 5.684210526315789,
+            "queue_late_slope_mean": -4.8732958510822115e-08,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 27,
+            "wait_p90": 43,
+            "wait_max": 55,
+            "overflow": 0
+          },
+          "0.01/1200": {
+            "early_fires_per_10min": 141.55,
+            "late_fires_per_10min": 36.06666666666667,
+            "late_fires_per_10min_by_unit": {
+              "u0": 2.7,
+              "u1": 9.133333333333333,
+              "u2": 9.166666666666668,
+              "u3": 15.066666666666666
+            },
+            "utterances": 115.7,
+            "computed_by_unit": {
+              "u1": 70.25,
+              "u2": 70.25,
+              "u3": 115.8
+            },
+            "seeds_where_u2_computed": 18,
+            "intents": 270.0,
+            "completed": 269.57894736842104,
+            "queue_max": 12,
+            "queue_mean": 0.835248538011696,
+            "queue_end_mean": 0.21052631578947367,
+            "queue_late_slope_mean": 0.00017714029725469433,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 7,
+            "wait_p90": 31,
+            "wait_max": 47,
+            "overflow": 0
+          },
+          "0.02/30": {
+            "early_fires_per_10min": 184.15,
+            "late_fires_per_10min": 183.06666666666666,
+            "late_fires_per_10min_by_unit": {
+              "u0": 29.633333333333333,
+              "u1": 40.58333333333333,
+              "u2": 40.16666666666667,
+              "u3": 72.68333333333334
+            },
+            "utterances": 387.1,
+            "computed_by_unit": {
+              "u1": 214.0,
+              "u2": 214.05,
+              "u3": 387.6
+            },
+            "seeds_where_u2_computed": 18,
+            "intents": 970.7368421052631,
+            "completed": 857.578947368421,
+            "queue_max": 273,
+            "queue_mean": 57.801111111111105,
+            "queue_end_mean": 112.15789473684211,
+            "queue_late_slope_mean": 0.02997799939758482,
+            "seeds_with_growing_queue": 11,
+            "wait_median": 119,
+            "wait_p90": 535,
+            "wait_max": 837,
+            "overflow": 0
+          },
+          "0.02/300": {
+            "early_fires_per_10min": 129.25,
+            "late_fires_per_10min": 72.13333333333334,
+            "late_fires_per_10min_by_unit": {
+              "u0": 5.9,
+              "u1": 18.766666666666666,
+              "u2": 18.766666666666666,
+              "u3": 28.7
+            },
+            "utterances": 190.0,
+            "computed_by_unit": {
+              "u1": 122.55,
+              "u2": 122.7,
+              "u3": 190.2
+            },
+            "seeds_where_u2_computed": 18,
+            "intents": 458.7894736842105,
+            "completed": 457.8421052631579,
+            "queue_max": 8,
+            "queue_mean": 0.6662426900584795,
+            "queue_end_mean": 0.42105263157894735,
+            "queue_late_slope_mean": 0.00010135951796346394,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 3,
+            "wait_p90": 11,
+            "wait_max": 31,
+            "overflow": 0
+          },
+          "0.02/1200": {
+            "early_fires_per_10min": 73.7,
+            "late_fires_per_10min": 18.81666666666667,
+            "late_fires_per_10min_by_unit": {
+              "u0": 1.4166666666666665,
+              "u1": 4.766666666666667,
+              "u2": 4.8,
+              "u3": 7.833333333333333
+            },
+            "utterances": 55.25,
+            "computed_by_unit": {
+              "u1": 33.35,
+              "u2": 33.45,
+              "u3": 55.3
+            },
+            "seeds_where_u2_computed": 18,
+            "intents": 128.52631578947367,
+            "completed": 128.42105263157896,
+            "queue_max": 8,
+            "queue_mean": 0.23953216374269007,
+            "queue_end_mean": 0.0,
+            "queue_late_slope_mean": -5.603207274110973e-05,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 4,
+            "wait_p90": 15,
+            "wait_max": 31,
+            "overflow": 0
+          }
+        },
+        "unit_rho_above_1_fraction": 0.8,
+        "unit_rho_range": [
+          0.8805523248072514,
+          1.261486469125376
+        ],
+        "never_firing_seeds_by_condition": {
+          "0.0/0": 0,
+          "0.005/30": 0,
+          "0.005/300": 0,
+          "0.005/1200": 0,
+          "0.01/30": 0,
+          "0.01/300": 0,
+          "0.01/1200": 0,
+          "0.02/30": 0,
+          "0.02/300": 0,
+          "0.02/1200": 0
+        },
+        "late_periodic_patterns_reference_condition": {
+          "period-1": 48,
+          "period-3": 2,
+          "none": 8,
+          "period-2": 4,
+          "period-4": 12,
+          "few": 6
+        }
+      },
+      "reproduces_0009": {
+        "k1_mismatched_runs": 0,
+        "k2_mismatched_runs": 0,
+        "identical": true
+      }
+    },
+    "0.0975": {
+      "rho": 1.3,
+      "git_commit": "a4d64cf38837375c2c35632a2eacf0eaa95d6f72",
+      "problems": [],
+      "K1": {
+        "applicable": true,
+        "baseline_active_seeds": 20,
+        "result": "holds",
+        "calmed_seeds": {
+          "0.0/0": 0,
+          "0.005/30": 5,
+          "0.005/300": 20,
+          "0.005/1200": 20,
+          "0.01/30": 11,
+          "0.01/300": 20,
+          "0.01/1200": 20,
+          "0.02/30": 12,
+          "0.02/300": 20,
+          "0.02/1200": 20
+        },
+        "per_condition": {
+          "0.0/0": false,
+          "0.005/30": false,
+          "0.005/300": true,
+          "0.005/1200": true,
+          "0.01/30": false,
+          "0.01/300": true,
+          "0.01/1200": true,
+          "0.02/30": false,
+          "0.02/300": true,
+          "0.02/1200": true
+        }
+      },
+      "K2": {
+        "result": "fails",
+        "difference_from_alpha0": {
+          "0.0/0": 0.0,
+          "0.005/30": -0.05,
+          "0.005/300": -0.15,
+          "0.005/1200": -0.1,
+          "0.01/30": -0.1,
+          "0.01/300": -0.2,
+          "0.01/1200": 0.25,
+          "0.02/30": 0.3,
+          "0.02/300": 0.1,
+          "0.02/1200": 0.6
+        },
+        "per_condition": {
+          "0.0/0": false,
+          "0.005/30": false,
+          "0.005/300": false,
+          "0.005/1200": false,
+          "0.01/30": false,
+          "0.01/300": false,
+          "0.01/1200": false,
+          "0.02/30": false,
+          "0.02/300": false,
+          "0.02/1200": true
+        }
+      },
+      "K3": {
+        "result": "N/A",
+        "chosen": null
+      },
+      "records": {
+        "by_condition": {
+          "0.0/0": {
+            "early_fires_per_10min": 332.3,
+            "late_fires_per_10min": 334.0,
+            "late_fires_per_10min_by_unit": {
+              "u0": 66.65,
+              "u1": 82.95,
+              "u2": 83.85,
+              "u3": 100.55
+            },
+            "utterances": 337.75,
+            "computed_by_unit": {
+              "u1": 277.35,
+              "u2": 283.5,
+              "u3": 338.05
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 1601.95,
+            "completed": 897.9,
+            "queue_max": 1122,
+            "queue_mean": 351.86245833333334,
+            "queue_end_mean": 703.05,
+            "queue_late_slope_mean": 0.19565614583008614,
+            "seeds_with_growing_queue": 20,
+            "wait_median": 755,
+            "wait_p90": 1431,
+            "wait_max": 1995,
+            "overflow": 0
+          },
+          "0.005/30": {
+            "early_fires_per_10min": 315.55,
+            "late_fires_per_10min": 316.85,
+            "late_fires_per_10min_by_unit": {
+              "u0": 61.833333333333336,
+              "u1": 81.0,
+              "u2": 80.03333333333333,
+              "u3": 93.98333333333332
+            },
+            "utterances": 334.55,
+            "computed_by_unit": {
+              "u1": 283.25,
+              "u2": 280.75,
+              "u3": 334.9
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 1529.35,
+            "completed": 897.9,
+            "queue_max": 879,
+            "queue_mean": 315.4065694444445,
+            "queue_end_mean": 630.45,
+            "queue_late_slope_mean": 0.17526460759195708,
+            "seeds_with_growing_queue": 20,
+            "wait_median": 695,
+            "wait_p90": 1351,
+            "wait_max": 1758,
+            "overflow": 0
+          },
+          "0.005/300": {
+            "early_fires_per_10min": 254.35,
+            "late_fires_per_10min": 221.73333333333335,
+            "late_fires_per_10min_by_unit": {
+              "u0": 40.18333333333333,
+              "u1": 49.68333333333333,
+              "u2": 49.83333333333333,
+              "u3": 82.03333333333333
+            },
+            "utterances": 400.75,
+            "computed_by_unit": {
+              "u1": 247.6,
+              "u2": 249.9,
+              "u3": 401.4
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 1115.3,
+            "completed": 897.9,
+            "queue_max": 353,
+            "queue_mean": 120.40461111111111,
+            "queue_end_mean": 216.4,
+            "queue_late_slope_mean": 0.05245512164252726,
+            "seeds_with_growing_queue": 18,
+            "wait_median": 375,
+            "wait_p90": 723,
+            "wait_max": 1043,
+            "overflow": 0
+          },
+          "0.005/1200": {
+            "early_fires_per_10min": 228.8,
+            "late_fires_per_10min": 154.48333333333332,
+            "late_fires_per_10min_by_unit": {
+              "u0": 16.433333333333334,
+              "u1": 41.35,
+              "u2": 41.483333333333334,
+              "u3": 55.21666666666666
+            },
+            "utterances": 385.7,
+            "computed_by_unit": {
+              "u1": 245.75,
+              "u2": 246.65,
+              "u3": 386.05
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 897.2,
+            "completed": 877.6,
+            "queue_max": 61,
+            "queue_mean": 30.10966666666667,
+            "queue_end_mean": 18.75,
+            "queue_late_slope_mean": -0.007904179497174741,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 119,
+            "wait_p90": 191,
+            "wait_max": 243,
+            "overflow": 0
+          },
+          "0.01/30": {
+            "early_fires_per_10min": 305.85,
+            "late_fires_per_10min": 304.83333333333337,
+            "late_fires_per_10min_by_unit": {
+              "u0": 59.8,
+              "u1": 76.48333333333333,
+              "u2": 75.83333333333334,
+              "u3": 92.71666666666667
+            },
+            "utterances": 341.85,
+            "computed_by_unit": {
+              "u1": 279.7,
+              "u2": 277.0,
+              "u3": 342.2
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 1471.8,
+            "completed": 897.9,
+            "queue_max": 875,
+            "queue_mean": 287.64706944444447,
+            "queue_end_mean": 572.9,
+            "queue_late_slope_mean": 0.15831819768051367,
+            "seeds_with_growing_queue": 20,
+            "wait_median": 655,
+            "wait_p90": 1291,
+            "wait_max": 1767,
+            "overflow": 0
+          },
+          "0.01/300": {
+            "early_fires_per_10min": 211.45,
+            "late_fires_per_10min": 180.21666666666667,
+            "late_fires_per_10min_by_unit": {
+              "u0": 28.68333333333333,
+              "u1": 38.63333333333333,
+              "u2": 37.91666666666667,
+              "u3": 74.98333333333333
+            },
+            "utterances": 438.75,
+            "computed_by_unit": {
+              "u1": 231.55,
+              "u2": 228.3,
+              "u3": 439.05
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 933.6,
+            "completed": 897.9,
+            "queue_max": 80,
+            "queue_mean": 29.01540277777778,
+            "queue_end_mean": 34.7,
+            "queue_late_slope_mean": 0.0025338792800038935,
+            "seeds_with_growing_queue": 7,
+            "wait_median": 103,
+            "wait_p90": 195,
+            "wait_max": 307,
+            "overflow": 0
+          },
+          "0.01/1200": {
+            "early_fires_per_10min": 188.1,
+            "late_fires_per_10min": 65.61666666666666,
+            "late_fires_per_10min_by_unit": {
+              "u0": 8.516666666666667,
+              "u1": 16.183333333333334,
+              "u2": 16.2,
+              "u3": 24.716666666666665
+            },
+            "utterances": 181.2,
+            "computed_by_unit": {
+              "u1": 118.8,
+              "u2": 119.35,
+              "u3": 181.25
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 419.6,
+            "completed": 419.15,
+            "queue_max": 28,
+            "queue_mean": 3.922722222222222,
+            "queue_end_mean": 0.2,
+            "queue_late_slope_mean": -9.073737368437458e-05,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 23,
+            "wait_p90": 83,
+            "wait_max": 111,
+            "overflow": 0
+          },
+          "0.02/30": {
+            "early_fires_per_10min": 281.95,
+            "late_fires_per_10min": 280.2,
+            "late_fires_per_10min_by_unit": {
+              "u0": 54.416666666666664,
+              "u1": 68.11666666666666,
+              "u2": 67.78333333333333,
+              "u3": 89.88333333333334
+            },
+            "utterances": 359.15,
+            "computed_by_unit": {
+              "u1": 270.2,
+              "u2": 269.2,
+              "u3": 359.5
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 1355.85,
+            "completed": 897.9,
+            "queue_max": 638,
+            "queue_mean": 229.6490277777778,
+            "queue_end_mean": 456.95,
+            "queue_late_slope_mean": 0.12637720716374706,
+            "seeds_with_growing_queue": 20,
+            "wait_median": 567,
+            "wait_p90": 1125,
+            "wait_max": 1492,
+            "overflow": 0
+          },
+          "0.02/300": {
+            "early_fires_per_10min": 179.0,
+            "late_fires_per_10min": 140.21666666666667,
+            "late_fires_per_10min_by_unit": {
+              "u0": 17.1,
+              "u1": 37.68333333333333,
+              "u2": 37.75,
+              "u3": 47.68333333333333
+            },
+            "utterances": 313.2,
+            "computed_by_unit": {
+              "u1": 231.8,
+              "u2": 232.6,
+              "u3": 313.45
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 780.2,
+            "completed": 777.0,
+            "queue_max": 16,
+            "queue_mean": 3.952180555555555,
+            "queue_end_mean": 2.35,
+            "queue_late_slope_mean": -0.0001800657963166038,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 15,
+            "wait_p90": 43,
+            "wait_max": 63,
+            "overflow": 0
+          },
+          "0.02/1200": {
+            "early_fires_per_10min": 116.75,
+            "late_fires_per_10min": 31.75,
+            "late_fires_per_10min_by_unit": {
+              "u0": 4.383333333333334,
+              "u1": 7.7666666666666675,
+              "u2": 7.883333333333333,
+              "u3": 11.716666666666667
+            },
+            "utterances": 94.15,
+            "computed_by_unit": {
+              "u1": 61.25,
+              "u2": 61.8,
+              "u3": 94.3
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 217.6,
+            "completed": 217.05,
+            "queue_max": 14,
+            "queue_mean": 0.8969166666666666,
+            "queue_end_mean": 0.25,
+            "queue_late_slope_mean": 2.1763175441309316e-05,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 7,
+            "wait_p90": 39,
+            "wait_max": 55,
+            "overflow": 0
+          }
+        },
+        "unit_rho_above_1_fraction": 1.0,
+        "unit_rho_range": [
+          1.0731731458588376,
+          1.5374366342465522
+        ],
+        "never_firing_seeds_by_condition": {
+          "0.0/0": 0,
+          "0.005/30": 0,
+          "0.005/300": 0,
+          "0.005/1200": 0,
+          "0.01/30": 0,
+          "0.01/300": 0,
+          "0.01/1200": 0,
+          "0.02/30": 0,
+          "0.02/300": 0,
+          "0.02/1200": 0
+        },
+        "late_periodic_patterns_reference_condition": {
+          "period-1": 35,
+          "none": 43,
+          "period-3": 2
+        }
+      }
+    },
+    "0.1200": {
+      "rho": 1.6,
+      "git_commit": "a4d64cf38837375c2c35632a2eacf0eaa95d6f72",
+      "problems": [],
+      "K1": {
+        "applicable": true,
+        "baseline_active_seeds": 20,
+        "result": "holds",
+        "calmed_seeds": {
+          "0.0/0": 0,
+          "0.005/30": 7,
+          "0.005/300": 20,
+          "0.005/1200": 20,
+          "0.01/30": 9,
+          "0.01/300": 20,
+          "0.01/1200": 20,
+          "0.02/30": 14,
+          "0.02/300": 20,
+          "0.02/1200": 20
+        },
+        "per_condition": {
+          "0.0/0": false,
+          "0.005/30": false,
+          "0.005/300": true,
+          "0.005/1200": true,
+          "0.01/30": false,
+          "0.01/300": true,
+          "0.01/1200": true,
+          "0.02/30": false,
+          "0.02/300": true,
+          "0.02/1200": true
+        }
+      },
+      "K2": {
+        "result": "holds",
+        "difference_from_alpha0": {
+          "0.0/0": 0.0,
+          "0.005/30": 0.25,
+          "0.005/300": 0.25,
+          "0.005/1200": 0.15,
+          "0.01/30": 0.4,
+          "0.01/300": 0.35,
+          "0.01/1200": 0.3,
+          "0.02/30": 0.45,
+          "0.02/300": 0.3,
+          "0.02/1200": 0.7
+        },
+        "per_condition": {
+          "0.0/0": false,
+          "0.005/30": false,
+          "0.005/300": false,
+          "0.005/1200": false,
+          "0.01/30": true,
+          "0.01/300": true,
+          "0.01/1200": true,
+          "0.02/30": true,
+          "0.02/300": true,
+          "0.02/1200": true
+        }
+      },
+      "K3": {
+        "result": "same as reference",
+        "chosen": [
+          0.01,
+          300
+        ]
+      },
+      "records": {
+        "by_condition": {
+          "0.0/0": {
+            "early_fires_per_10min": 451.8,
+            "late_fires_per_10min": 452.4833333333333,
+            "late_fires_per_10min_by_unit": {
+              "u0": 97.03333333333333,
+              "u1": 108.78333333333333,
+              "u2": 106.86666666666667,
+              "u3": 139.8
+            },
+            "utterances": 352.3,
+            "computed_by_unit": {
+              "u1": 275.35,
+              "u2": 271.25,
+              "u3": 352.85
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 2132.6,
+            "completed": 898.45,
+            "queue_max": 1545,
+            "queue_mean": 616.7997916666667,
+            "queue_end_mean": 1233.15,
+            "queue_late_slope_mean": 0.34220927064072143,
+            "seeds_with_growing_queue": 20,
+            "wait_median": 1035,
+            "wait_p90": 1866,
+            "wait_max": 2271,
+            "overflow": 0
+          },
+          "0.005/30": {
+            "early_fires_per_10min": 429.55,
+            "late_fires_per_10min": 429.6833333333333,
+            "late_fires_per_10min_by_unit": {
+              "u0": 89.41666666666667,
+              "u1": 102.68333333333332,
+              "u2": 102.28333333333333,
+              "u3": 135.3
+            },
+            "utterances": 354.65,
+            "computed_by_unit": {
+              "u1": 272.1,
+              "u2": 272.25,
+              "u3": 355.1
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 2042.55,
+            "completed": 898.45,
+            "queue_max": 1311,
+            "queue_mean": 572.3210694444444,
+            "queue_end_mean": 1143.1,
+            "queue_late_slope_mean": 0.31704457100141087,
+            "seeds_with_growing_queue": 20,
+            "wait_median": 999,
+            "wait_p90": 1804,
+            "wait_max": 2132,
+            "overflow": 0
+          },
+          "0.005/300": {
+            "early_fires_per_10min": 330.25,
+            "late_fires_per_10min": 286.93333333333334,
+            "late_fires_per_10min_by_unit": {
+              "u0": 59.35,
+              "u1": 68.41666666666667,
+              "u2": 68.85,
+              "u3": 90.31666666666666
+            },
+            "utterances": 352.15,
+            "computed_by_unit": {
+              "u1": 272.3,
+              "u2": 274.5,
+              "u3": 352.65
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 1402.55,
+            "completed": 898.45,
+            "queue_max": 627,
+            "queue_mean": 267.99454166666663,
+            "queue_end_mean": 503.1,
+            "queue_late_slope_mean": 0.12937558020851242,
+            "seeds_with_growing_queue": 20,
+            "wait_median": 695,
+            "wait_p90": 1215,
+            "wait_max": 1527,
+            "overflow": 0
+          },
+          "0.005/1200": {
+            "early_fires_per_10min": 297.0,
+            "late_fires_per_10min": 175.9,
+            "late_fires_per_10min_by_unit": {
+              "u0": 28.96666666666667,
+              "u1": 38.35,
+              "u2": 38.46666666666666,
+              "u3": 70.11666666666666
+            },
+            "utterances": 414.5,
+            "computed_by_unit": {
+              "u1": 242.0,
+              "u2": 242.45,
+              "u3": 415.0
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 983.0,
+            "completed": 898.45,
+            "queue_max": 137,
+            "queue_mean": 85.22702777777778,
+            "queue_end_mean": 83.55,
+            "queue_late_slope_mean": -0.005392830419597866,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 347,
+            "wait_p90": 439,
+            "wait_max": 547,
+            "overflow": 0
+          },
+          "0.01/30": {
+            "early_fires_per_10min": 401.55,
+            "late_fires_per_10min": 401.8,
+            "late_fires_per_10min_by_unit": {
+              "u0": 84.8,
+              "u1": 97.15,
+              "u2": 99.45,
+              "u3": 120.4
+            },
+            "utterances": 339.3,
+            "computed_by_unit": {
+              "u1": 277.25,
+              "u2": 282.6,
+              "u3": 339.6
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 1901.75,
+            "completed": 898.45,
+            "queue_max": 1304,
+            "queue_mean": 501.5563611111111,
+            "queue_end_mean": 1002.3,
+            "queue_late_slope_mean": 0.2780889703463901,
+            "seeds_with_growing_queue": 20,
+            "wait_median": 937,
+            "wait_p90": 1696,
+            "wait_max": 2119,
+            "overflow": 0
+          },
+          "0.01/300": {
+            "early_fires_per_10min": 275.85,
+            "late_fires_per_10min": 227.91666666666666,
+            "late_fires_per_10min_by_unit": {
+              "u0": 44.63333333333334,
+              "u1": 50.15,
+              "u2": 50.85,
+              "u3": 82.28333333333333
+            },
+            "utterances": 396.7,
+            "computed_by_unit": {
+              "u1": 249.45,
+              "u2": 252.85,
+              "u3": 397.15
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 1138.1,
+            "completed": 898.45,
+            "queue_max": 331,
+            "queue_mean": 137.12477777777778,
+            "queue_end_mean": 238.65,
+            "queue_late_slope_mean": 0.0555352369964723,
+            "seeds_with_growing_queue": 20,
+            "wait_median": 424,
+            "wait_p90": 759,
+            "wait_max": 999,
+            "overflow": 0
+          },
+          "0.01/1200": {
+            "early_fires_per_10min": 232.5,
+            "late_fires_per_10min": 83.11666666666666,
+            "late_fires_per_10min_by_unit": {
+              "u0": 16.05,
+              "u1": 19.9,
+              "u2": 19.916666666666664,
+              "u3": 27.25
+            },
+            "utterances": 242.35,
+            "computed_by_unit": {
+              "u1": 174.6,
+              "u2": 176.0,
+              "u3": 242.5
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 593.4,
+            "completed": 592.9,
+            "queue_max": 55,
+            "queue_mean": 12.197236111111112,
+            "queue_end_mean": 0.3,
+            "queue_late_slope_mean": 4.19212577946269e-05,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 71,
+            "wait_p90": 171,
+            "wait_max": 219,
+            "overflow": 0
+          },
+          "0.02/30": {
+            "early_fires_per_10min": 363.0,
+            "late_fires_per_10min": 361.06666666666666,
+            "late_fires_per_10min_by_unit": {
+              "u0": 76.65,
+              "u1": 89.86666666666666,
+              "u2": 92.38333333333334,
+              "u3": 102.16666666666666
+            },
+            "utterances": 322.45,
+            "computed_by_unit": {
+              "u1": 285.05,
+              "u2": 291.6,
+              "u3": 322.8
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 1708.05,
+            "completed": 898.45,
+            "queue_max": 1042,
+            "queue_mean": 405.6790555555556,
+            "queue_end_mean": 808.6,
+            "queue_late_slope_mean": 0.22387593206047285,
+            "seeds_with_growing_queue": 20,
+            "wait_median": 847,
+            "wait_p90": 1535,
+            "wait_max": 1940,
+            "overflow": 0
+          },
+          "0.02/300": {
+            "early_fires_per_10min": 212.35,
+            "late_fires_per_10min": 179.0,
+            "late_fires_per_10min_by_unit": {
+              "u0": 29.4,
+              "u1": 41.13333333333333,
+              "u2": 41.28333333333333,
+              "u3": 67.18333333333334
+            },
+            "utterances": 406.8,
+            "computed_by_unit": {
+              "u1": 246.05,
+              "u2": 246.0,
+              "u3": 407.4
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 917.65,
+            "completed": 898.45,
+            "queue_max": 32,
+            "queue_mean": 20.205000000000002,
+            "queue_end_mean": 18.2,
+            "queue_late_slope_mean": -0.0006974454827506634,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 83,
+            "wait_p90": 111,
+            "wait_max": 127,
+            "overflow": 0
+          },
+          "0.02/1200": {
+            "early_fires_per_10min": 166.95,
+            "late_fires_per_10min": 41.05,
+            "late_fires_per_10min_by_unit": {
+              "u0": 8.183333333333334,
+              "u1": 9.666666666666668,
+              "u2": 9.7,
+              "u3": 13.5
+            },
+            "utterances": 125.7,
+            "computed_by_unit": {
+              "u1": 88.3,
+              "u2": 88.8,
+              "u3": 125.7
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 303.0,
+            "completed": 302.45,
+            "queue_max": 27,
+            "queue_mean": 2.3292083333333333,
+            "queue_end_mean": 0.2,
+            "queue_late_slope_mean": 6.957918814172475e-05,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 7,
+            "wait_p90": 79,
+            "wait_max": 107,
+            "overflow": 0
+          }
+        },
+        "unit_rho_above_1_fraction": 1.0,
+        "unit_rho_range": [
+          1.320828487210877,
+          1.8922297036880642
+        ],
+        "never_firing_seeds_by_condition": {
+          "0.0/0": 0,
+          "0.005/30": 0,
+          "0.005/300": 0,
+          "0.005/1200": 0,
+          "0.01/30": 0,
+          "0.01/300": 0,
+          "0.01/1200": 0,
+          "0.02/30": 0,
+          "0.02/300": 0,
+          "0.02/1200": 0
+        },
+        "late_periodic_patterns_reference_condition": {
+          "period-1": 21,
+          "none": 59
+        }
+      }
+    },
+    "0.1500": {
+      "rho": 2.0,
+      "git_commit": "a4d64cf38837375c2c35632a2eacf0eaa95d6f72",
+      "problems": [],
+      "K1": {
+        "applicable": true,
+        "baseline_active_seeds": 20,
+        "result": "holds",
+        "calmed_seeds": {
+          "0.0/0": 0,
+          "0.005/30": 10,
+          "0.005/300": 20,
+          "0.005/1200": 20,
+          "0.01/30": 16,
+          "0.01/300": 20,
+          "0.01/1200": 20,
+          "0.02/30": 16,
+          "0.02/300": 20,
+          "0.02/1200": 20
+        },
+        "per_condition": {
+          "0.0/0": false,
+          "0.005/30": false,
+          "0.005/300": true,
+          "0.005/1200": true,
+          "0.01/30": true,
+          "0.01/300": true,
+          "0.01/1200": true,
+          "0.02/30": true,
+          "0.02/300": true,
+          "0.02/1200": true
+        }
+      },
+      "K2": {
+        "result": "fails",
+        "difference_from_alpha0": {
+          "0.0/0": 0.0,
+          "0.005/30": -0.15,
+          "0.005/300": 0.15,
+          "0.005/1200": 0.05,
+          "0.01/30": -0.3,
+          "0.01/300": -0.2,
+          "0.01/1200": 0.1,
+          "0.02/30": -0.35,
+          "0.02/300": 0.1,
+          "0.02/1200": 0.45
+        },
+        "per_condition": {
+          "0.0/0": false,
+          "0.005/30": false,
+          "0.005/300": false,
+          "0.005/1200": false,
+          "0.01/30": false,
+          "0.01/300": false,
+          "0.01/1200": false,
+          "0.02/30": false,
+          "0.02/300": false,
+          "0.02/1200": true
+        }
+      },
+      "K3": {
+        "result": "N/A",
+        "chosen": null
+      },
+      "records": {
+        "by_condition": {
+          "0.0/0": {
+            "early_fires_per_10min": 560.65,
+            "late_fires_per_10min": 560.7666666666667,
+            "late_fires_per_10min_by_unit": {
+              "u0": 129.5,
+              "u1": 138.96666666666664,
+              "u2": 142.26666666666668,
+              "u3": 150.03333333333333
+            },
+            "utterances": 313.75,
+            "computed_by_unit": {
+              "u1": 288.65,
+              "u2": 296.95,
+              "u3": 314.35
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 2586.95,
+            "completed": 898.95,
+            "queue_max": 1801,
+            "queue_mean": 843.4846944444444,
+            "queue_end_mean": 1687.0,
+            "queue_late_slope_mean": 0.46857685347022227,
+            "seeds_with_growing_queue": 20,
+            "wait_median": 1169,
+            "wait_p90": 2103,
+            "wait_max": 2399,
+            "overflow": 0
+          },
+          "0.005/30": {
+            "early_fires_per_10min": 540.85,
+            "late_fires_per_10min": 540.5333333333333,
+            "late_fires_per_10min_by_unit": {
+              "u0": 122.78333333333333,
+              "u1": 133.65,
+              "u2": 134.06666666666666,
+              "u3": 150.03333333333333
+            },
+            "utterances": 323.45,
+            "computed_by_unit": {
+              "u1": 288.15,
+              "u2": 287.85,
+              "u3": 323.95
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 2505.75,
+            "completed": 898.95,
+            "queue_max": 1801,
+            "queue_mean": 803.21275,
+            "queue_end_mean": 1605.8,
+            "queue_late_slope_mean": 0.4459213626300502,
+            "seeds_with_growing_queue": 20,
+            "wait_median": 1151,
+            "wait_p90": 2070,
+            "wait_max": 2399,
+            "overflow": 0
+          },
+          "0.005/300": {
+            "early_fires_per_10min": 413.9,
+            "late_fires_per_10min": 356.06666666666666,
+            "late_fires_per_10min_by_unit": {
+              "u0": 79.55,
+              "u1": 87.75,
+              "u2": 90.51666666666667,
+              "u3": 98.25
+            },
+            "utterances": 321.65,
+            "computed_by_unit": {
+              "u1": 285.0,
+              "u2": 292.85,
+              "u3": 322.1
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 1704.85,
+            "completed": 898.95,
+            "queue_max": 953,
+            "queue_mean": 423.46591666666666,
+            "queue_end_mean": 804.9,
+            "queue_late_slope_mean": 0.21095301006780148,
+            "seeds_with_growing_queue": 20,
+            "wait_median": 919,
+            "wait_p90": 1583,
+            "wait_max": 1904,
+            "overflow": 0
+          },
+          "0.005/1200": {
+            "early_fires_per_10min": 373.55,
+            "late_fires_per_10min": 197.48333333333332,
+            "late_fires_per_10min_by_unit": {
+              "u0": 41.93333333333333,
+              "u1": 46.13333333333333,
+              "u2": 46.4,
+              "u3": 63.016666666666666
+            },
+            "utterances": 361.75,
+            "computed_by_unit": {
+              "u1": 267.9,
+              "u2": 269.9,
+              "u3": 362.15
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 1118.65,
+            "completed": 898.95,
+            "queue_max": 306,
+            "queue_mean": 181.7695277777778,
+            "queue_end_mean": 218.7,
+            "queue_late_slope_mean": 0.009057424451879974,
+            "seeds_with_growing_queue": 16,
+            "wait_median": 695,
+            "wait_p90": 891,
+            "wait_max": 1103,
+            "overflow": 0
+          },
+          "0.01/30": {
+            "early_fires_per_10min": 513.1,
+            "late_fires_per_10min": 510.7833333333333,
+            "late_fires_per_10min_by_unit": {
+              "u0": 113.28333333333333,
+              "u1": 123.13333333333333,
+              "u2": 124.56666666666668,
+              "u3": 149.8
+            },
+            "utterances": 338.05,
+            "computed_by_unit": {
+              "u1": 280.1,
+              "u2": 281.5,
+              "u3": 338.35
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 2388.5,
+            "completed": 898.95,
+            "queue_max": 1694,
+            "queue_mean": 745.9124027777777,
+            "queue_end_mean": 1488.55,
+            "queue_late_slope_mean": 0.4122369188488433,
+            "seeds_with_growing_queue": 20,
+            "wait_median": 1121,
+            "wait_p90": 2016,
+            "wait_max": 2355,
+            "overflow": 0
+          },
+          "0.01/300": {
+            "early_fires_per_10min": 346.15,
+            "late_fires_per_10min": 286.06666666666666,
+            "late_fires_per_10min_by_unit": {
+              "u0": 60.38333333333334,
+              "u1": 67.68333333333334,
+              "u2": 67.88333333333334,
+              "u3": 90.11666666666666
+            },
+            "utterances": 353.4,
+            "computed_by_unit": {
+              "u1": 272.25,
+              "u2": 273.75,
+              "u3": 353.95
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 1400.8,
+            "completed": 898.95,
+            "queue_max": 580,
+            "queue_mean": 272.0529861111111,
+            "queue_end_mean": 500.85,
+            "queue_late_slope_mean": 0.126105818911261,
+            "seeds_with_growing_queue": 20,
+            "wait_median": 719,
+            "wait_p90": 1215,
+            "wait_max": 1460,
+            "overflow": 0
+          },
+          "0.01/1200": {
+            "early_fires_per_10min": 287.6,
+            "late_fires_per_10min": 131.2,
+            "late_fires_per_10min_by_unit": {
+              "u0": 25.15,
+              "u1": 32.61666666666667,
+              "u2": 33.13333333333333,
+              "u3": 40.3
+            },
+            "utterances": 314.1,
+            "computed_by_unit": {
+              "u1": 248.05,
+              "u2": 250.5,
+              "u3": 314.45
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 814.6,
+            "completed": 812.4,
+            "queue_max": 94,
+            "queue_mean": 39.792902777777776,
+            "queue_end_mean": 1.6,
+            "queue_late_slope_mean": -0.027507020218216122,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 195,
+            "wait_p90": 311,
+            "wait_max": 375,
+            "overflow": 0
+          },
+          "0.02/30": {
+            "early_fires_per_10min": 471.9,
+            "late_fires_per_10min": 467.2,
+            "late_fires_per_10min_by_unit": {
+              "u0": 102.91666666666667,
+              "u1": 111.75,
+              "u2": 109.95,
+              "u3": 142.58333333333331
+            },
+            "utterances": 350.0,
+            "computed_by_unit": {
+              "u1": 276.55,
+              "u2": 272.8,
+              "u3": 350.6
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 2190.6,
+            "completed": 898.95,
+            "queue_max": 1479,
+            "queue_mean": 647.6429027777779,
+            "queue_end_mean": 1290.65,
+            "queue_late_slope_mean": 0.3571932699156183,
+            "seeds_with_growing_queue": 20,
+            "wait_median": 1063,
+            "wait_p90": 1911,
+            "wait_max": 2238,
+            "overflow": 0
+          },
+          "0.02/300": {
+            "early_fires_per_10min": 258.9,
+            "late_fires_per_10min": 196.5,
+            "late_fires_per_10min_by_unit": {
+              "u0": 42.016666666666666,
+              "u1": 46.016666666666666,
+              "u2": 46.03333333333333,
+              "u3": 62.43333333333334
+            },
+            "utterances": 361.75,
+            "computed_by_unit": {
+              "u1": 268.3,
+              "u2": 269.7,
+              "u3": 361.95
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 977.7,
+            "completed": 898.95,
+            "queue_max": 157,
+            "queue_mean": 62.359208333333335,
+            "queue_end_mean": 77.75,
+            "queue_late_slope_mean": 0.0075537867964362545,
+            "seeds_with_growing_queue": 16,
+            "wait_median": 235,
+            "wait_p90": 331,
+            "wait_max": 563,
+            "overflow": 0
+          },
+          "0.02/1200": {
+            "early_fires_per_10min": 207.8,
+            "late_fires_per_10min": 62.616666666666674,
+            "late_fires_per_10min_by_unit": {
+              "u0": 13.333333333333334,
+              "u1": 15.25,
+              "u2": 15.35,
+              "u3": 18.683333333333334
+            },
+            "utterances": 162.2,
+            "computed_by_unit": {
+              "u1": 127.0,
+              "u2": 128.2,
+              "u3": 162.3
+            },
+            "seeds_where_u2_computed": 20,
+            "intents": 417.7,
+            "completed": 417.2,
+            "queue_max": 45,
+            "queue_mean": 5.70025,
+            "queue_end_mean": 0.2,
+            "queue_late_slope_mean": 7.661900512932263e-05,
+            "seeds_with_growing_queue": 0,
+            "wait_median": 7,
+            "wait_p90": 139,
+            "wait_max": 179,
+            "overflow": 0
+          }
+        },
+        "unit_rho_above_1_fraction": 1.0,
+        "unit_rho_range": [
+          1.6510356090135963,
+          2.36528712961008
+        ],
+        "never_firing_seeds_by_condition": {
+          "0.0/0": 0,
+          "0.005/30": 0,
+          "0.005/300": 0,
+          "0.005/1200": 0,
+          "0.01/30": 0,
+          "0.01/300": 0,
+          "0.01/1200": 0,
+          "0.02/30": 0,
+          "0.02/300": 0,
+          "0.02/1200": 0
+        },
+        "late_periodic_patterns_reference_condition": {
+          "period-1": 20,
+          "none": 60
+        }
+      }
+    }
+  },
+  "valid": true,
+  "problems": [],
+  "summary": {
+    "0.0500": {
+      "rho": 0.6667,
+      "K1": "N/A",
+      "K2": "holds",
+      "K3": "N/A",
+      "K3_chosen": null
+    },
+    "0.0675": {
+      "rho": 0.9,
+      "K1": "N/A",
+      "K2": "holds",
+      "K3": "N/A",
+      "K3_chosen": null
+    },
+    "0.0750": {
+      "rho": 1.0,
+      "K1": "fails",
+      "K2": "holds",
+      "K3": "N/A",
+      "K3_chosen": null
+    },
+    "0.0800": {
+      "rho": 1.0667,
+      "K1": "holds",
+      "K2": "holds",
+      "K3": "same as reference",
+      "K3_chosen": [
+        0.01,
+        300
+      ]
+    },
+    "0.0975": {
+      "rho": 1.3,
+      "K1": "holds",
+      "K2": "fails",
+      "K3": "N/A",
+      "K3_chosen": null
+    },
+    "0.1200": {
+      "rho": 1.6,
+      "K1": "holds",
+      "K2": "holds",
+      "K3": "same as reference",
+      "K3_chosen": [
+        0.01,
+        300
+      ]
+    },
+    "0.1500": {
+      "rho": 2.0,
+      "K1": "holds",
+      "K2": "fails",
+      "K3": "N/A",
+      "K3_chosen": null
+    }
+  }
+}
