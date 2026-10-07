@@ -1,0 +1,62 @@
+# AnIma-ll 最軽量版 脳の設計図（Neuroarchitecture Manifest）v2
+#
+# 【位置づけ】minimal-v2 = minimal-v1 ＋ 不応期の除去（refractory_pulses: 3 → 0）。ほかは v1 と同じ
+#   不応期 3 Pulse は、独立した根拠がないため除去した（恣意性監査 §3.2 の設計判断）。
+#   除去によって再検証が必要な知見はなかった（実験 0009：K1・K2 支持、K3 は α=0.01・τ_a=300 を選んだ）。
+#   v2 は v1 より「脳として正しい」設計図ではない。配線は v0・v1 と同じく動作テスト用。
+#   minimal-v0・v1 は比較の基準として凍結し、書き換えない。
+#   内在的駆動（0.08）は恣意性監査 §3.3 で「値に根拠なし」。ρ の領域ごとの依存は別の実験で調べる。
+#
+# - Unit に役割は書かない（role: memory などは読み込み時にエラーになる）
+# - 違いは配線（projections）と部品・パラメータだけで表す
+# - Unit の名前は番号だけ。「u0 は感覚野」などとは決めない
+# - 外とつながる口は ID だけを宣言する。何をつなぐかは config/environment/ が決める
+# - seed（初期値のばらつきの元）は個体の設定 config/individual/ にある
+
+version: 2
+delta_ttl_pulses: 10     # Delta が BrainState に残る Pulse 数
+
+interfaces:
+  resources: [llm_pool]
+  receptors: [receptor.console]
+  effectors: [effector.console]
+
+defaults:
+  dynamics:
+    kind: simple_activity
+    decay: 0.85          # 1 秒あたりの減衰率
+    threshold: 0.5
+    refractory_pulses: 0   # 不応期なし（恣意性監査 §3.2 で除去。実験 0009）
+    intrinsic_drive: 0.08  # 入力がなくても活動がゆっくり動き続ける（内容非依存）
+                           # 値に根拠なし（恣意性監査 §3.3：L0 の症状から臨界点の直上 ρ ≒ 1.07 に置いた）
+    jitter: 0.1          # Unit ごとのパラメータのばらつき（±10%）
+    # L2-1 の現行参照値（reference parameter）
+    #   実験 0004（入力なしで落ち着く）と 0005（発火に必要な最小の入力が上がる）がともに支持され、
+    #   新しい実行基盤（0008）と不応期 0（0009）の上でも根拠を保つことを確認した。
+    #   事前登録した規則（両方を満たす中で α × τ_a が最小）で、現在の minimal の配線の上で選ばれた値。
+    #   生物学的な定数ではない。配線・Pulse の時間解像度・内在的駆動などを変えたら再検証の対象
+    adaptation_increment: 0.01   # α：1 回の発火で実効閾値に上乗せされる量
+    adaptation_tau: 300          # τ_a（秒）：上乗せが戻る時定数
+
+units:
+  - id: u0
+    output: relay
+  - id: u1
+    output: { kind: kernel_request, resource: llm_pool, io_template: associate }
+  - id: u2
+    output: { kind: kernel_request, resource: llm_pool, io_template: associate }
+  - id: u3
+    output: { kind: kernel_request, resource: llm_pool, io_template: utter }
+
+# receptor.console ─→ u0 ─┬─→ u1 ─┐
+#                         │   ↕   ├─→ u3 ─→ effector.console
+#                         └─→ u2 ─┘
+projections:
+  - { from: receptor.console.main, to: u0, weight: 1.0 }
+  - { from: u0.main, to: u1, weight: 1.0 }   # 分岐
+  - { from: u0.main, to: u2, weight: 1.0 }
+  - { from: u1.main, to: u2, weight: 0.4 }   # 弱い相互作用（再帰）
+  - { from: u2.main, to: u1, weight: 0.4 }
+  - { from: u1.main, to: u3, weight: 0.6 }   # 再収束
+  - { from: u2.main, to: u3, weight: 0.6 }
+  - { from: u3.main, to: effector.console }

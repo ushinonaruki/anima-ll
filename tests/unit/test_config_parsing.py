@@ -131,3 +131,13 @@ def test_environment_component_requires_prefix_and_kind() -> None:
 def test_birth_state_requires_id_and_seed() -> None:
     with pytest.raises(ConfigError):
         parse_birth_state({"individual_id": "anima"})
+
+
+def test_minimal_v2_is_v1_without_refractory_only() -> None:
+    """v2 は v1 の不応期を 0 にしただけ（配線もほかの力学も同じ。恣意性監査 §3.2・実験 0009）。"""
+    v1 = YamlNeuroarchitectureSource(CONFIG / "neuroarchitecture/minimal-v1.yaml").load()
+    v2 = YamlNeuroarchitectureSource(CONFIG / "neuroarchitecture/minimal-v2.yaml").load()
+    assert v1.projections == v2.projections and v1.delta_ttl_pulses == v2.delta_ttl_pulses
+    for a, b in zip(v1.units, v2.units):
+        assert a.output == b.output
+        assert b.dynamics.params == {**a.dynamics.params, "refractory_pulses": 0}
