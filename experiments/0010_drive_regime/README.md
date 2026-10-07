@@ -93,3 +93,14 @@
 
 - 結果を恣意性監査 §3.3 と、各知見の行（L2-1 の順応など）に適用範囲として書く
 - 結果を見たあとの分析は「事後の探索的観察」として分けて書き、上の判定は変えない
+
+## 実行
+
+```bash
+python experiments/0010_drive_regime/run.py        # 駆動 7 段階 × （K1 200 本 ＋ K2 4000 本）。CPU の数だけ並列
+python experiments/0010_drive_regime/analyze.py    # 判定と記録
+```
+
+- `run.py`・`analyze.py` は `protocol.yaml` を読む。0004・0005・0008 の `run.py`・`analyze.py` の関数を再利用するが、判定の値は `protocol.yaml` だけから取る（`analyze.py` の `protocol_vs_old_constants` に、旧 analyzer の定数との対応を記録する）
+- 0005 の手順の環境は 0005 の `run.py` に直接書かれているので、`protocol.yaml` の環境と同じであることを実行時に確かめる
+- `run.py`・`analyze.py` は、`--seeds 1`（結果は使わない）で動作を確かめてから、測定の前にコミットした
