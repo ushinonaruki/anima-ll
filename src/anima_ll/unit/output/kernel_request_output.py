@@ -14,7 +14,7 @@ class KernelRequestOutput:
     """
 
     def __init__(
-        self, resource_class: ResourceClass, io_template: str | None, max_inputs: int = 8
+        self, resource_class: ResourceClass, io_template: str | None, max_inputs: int
     ) -> None:
         self._resource_class = resource_class
         self._io_template = io_template
