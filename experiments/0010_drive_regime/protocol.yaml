@@ -1,0 +1,42 @@
+# 実験 0010 の実行条件と判定基準（事前登録の一部。測定の前にコミットする）
+#
+# なぜこの条件なのかは README.md に書く。ここには、run.py と analyze.py が実際に使う値だけを書く。
+# 値はどれも、この実験の手順を決めるもので、AnIma-ll の脳の値ではない。
+
+base_neuroarchitecture: config/neuroarchitecture/minimal-v2.yaml
+
+# ρ = intrinsic_drive / ((1 − decay) × threshold)。decay・threshold は設計図の値を使い、変えない
+rho_values: [0.67, 0.90, 1.00, 1.07, 1.30, 1.60, 2.00]
+current_rho: 1.07                 # 今の値（0.08）。0009 の K1・K2 と同じ設定になる
+
+# 0004・0005 と同じ手順（関数は 0004・0005 の run.py をそのまま使う）
+adaptation_conditions:            # [α, τ_a]
+  - [0.0, 0]
+  - [0.005, 30]
+  - [0.005, 300]
+  - [0.005, 1200]
+  - [0.01, 30]
+  - [0.01, 300]
+  - [0.01, 1200]
+  - [0.02, 30]
+  - [0.02, 300]
+  - [0.02, 1200]
+seeds: {first: 1, last: 20}
+k1:
+  silent_pulses: 3600
+  reference_conditions: [[0.01, 300], [0.01, 1200], [0.02, 300], [0.02, 1200]]
+  min_calmed_seeds: 16            # 0004 と同じ
+  applicability:                  # 該当しない（N/A）の基準：α = 0 で序盤に 1 回でも発火した個体がこれ未満
+    early_window: [1, 600]
+    min_active_seeds: 16
+k2:
+  reference_conditions: [[0.01, 300], [0.01, 1200], [0.02, 300], [0.02, 1200]]
+  min_difference_from_alpha0: 0.3 # 0005 と同じ
+k3:
+  reference_value: [0.01, 300]
+
+environment:                      # 0004〜0009 と同じ
+  workers: 1
+  kernel: fake_delayed
+  delay_seconds: 3
+  queue_capacity: null            # 上限なし
