@@ -20,5 +20,5 @@ where = ["src"]
 include = ["anima_ll*"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "tests"]   # tests/anima_test_support.py（テストで共有する構成）を読むため
 testpaths = ["tests"]
