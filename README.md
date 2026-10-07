@@ -28,7 +28,7 @@ adapter/       外部技術（Kernel, Receptor, Effector, 保存, 設定の読�
 | `individual/` | 個体（Birth State）：個体 ID と seed |
 | `io_templates/` | Kernel への入出力の形式だけ（人格・口調・振る舞いは書かない） |
 
-脳の設計図は版ごとに積み上げる。配線はどれも動作テスト用で、脳についての主張は込めていない。
+脳の設計図は版ごとに積み上げる。配線はどれも動作テスト用で、脳についての主張は込めていない。どの仕組み・値が仮説で、どれが足場かは `docs/arbitrariness-audit.md` にまとめている。
 
 | 版 | 中身 | 使いどころ |
 |---|---|---|
@@ -93,5 +93,6 @@ L1 環境の Ollama の場所は `config/environment/l1-ollama-console.yaml` の
 - **L1**（済）：Ollama とコンソール入出力、設定の 3 分割。観察 `experiments/0003_first_l1_session/`、実験 `experiments/0002_periodicity_with_llm/`
 - **L2**（進行中）
   - L2-1 発火履歴に依存する順応（済）：実験 `0004_adaptation/`（入力なしで落ち着く）、`0005_response_threshold/`（発火に必要な入力が上がる）→ `minimal-v1`
-  - L2-2 計算要求の持ち越し（次）→ 状態・時間の情報化 → 発話の判断を力学へ → 記憶
+  - L2-2 計算の要求の持ち越し（**不採用**）：実験 `0006_pending_compute/`。実行基盤の制約を認知状態に写していたため
+  - **今：恣意性監査**（`docs/arbitrariness-audit.md`）。新しい機能に進む前に、L0〜L2-1 のすべての仕組みと値を、仮説か足場かで棚卸しする
 - L3：睡眠（Replay・恒常性）
