@@ -3,7 +3,7 @@ import sys
 import threading
 from collections.abc import Callable
 
-from anima_ll.domain.model.external_event import ExternalEvent
+from anima_ll.domain.model.sensory_event import SensoryEvent
 from anima_ll.domain.model.identifiers import ComponentId
 
 
@@ -26,14 +26,14 @@ class ConsoleReceptor:
     def receptor_id(self) -> ComponentId:
         return self._receptor_id
 
-    def drain(self) -> tuple[ExternalEvent, ...]:
+    def drain(self) -> tuple[SensoryEvent, ...]:
         if self._thread is None:  # 最初の Pulse で読み取りを始める
             self._thread = threading.Thread(target=self._read_loop, name="console-receptor", daemon=True)
             self._thread.start()
         events = []
         while True:
             try:
-                events.append(ExternalEvent(self._receptor_id, self._lines.get_nowait()))
+                events.append(SensoryEvent(self._receptor_id, self._lines.get_nowait()))
             except queue.Empty:
                 return tuple(events)
 

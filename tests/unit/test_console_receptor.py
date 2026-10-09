@@ -20,7 +20,7 @@ def drain_until(receptor: ConsoleReceptor, count: int) -> list:
 def test_lines_are_drained_in_order_and_blank_lines_dropped() -> None:
     receptor = ConsoleReceptor("receptor.console", read_line=lines("ただいま\n", "\n", " 疲れた \n"))
     events = drain_until(receptor, 2)
-    assert [e.payload for e in events] == ["ただいま", "疲れた"]
+    assert [e.material for e in events] == ["ただいま", "疲れた"]
     assert all(e.receptor_id == "receptor.console" for e in events)
 
 

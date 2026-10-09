@@ -2,9 +2,10 @@ import hashlib
 import json
 from dataclasses import asdict
 
+from anima_ll.domain.model.activity import Drive
 from anima_ll.domain.model.brain_state import BrainState, BrainStateSnapshot
 from anima_ll.domain.model.compute_request import ComputeRequest, KernelTaskDraft
-from anima_ll.domain.model.delta import ProposedDelta, StateDelta
+from anima_ll.domain.model.delta import DeltaKind, ProposedDelta, StateDelta
 from anima_ll.domain.model.identifiers import (
     ComponentId,
     PulseNumber,
@@ -103,11 +104,19 @@ class PulseRuntime:
             RuntimeEvent(RuntimeEventType.PULSE, pulse, {"now": context.now, "dt": context.delta_time})
         )
         produced: list[StateDelta] = []
+        drives: list[Drive] = []
         pending: list[_PendingRequest] = []
 
-        # 1. 感覚入力（Receptor は View を持たないので、来歴の起点になる）
-        for receptor_id, proposal in self._intake.collect():
-            produced += self._publish(receptor_id, proposal, frozenset(), None, None, pulse)
+        # 1. 感覚の出来事（Receptor が成立させたもの）。駆動は Unit の発火と同じ運び方で運ぶ。
+        #    中身が添えられていれば、中身の Delta として運ぶ（Receptor は View を持たないので来歴の起点）
+        for event in self._intake.collect():
+            self._log.append(RuntimeEvent(RuntimeEventType.SENSORY, pulse,
+                                          {"receptor_id": event.receptor_id,
+                                           "with_material": event.material is not None}))
+            drives += self._transmit(event.receptor_id, pulse)
+            if event.material is not None:
+                proposal = ProposedDelta(kind=DeltaKind.CONTENT, payload=event.material)
+                produced += self._publish(event.receptor_id, proposal, frozenset(), None, None, pulse)
 
         # 2. この Pulse の View はすべて同じスナップショットから作る
         snapshot = BrainStateSnapshot(self._issuer.snapshot_id(), pulse, self._state)
@@ -141,10 +150,15 @@ class PulseRuntime:
                     RuntimeEventType.VIEW,
                     pulse,
                     {"unit_id": unit.unit_id, "snapshot_id": snapshot.snapshot_id,
-                     "delta_ids": [d.delta_id for d in view.deltas]},
+                     "delta_ids": [d.delta_id for d in view.deltas],
+                     "drives": [[d.source_id, d.weight] for d in view.drives]},
                 )
             )
             step = unit.tick(view, context)
+            if step.activity is not None:
+                self._log.append(RuntimeEvent(RuntimeEventType.ACTIVITY, pulse,
+                                              {"unit_id": step.activity.unit_id}))
+                drives += self._transmit(step.activity.unit_id, pulse)
             produced += self._collect_step(
                 unit.unit_id, step, view.delta_ids(), snapshot.snapshot_id, None, pulse, pending
             )
@@ -158,7 +172,7 @@ class PulseRuntime:
             self._log.append(RuntimeEvent(RuntimeEventType.DELTA, pulse, asdict(delta)))
         to_brain = [d for d in produced if not is_effector(d.target_id)]
         to_effectors = [d for d in produced if is_effector(d.target_id)]
-        self._state = self._integrator.integrate(self._state, to_brain, pulse)
+        self._state = self._integrator.integrate(self._state, to_brain, drives, pulse)
 
         # 7. 外界への作用
         await self._dispatcher.dispatch(to_effectors)
@@ -226,6 +240,17 @@ class PulseRuntime:
         if unknown:
             self._violation(pulse, source_id, "unknown_effector", {"targets": unknown})
         return [d for d in outcome.deltas if d.target_id not in unknown]
+
+    def _transmit(self, source_id: ComponentId, pulse: PulseNumber) -> list[Drive]:
+        """成立済みの出来事（Unit の発火・Receptor の感覚）を、接続に沿って駆動として運ぶ。
+
+        送り手が Unit でも Receptor でも同じ運び方（活動の伝達 仕様 §3.3）：
+        接続を引き、この Pulse の重みを凍結し、次の Pulse に届ける。何が刺激かを判断しない。
+        """
+        return [
+            Drive(source_id=source_id, target_id=p.target_id, weight=p.weight, created_pulse=pulse)
+            for p in self._router.route_activity(source_id)
+        ]
 
     def _admit(self, pending: list[_PendingRequest], pulse: PulseNumber) -> None:
         """合法な要求を ComputeIntent として凍結し、列に受理する。

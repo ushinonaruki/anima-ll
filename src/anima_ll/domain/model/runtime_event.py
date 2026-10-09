@@ -16,6 +16,8 @@ class RuntimeEventType:
     INTENT_KERNEL_ERROR = "intent_kernel_error"
     INTENT_OUTSTANDING = "intent_outstanding"  # run の終了時点で実行中・待ちのまま残った意図
     RUNTIME_DEGRADED = "runtime_degraded"      # 実行基盤の劣化（あふれ）。この run の結果は認知として解釈しない
+    SENSORY = "sensory"    # Receptor が成立させた感覚の出来事（活動の伝達 仕様 §4）
+    ACTIVITY = "activity"  # Unit が成立させた発火の出来事（同 §2・接続の状態 仕様 §4）
     DELTA = "delta"
     EFFECT = "effect"
     VIOLATION = "violation"
