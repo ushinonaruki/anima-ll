@@ -1,6 +1,6 @@
-# 活動の伝達・感覚の駆動・中身の運搬の境界 仕様 v0.1（案）
+# 活動の伝達・感覚の駆動・中身の運搬の境界 仕様 v0.2（案）
 
-> 作成：2026-10-10。Status：**境界の仕様の案。実装はまだしない。値は決めない**
+> 作成：2026-10-10（v0.2：ChatGPT レビュー反映。C2 を「接続・外界から入る外からの駆動は ActivityEvent・SensoryEvent からだけ」に直し、内部の力学（内在的駆動・減衰・順応）と分けた。中身の出どころを出力の部品と Receptor の両方とした。Effector には活動の駆動を届けない、を §7 で固定した。T3 を実装の形ではなく、運び方の意味が同じことに直した）。Status：**境界の仕様の案。実装はまだしない。値は決めない**
 > 前提：
 > - 可塑性の規則・安定化・受け身の人工世界の監査（`docs/plasticity-rule-audit.md` v0.2）§4.4：(c2)「活動の伝達と中身の運搬を分ける」を最有力とし、0011 とは分けて先に仕様・実装・新しい基準の測定を行う
 > - 接続の状態と発火の出来事の境界 仕様（`docs/connection-state-spec.md` v0.2）：B1〜B3、重みは伝達の成立時点で凍結、学習は遡らない
@@ -32,9 +32,25 @@ Delta              … 中身・材料を運ぶだけ。受け手を駆動しな
 | 番号 | 契約 |
 |---|---|
 | **C1** | **Delta は受け手を駆動しない**。Unit の刺激の計算に、Delta の数・重み・中身を使わない。Delta は受容野に届き、出力の部品（relay の転送、kernel_request の入力）が材料として使うだけ |
-| **C2** | **Unit を駆動するのは、送り手の側で成立した出来事だけ**：Unit の ActivityEvent（Neuroarchitecture で成立）と、Receptor の SensoryEvent（Environment で成立）。どちらも、成立した側が決める。Runtime は作らない |
+| **C2** | **接続・外界から入る外からの駆動は、送り手の側で成立した出来事からだけ生じる**：Unit の ActivityEvent（Neuroarchitecture で成立）と、Receptor の SensoryEvent（Environment で成立）。どちらも、成立した側が決める。Runtime は作らない。**Unit の内部の力学（内在的駆動・減衰・順応）は、これとは別に今までどおり働く**（下の図） |
 | **C3** | **Runtime は、どれが刺激かを意味で判断しない**。成立済みの出来事を、接続に沿って機械的に運ぶ。「Receptor 由来だから刺激」「この Delta は大事だから刺激」のような判断はしない |
 | **C4** | **Kernel の結果は駆動しない**。結果は中身の Delta としてだけ出る（C1）。Kernel が返ったことで受け手が動く、という経路はなくなる。今は LLM が空の出力・待ち時間・失敗の 3 つを通じて活動の力学に入っているが、(c2) では **LLM は活動の力学に入らなくなり、中身（受け手の kernel_request の入力）にだけ影響する**。これは (c2) の直接の帰結として新しい基準の測定で確かめる |
+
+Unit の activity を動かすものの切り分け：
+
+```text
+Unit の activity
+├─ 内部の力学（Unit の中で完結。外から何も来なくても働く）
+│   ├─ 内在的駆動（intrinsic_drive）
+│   ├─ 減衰（decay）
+│   └─ 順応（adaptation）
+│
+└─ 外からの駆動（接続・外界から入る）
+    ├─ ActivityEvent × 接続の重み（Unit → Unit）
+    └─ SensoryEvent × 接続の重み（Receptor → Unit）
+```
+
+Delta（中身）は、このどちらにも入らない（C1）。
 
 ## 3. 大きな論点：感覚の駆動と活動の伝達を、同じ抽象で扱うか
 
@@ -105,7 +121,15 @@ SensoryEvent
 
 ## 5. 中身の運搬（Delta）
 
-- Delta は今までどおり、**出力の部品** が出し、Manifest の接続（出力路 → 受け手）に沿って運ばれ、受け手の受容野に届く
+- 中身（material）の出どころは 2 つ：
+
+  ```text
+  中身の出どころ
+  ├─ Unit の出力の部品（relay の転送、kernel_request の結果）
+  └─ Receptor（SensoryEvent に添えた、任意の中身。§4.1）
+  ```
+
+- Runtime は、どちらの中身も **意味を解釈せず**、確定（canonicalize：ID・発信元・Pulse・来歴を付ける）して、Manifest の接続に沿って運ぶ（route）だけ。受け手の受容野に届く
 - 受容野・保持期間（delta_ttl_pulses）・根拠の照合（cited_delta_ids）は変えない
 - 変わるのは、**受け手の刺激の計算に使われなくなる** ことだけ（C1）
 - `StateDelta.projection_weight` は刺激に使われなくなる。記録として残すか外すかは実装のときに決める
@@ -120,7 +144,15 @@ SensoryEvent
 
 ## 7. Effector への接続
 
-- Effector は力学（activity）を持たないので、**活動の伝達・感覚の駆動の届く先にはならない**。Effector に届くのは中身の Delta だけ（今と同じ）
+**固定する：活動の駆動（ActivityEvent・SensoryEvent）は Unit にだけ届く。Unit の発火を、直接 Effector に流して行動にしない。**
+
+```text
+活動の駆動     → Unit だけ
+Effector に届くもの → 中身（今の足場）／将来の ActionIntent
+```
+
+- Effector は力学（activity）を持たないので、駆動を受け取る意味がない
+- それ以上に、`Unit の発火 → Effector` という経路を作ると、ActionIntent の境界で決めた `内部の状態 → ActionIntent → Effector`（AI1）を迂回する別の行動の経路になってしまう。これを防ぐために、ここで固定する
 - 行動の意図（ActionIntent）がどう成立するかは、ActionIntent の境界のとおり未決定。この仕様では変えない
 
 ## 8. 未決定の問い（この文書では決めない）
@@ -128,7 +160,6 @@ SensoryEvent
 1. **出来事に強さを持たせるか**：ActivityEvent の発火の強さ、SensoryEvent の感覚の強さ。最初はどちらも持たせない
 2. **中身の Delta だけが届き、駆動が届かない Unit**：たとえば kernel_request の Unit は、自分が動かされなければ届いた中身を使わない。中身が届いたことを Unit が知る経路を別に作るかは、作らない（駆動と中身は別、を守る）。ただし、新しい基準の測定で何が起きたかを記録する
 3. **活動の接続と中身の接続を別に宣言できるか**：今は同じ接続が両方を運ぶ（§6）
-4. **ActivityEvent が Effector に届くか**：行動の意図の設計と一緒に決める（§7）
 
 ## 9. 実装するときに確かめること（契約テストの候補）
 
@@ -136,7 +167,8 @@ SensoryEvent
 |---|---|
 | T1 | Delta の数・重み・中身を変えても、Unit の刺激が変わらない（C1） |
 | T2 | 1 回の発火で、その Unit を送り手とする接続ごとに、ちょうど 1 つの駆動が届く（relay が中身を何も出さない発火でも届く） |
-| T3 | Runtime の運び方のコードが、送り手が Unit か Receptor かで分岐しない（アーキテクチャのテスト）（C3） |
+| T3 | 送り手が Unit でも Receptor でも、**運び方の意味が同じ**：接続に沿って届く、1 Pulse の遅れ、成立時点の重みの凍結（C3）。内部の実装で型を変換する場所に分岐があっても、Runtime が認知の意味を判断していなければ契約違反ではない |
+| T8 | 活動の駆動が Effector に届かない（§7） |
 | T4 | SensoryEvent は Receptor からだけ成立する。Runtime が中身から SensoryEvent を作らない（C2） |
 | T5 | Kernel の結果が戻っても、受け手に駆動が届かない（C4） |
 | T6 | 中身なしの SensoryEvent でも、受け手が駆動される。中身ありのときは、中身の Delta が今までどおり受容野に届く |
