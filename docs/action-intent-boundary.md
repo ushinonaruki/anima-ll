@@ -1,6 +1,6 @@
 # 行動の意図（ActionIntent）の境界と契約 v0.1（案）
 
-> 作成：2026-10-08。Status：**境界と契約だけの案。実装はしない。行動を選ぶ規則・学習・価値は定義しない**
+> 作成：2026-10-08（v0.1.1：AI1 で生成の単位・方式を固定しない、AI3 の記録は運用のログで Unit には返さないと明記）。Status：**境界と契約だけの案。実装はしない。行動を選ぶ規則・学習・価値は定義しない**
 > 前提：恣意性監査 §3.6・3.7 で採用した方向の 2「行動するかどうかは Neuroarchitecture が決める（Kernel・Effector は選ばない）」、内部表現の原則（`docs/internal-representation-principles.md`）の R6 と §6 の 2
 > 似た文書：計算資源境界 仕様（`docs/compute-boundary-spec.md`）。ComputeIntent が「内部で高価な計算をしたい」という意図なのに対し、ActionIntent は「外界に作用したい」という意図
 
@@ -34,9 +34,9 @@
 
 | 番号 | 契約 |
 |---|---|
-| **AI1** | ActionIntent は **Neuroarchitecture からだけ** 生まれる（Unit の出力部品が、発火などの内部の出来事から作る）。Runtime・Kernel・Effector・Environment は ActionIntent を作らない |
+| **AI1** | ActionIntent は **Neuroarchitecture からだけ** 生まれる。Neuroarchitecture の中の認知の出来事として成立する。**具体的にどの単位が・どの方式で生むかは未決定**（1 つの Unit の出力部品かもしれないし、複数の Unit の状態の競合や統合の結果として成立するのかもしれない）。Runtime・Kernel・Effector・Environment は ActionIntent を作らない |
 | **AI2** | **Kernel は ActionIntent を選ばない**。出すか出さないか、どれを出すかを判断しない。言語化などで呼ばれても、行動を取りやめる（拒否する）ことはしない（今の `utter` の「口に出さないなら何も出力しない」はこの契約に反する足場。恣意性監査 §3.6・3.7 の D） |
-| **AI3** | **Effector は ActionIntent を選ばない**。受け取った意図を実行するだけ。実行できなかったときは、その事実を記録する（判断して取りやめるのではない） |
+| **AI3** | **Effector は ActionIntent を選ばない**。受け取った意図を実行するだけ。実行できなかったときは、その事実を **Runtime・Effector の運用のログ** に記録する（判断して取りやめるのではない）。ただし、**Unit に「失敗した」という認知の信号を直接返さない**（AI6）。本人が失敗に気づくなら、「外界・身体が変わらない／予想と違う」ことを Receptor から受け取って内部で気づくか、将来検討する遠心性コピー（§5 の 1）を通じてである |
 | **AI4** | **Runtime は ActionIntent を選ばない・黙って消さない**（計算資源境界と同じ）。生まれた意図は記録し、Effector に渡す。同じ Effector への意図が同じ Pulse に重なったときの扱いは未決定（§5 の 2）。決めるときも、Runtime が意味で選ぶ規則にはしない |
 | **AI5** | **ActionIntent は「外界に作用したい」という意図であって、成功した結果ではない**。意図が生まれたことと、外界がどう変わったかは別の出来事として扱う |
 | **AI6** | **行動の結果は、外界から Receptor を通ってだけ戻る**。Effector や Environment が「成功した」「よかった」という信号を Unit に直接返さない（返すと、価値や正解が外から持ち込まれる） |
@@ -66,6 +66,7 @@
 ## 6. 実装するときに確かめること（契約テストの候補）
 
 - ActionIntent が Neuroarchitecture 以外から生まれないこと（AI1）
+- 実行できなかったことが運用のログには残り、Unit には認知の信号として直接届かないこと（AI3・AI6）
 - Kernel・Effector・Runtime が、受け取った意図を取りやめたり別の意図に替えたりしないこと（AI2〜AI4）
 - 結果が Receptor 以外の経路で Unit に届かないこと（AI6）
 - 行動の ID が脳の設計図で意味の名前を持たないこと（AI7）
