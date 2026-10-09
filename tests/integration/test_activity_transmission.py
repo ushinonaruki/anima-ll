@@ -146,7 +146,8 @@ def test_t4_t6_sensory_event_without_material_drives_but_carries_no_content() ->
     cfg = copy.deepcopy(BASE)
     cfg["env"]["receptors"]["receptor.console"]["script"] = {5: None}
     log = run(cfg, 20)
-    assert [(e.pulse, e.data["with_material"]) for e in log.events if e.type == T.SENSORY] == [(5, False)]
+    assert [(e.pulse, e.data["event_pulse"], e.data["with_material"])
+            for e in log.events if e.type == T.SENSORY] == [(5, 5, False)]
     assert ["receptor.console", 1.0] in views(log)[(6, "u0")]["drives"]
     assert not [e for e in log.events if e.type == T.DELTA and e.data["source_id"] == "receptor.console"]
 
@@ -198,6 +199,9 @@ def test_t5_firing_record_is_independent_of_kernel_timing_and_result() -> None:
 
 
 # ---- T7：重みは伝達の成立時点で凍結される --------------------------------------------------
+# 注：今は static-weight の前段（precursor）の試験で、「設計図の重みが Drive に写される」ことまでしか
+#     確かめていない。本来の T7（W_t で成立した伝達は、境界で ConnectionState が W_{t+1} に変わっても
+#     W_t のまま）は、変わる ConnectionState を入れるときに本試験として追加する。
 
 def test_t7_drive_carries_the_weight_frozen_at_transmission() -> None:
     manifest = parse_neuroarchitecture(BASE["neuro"])
@@ -231,3 +235,22 @@ def test_t8_no_drive_reaches_an_effector_in_a_run() -> None:
         if e.type == T.VIEW:
             assert all(not str(d[0]).startswith("effector.") for d in e.data["drives"])
             assert not str(e.data["unit_id"]).startswith("effector.")
+
+
+# ---- 感覚の出来事の成立の Pulse は Receptor が決める ---------------------------------------
+
+def test_sensory_event_pulse_is_stamped_by_the_receptor() -> None:
+    from anima_ll.adapter.receptor.scripted_receptor import ScriptedReceptor
+    from anima_ll.runtime.external_event_intake import ExternalEventIntake
+
+    class LateStampingReceptor:
+        """成立の Pulse を自分で決める感覚器（受け取った Pulse の 1 つ前に成立したと申告する）。"""
+        receptor_id = "receptor.late"
+
+        def drain(self, pulse: int):
+            from anima_ll.domain.model.sensory_event import SensoryEvent
+            return (SensoryEvent(self.receptor_id, pulse - 1, None),) if pulse == 8 else ()
+
+    intake = ExternalEventIntake([ScriptedReceptor("receptor.a", {3: "x"}), LateStampingReceptor()])
+    events = [e for p in range(1, 10) for e in intake.collect(p)]
+    assert [(e.receptor_id, e.pulse) for e in events] == [("receptor.a", 3), ("receptor.late", 7)]

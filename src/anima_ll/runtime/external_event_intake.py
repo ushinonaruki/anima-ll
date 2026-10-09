@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 
+from anima_ll.domain.model.identifiers import PulseNumber
 from anima_ll.domain.model.sensory_event import SensoryEvent
 from anima_ll.domain.port.receptor import Receptor
 
@@ -14,8 +15,9 @@ class ExternalEventIntake:
     def __init__(self, receptors: Sequence[Receptor]) -> None:
         self._receptors = tuple(sorted(receptors, key=lambda r: r.receptor_id))
 
-    def collect(self) -> tuple[SensoryEvent, ...]:
+    def collect(self, pulse: PulseNumber) -> tuple[SensoryEvent, ...]:
+        """各 Receptor に今の Pulse の番号を渡し、Receptor が成立させた出来事をそのまま集める。"""
         collected: list[SensoryEvent] = []
         for receptor in self._receptors:
-            collected.extend(receptor.drain())
+            collected.extend(receptor.drain(pulse))
         return tuple(collected)

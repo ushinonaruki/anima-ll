@@ -12,7 +12,7 @@ def drain_until(receptor: ConsoleReceptor, count: int) -> list:
     events: list = []
     deadline = time.monotonic() + 2.0
     while len(events) < count and time.monotonic() < deadline:
-        events += receptor.drain()
+        events += receptor.drain(1)
         time.sleep(0.01)
     return events
 
@@ -27,4 +27,4 @@ def test_lines_are_drained_in_order_and_blank_lines_dropped() -> None:
 def test_eof_stops_reading_but_drain_keeps_working() -> None:
     receptor = ConsoleReceptor("receptor.console", read_line=lines())
     assert drain_until(receptor, 1) == []
-    assert receptor.drain() == ()
+    assert receptor.drain(1) == ()
