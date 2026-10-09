@@ -26,13 +26,15 @@ adaptation_conditions:            # [α, τ_a]。0004・0005・0010 と同じ
   - [0.02, 1200]
 seeds: {first: 1, last: 20}
 
-b1:                               # Kernel は活動の力学に入らないか（C4）
+b1:                               # Kernel は活動の力学に入らないか（C4：待ち時間・空の出力・失敗）
   adaptation_condition: [0.01, 300]   # 参照値の条件だけで行う
-  kernel_conditions:              # 偽 Kernel の遅延（秒）。jitter は ± の幅
-    - {delay_seconds: 0,  delay_jitter_seconds: 0}
-    - {delay_seconds: 3,  delay_jitter_seconds: 0}
-    - {delay_seconds: 30, delay_jitter_seconds: 0}
-    - {delay_seconds: 3,  delay_jitter_seconds: 3}
+  kernel_conditions:              # 偽 Kernel の振る舞い。result：ok（中身あり）／empty（成功・空）／failure（失敗・中身なし）
+    - {id: K-a, result: ok,      delay_seconds: 0,  delay_jitter_seconds: 0}
+    - {id: K-b, result: ok,      delay_seconds: 3,  delay_jitter_seconds: 0}
+    - {id: K-c, result: ok,      delay_seconds: 30, delay_jitter_seconds: 0}
+    - {id: K-d, result: ok,      delay_seconds: 3,  delay_jitter_seconds: 3}
+    - {id: K-e, result: empty,   delay_seconds: 3,  delay_jitter_seconds: 0}
+    - {id: K-f, result: failure, delay_seconds: 3,  delay_jitter_seconds: 0}
   inputs: [silent, part_b]        # 入力なし 3600 Pulse／0004 のパート B と同じ入力
   silent_pulses: 3600
   required_identical_seeds: 20    # 20 個体すべてで発火の記録が完全に一致
