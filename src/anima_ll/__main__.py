@@ -32,7 +32,7 @@ from anima_ll.adapter.persistence.json_snapshot_store import JsonSnapshotStore
 from anima_ll.adapter.persistence.jsonl_event_log import JsonlEventLog
 from anima_ll.bootstrap import build_application, make_clock
 
-DEFAULT_NEUROARCHITECTURE = Path("config/neuroarchitecture/minimal-v2.yaml")  # 現行基準（v0・v1 は凍結した比較基準）
+DEFAULT_NEUROARCHITECTURE = Path("config/neuroarchitecture/minimal-v3.yaml")  # 現行基準（v0〜v2 は凍結した比較基準）
 DEFAULT_ENVIRONMENT = Path("config/environment/l1-ollama-console.yaml")
 DEFAULT_INDIVIDUAL = Path("config/individual/anima.yaml")
 DEFAULT_DATA_DIR = Path("data")

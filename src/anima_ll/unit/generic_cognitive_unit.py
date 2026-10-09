@@ -1,3 +1,6 @@
+from dataclasses import replace
+
+from anima_ll.domain.model.activity import ActivityEvent
 from anima_ll.domain.model.identifiers import JsonValue, UnitId
 from anima_ll.domain.model.kernel_task import KernelResult, KernelTask
 from anima_ll.domain.model.pulse import PulseContext
@@ -10,7 +13,8 @@ from anima_ll.unit.output.unit_output import UnitOutput
 class GenericCognitiveUnit:
     """唯一の Unit 実装。役割を持たず、違いは配線と部品とパラメータだけ。
 
-    刺激は「新しく届いた Delta の数 × 結合の重み」。中身は読まない（意味を扱うのは Kernel だけ）。
+    刺激は「届いた駆動の重みの合計」（活動の伝達 仕様 §3.3）。Delta（中身）は刺激に使わない。
+    発火したら、出力の部品が何を出すかとは独立に ActivityEvent を作る（B2・C2）。
     """
 
     def __init__(
@@ -34,11 +38,12 @@ class GenericCognitiveUnit:
         return self._state
 
     def tick(self, view: ReceptiveView, context: PulseContext) -> UnitStepResult:
-        stimulus = sum(d.projection_weight for d in view.new_deltas())
+        stimulus = sum(d.weight for d in view.drives)
         self._state, firing = self._dynamics.advance(self._state, stimulus, context.delta_time)
         if firing is None:
             return UnitStepResult.empty()
-        return self._output.on_fire(view, firing.strength)
+        step = self._output.on_fire(view, firing.strength)
+        return replace(step, activity=ActivityEvent(self._unit_id, context.pulse))
 
     def handle_kernel_result(
         self, task: KernelTask, result: KernelResult, context: PulseContext

@@ -19,6 +19,5 @@ def test_runtime_assigns_provenance_and_filters_citations() -> None:
     assert all(d.source_id == "u1" and d.created_pulse == 7 for d in outcome.deltas)
     assert all(d.parent_delta_ids == ("seen",) for d in outcome.deltas)
     assert outcome.rejected_citations == ("unseen",)
-    assert outcome.deltas[0].projection_weight == 0.5
     assert outcome.deltas[0].expires_after_pulse == 12
     assert len({d.delta_id for d in outcome.deltas}) == 2

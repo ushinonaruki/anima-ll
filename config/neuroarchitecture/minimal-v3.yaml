@@ -1,14 +1,17 @@
-# AnIma-ll 最軽量版 脳の設計図（Neuroarchitecture Manifest）v2
+# AnIma-ll 最軽量版 脳の設計図（Neuroarchitecture Manifest）v3
 #
-# 【注】2026-10-10 以降のコード（活動の伝達の経路 c2）でこの設計図を動かすと、Delta ではなく発火が
-#   受け手を駆動するので、旧の結果とは違う振る舞いになる。旧の経路での結果は、測定の commit で再現する。
-#
-# 【位置づけ】minimal-v2 = minimal-v1 ＋ 不応期の除去（refractory_pulses: 3 → 0）。ほかは v1 と同じ
-#   不応期 3 Pulse は、独立した根拠がないため除去した（恣意性監査 §3.2 の設計判断）。
-#   除去によって再検証が必要な知見はなかった（実験 0009：K1・K2 支持、K3 は α=0.01・τ_a=300 を選んだ）。
-#   v2 は v1 より「脳として正しい」設計図ではない。配線は v0・v1 と同じく動作テスト用。
-#   minimal-v0・v1 は比較の基準として凍結し、書き換えない。
-#   内在的駆動（0.08）は恣意性監査 §3.3 で「値に根拠なし」。ρ の領域ごとの依存は別の実験で調べる。
+# 【位置づけ】minimal-v3 = minimal-v2 と値はまったく同じ。違いは、活動の伝達の経路（c2）で解釈されること
+#   （docs/activity-transmission-spec.md）：
+#   - Unit を外から動かすのは、送り手の発火（ActivityEvent）と Receptor の感覚の出来事（SensoryEvent）
+#     × 接続の重み だけ。Delta（中身）は駆動しない。Kernel の結果も駆動しない
+#   - 発火は、出力の部品（relay が中身を何も出さないときも）とは独立に、送り手からのすべての接続に伝わる
+#     （Effector には届かない）
+#   - 重み（weight）は「活動の結合の強さ」の意味になる。Delta は接続に沿って中身を運ぶだけ
+#   値を変えていないので、v2 より「脳として正しい」設計図ではない。配線は v0〜v2 と同じく動作テスト用。
+#   新しい経路の上の基準は実験 0011（experiments/0011_c2_baseline/）で測る。
+#   旧の経路（Delta が駆動する）への切り替えは残していない。v0〜v2 の旧の経路での結果は、
+#   それぞれの測定の commit とデータで再現する。
+#   内在的駆動（0.08）は恣意性監査 §3.3 で「値に根拠なし」。
 #
 # - Unit に役割は書かない（role: memory などは読み込み時にエラーになる）
 # - 違いは配線（projections）と部品・パラメータだけで表す
@@ -16,7 +19,7 @@
 # - 外とつながる口は ID だけを宣言する。何をつなぐかは config/environment/ が決める
 # - seed（初期値のばらつきの元）は個体の設定 config/individual/ にある
 
-version: 2
+version: 3
 delta_ttl_pulses: 10     # Delta が BrainState に残る Pulse 数
 
 interfaces:

@@ -42,7 +42,6 @@ class StateDelta:
     source_id: ComponentId
     output_port: str
     target_id: ComponentId
-    projection_weight: float
     created_pulse: PulseNumber
     kind: str
     payload: JsonValue

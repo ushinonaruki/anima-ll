@@ -6,7 +6,7 @@ from anima_ll.domain.model.receptive_view import ReceptiveView
 class ReceptiveViewBuilder:
     """スナップショットから、Unit ごとの View を切り出す。
 
-    Projection で届いた Delta だけを入れる。内容で絞り込まない。
+    Projection で届いた Delta と駆動だけを入れる。内容で絞り込まない。
     """
 
     def build(self, unit_id: UnitId, snapshot: BrainStateSnapshot) -> ReceptiveView:
@@ -15,4 +15,5 @@ class ReceptiveViewBuilder:
             snapshot_id=snapshot.snapshot_id,
             pulse=snapshot.pulse,
             deltas=snapshot.state.addressed_to(unit_id),
+            drives=snapshot.state.drives_to(unit_id),
         )

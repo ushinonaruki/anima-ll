@@ -3,8 +3,8 @@ import sys
 import threading
 from collections.abc import Callable
 
-from anima_ll.domain.model.external_event import ExternalEvent
-from anima_ll.domain.model.identifiers import ComponentId
+from anima_ll.domain.model.sensory_event import SensoryEvent
+from anima_ll.domain.model.identifiers import ComponentId, PulseNumber
 
 
 class ConsoleReceptor:
@@ -12,6 +12,9 @@ class ConsoleReceptor:
 
     標準入力は別スレッドで 1 行ずつ読み、Pulse ごとの drain でまとめて渡す。
     入力を待つあいだも Pulse は止まらない。入力が終わったら（EOF）読むのをやめるだけ。
+
+    成立の Pulse：別スレッドで読んだ行は、drain された Pulse に成立した出来事として出す
+    （Receptor の契約。行を読んだ実時間は使わない）。読んだ時刻を区別したくなったら、別の情報として設計する。
     """
 
     def __init__(
@@ -26,14 +29,14 @@ class ConsoleReceptor:
     def receptor_id(self) -> ComponentId:
         return self._receptor_id
 
-    def drain(self) -> tuple[ExternalEvent, ...]:
+    def drain(self, pulse: PulseNumber) -> tuple[SensoryEvent, ...]:
         if self._thread is None:  # 最初の Pulse で読み取りを始める
             self._thread = threading.Thread(target=self._read_loop, name="console-receptor", daemon=True)
             self._thread.start()
         events = []
         while True:
             try:
-                events.append(ExternalEvent(self._receptor_id, self._lines.get_nowait()))
+                events.append(SensoryEvent(self._receptor_id, pulse, self._lines.get_nowait()))
             except queue.Empty:
                 return tuple(events)
 

@@ -56,6 +56,7 @@ def _kernel_fake_delayed(spec: ResourceSpec, clock: Clock) -> ComputeKernel:
         delay_seconds=float(spec.params.get("delay_seconds", 3.0)),
         delay_jitter_seconds=float(spec.params.get("delay_jitter_seconds", 0.0)),
         seed=int(spec.params.get("seed", 0)),
+        result=str(spec.params.get("result", "ok")),   # 道具の設定。書かなければこれまでの振る舞い
     )
 
 

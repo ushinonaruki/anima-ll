@@ -49,7 +49,6 @@ class DeltaCanonicalizer:
                 source_id=source_id,
                 output_port=proposal.output_port,
                 target_id=projection.target_id,
-                projection_weight=projection.weight,
                 created_pulse=pulse,
                 kind=proposal.kind,
                 payload=proposal.payload,
