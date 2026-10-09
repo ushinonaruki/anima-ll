@@ -11,8 +11,10 @@ class SensoryEvent:
     Runtime はこれを接続に沿って感覚の駆動として運ぶ。中身（material）を添えるかどうかも
     Receptor が決める。None なら中身はなく、駆動だけが届く。
 
-    pulse は、この出来事が成立した Pulse。Pulse の番号は Runtime が drain に機械的に渡すが、
-    出来事にどの Pulse を付けるか（成立の時刻）を確定するのは Receptor である（Runtime の収集の時刻と混ぜない）。
+    pulse は、この出来事が成立した Pulse。出来事に Pulse を書き込むのは Receptor だが、
+    **成立の Pulse は、その Receptor が drain された今の Pulse に限る**（契約）。
+    過去の Pulse を申告する遅れた出来事は、今は扱わない（遡って届けることになるため）。
+    実世界で取得した時刻と、脳に提示した Pulse を区別したくなったら、別の情報として設計する。
     """
 
     receptor_id: ComponentId

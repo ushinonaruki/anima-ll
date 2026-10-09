@@ -13,6 +13,7 @@ class Receptor(Protocol):
     def drain(self, pulse: PulseNumber) -> tuple[SensoryEvent, ...]:
         """前回呼ばれてから成立した感覚の出来事をすべて返す。
 
-        pulse は今の Pulse の番号（Runtime が機械的に渡す）。各出来事の成立の Pulse は Receptor が決めて付ける。
+        pulse は今の Pulse の番号（Runtime が機械的に渡す）。Receptor は、返す出来事すべてに
+        この pulse を成立の Pulse として書き込む（それ以外の Pulse を申告しない。契約）。
         """
         ...

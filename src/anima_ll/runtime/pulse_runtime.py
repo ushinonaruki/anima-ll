@@ -110,11 +110,11 @@ class PulseRuntime:
         # 1. 感覚の出来事（Receptor が成立させたもの）。駆動は Unit の発火と同じ運び方で運ぶ。
         #    中身が添えられていれば、中身の Delta として運ぶ（Receptor は View を持たないので来歴の起点）
         for event in self._intake.collect(pulse):
-            self._log.append(RuntimeEvent(RuntimeEventType.SENSORY, pulse,
+            # event.pulse は、収集した今の Pulse と同じ（Receptor の契約。intake が確かめている）
+            self._log.append(RuntimeEvent(RuntimeEventType.SENSORY, event.pulse,
                                           {"receptor_id": event.receptor_id,
-                                           "event_pulse": event.pulse,
                                            "with_material": event.material is not None}))
-            drives += self._transmit(event.receptor_id, pulse)
+            drives += self._transmit(event.receptor_id, event.pulse)
             if event.material is not None:
                 proposal = ProposedDelta(kind=DeltaKind.CONTENT, payload=event.material)
                 produced += self._publish(event.receptor_id, proposal, frozenset(), None, None, pulse)

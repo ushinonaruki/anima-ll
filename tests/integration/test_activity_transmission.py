@@ -146,8 +146,7 @@ def test_t4_t6_sensory_event_without_material_drives_but_carries_no_content() ->
     cfg = copy.deepcopy(BASE)
     cfg["env"]["receptors"]["receptor.console"]["script"] = {5: None}
     log = run(cfg, 20)
-    assert [(e.pulse, e.data["event_pulse"], e.data["with_material"])
-            for e in log.events if e.type == T.SENSORY] == [(5, 5, False)]
+    assert [(e.pulse, e.data["with_material"]) for e in log.events if e.type == T.SENSORY] == [(5, False)]
     assert ["receptor.console", 1.0] in views(log)[(6, "u0")]["drives"]
     assert not [e for e in log.events if e.type == T.DELTA and e.data["source_id"] == "receptor.console"]
 
@@ -237,20 +236,29 @@ def test_t8_no_drive_reaches_an_effector_in_a_run() -> None:
             assert not str(e.data["unit_id"]).startswith("effector.")
 
 
-# ---- 感覚の出来事の成立の Pulse は Receptor が決める ---------------------------------------
+# ---- 感覚の出来事の成立の Pulse は、drain された今の Pulse に限る ------------------------------
 
-def test_sensory_event_pulse_is_stamped_by_the_receptor() -> None:
+def test_sensory_event_pulse_equals_the_collection_pulse() -> None:
     from anima_ll.adapter.receptor.scripted_receptor import ScriptedReceptor
     from anima_ll.runtime.external_event_intake import ExternalEventIntake
 
+    intake = ExternalEventIntake([ScriptedReceptor("receptor.a", {3: "x", 7: None})])
+    for p in range(1, 10):
+        assert all(e.pulse == p for e in intake.collect(p))
+
+
+def test_receptor_claiming_another_pulse_is_rejected() -> None:
+    import pytest
+
+    from anima_ll.domain.model.sensory_event import SensoryEvent
+    from anima_ll.runtime.external_event_intake import ExternalEventIntake, SensoryPulseMismatch
+
     class LateStampingReceptor:
-        """成立の Pulse を自分で決める感覚器（受け取った Pulse の 1 つ前に成立したと申告する）。"""
+        """契約違反の感覚器：drain された Pulse の 1 つ前に成立したと申告する。"""
         receptor_id = "receptor.late"
 
         def drain(self, pulse: int):
-            from anima_ll.domain.model.sensory_event import SensoryEvent
-            return (SensoryEvent(self.receptor_id, pulse - 1, None),) if pulse == 8 else ()
+            return (SensoryEvent(self.receptor_id, pulse - 1, None),)
 
-    intake = ExternalEventIntake([ScriptedReceptor("receptor.a", {3: "x"}), LateStampingReceptor()])
-    events = [e for p in range(1, 10) for e in intake.collect(p)]
-    assert [(e.receptor_id, e.pulse) for e in events] == [("receptor.a", 3), ("receptor.late", 7)]
+    with pytest.raises(SensoryPulseMismatch):
+        ExternalEventIntake([LateStampingReceptor()]).collect(8)
