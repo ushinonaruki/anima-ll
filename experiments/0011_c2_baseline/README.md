@@ -89,3 +89,17 @@ B3 の実行で、条件ごと・Unit ごとに：
 3. `run.py`・`analyze.py` を書く。protocol.yaml を読み、条件・基準の数字をスクリプトに直接書かない。0004・0005 の手順の関数を再利用し、判定の値は protocol.yaml からだけ取る。`--seeds 1`（結果は使わない）で動作を確かめてから、測定の前にコミットする
 4. 測定し、`report.json` に測定の commit を残す
 5. 結果を見たあとの分析は「事後の探索的観察」として分け、上の判定は変えない
+
+## 実行
+
+```bash
+python experiments/0011_c2_baseline/run.py        # B1（240 本）・B2/B4（4000 本）・B3（200 本）を並列に
+python experiments/0011_c2_baseline/analyze.py    # 判定と記録
+```
+
+- `run.py`・`analyze.py` は `protocol.yaml` を読む。0004・0005・0008 の `run.py`・`analyze.py` の関数を再利用するが、判定の値は `protocol.yaml` だけから取る
+- B1 の「パート B と同じ入力」は、0004 のパート B の adapted の枝の台本（conditioning 600〜620 に 5 回 ＋ probe 650、700 Pulse）。receptor.console → u0 の重みは設計図のまま（1.0）
+- B1 の発火の記録は、ログの `activity` の出来事（Unit・Pulse）の列をすべて保存して比べる
+- B2 の旧の値は、0010 の `k2_drive0.0800.json.gz` から 0005 の `w_star` で求める
+- 0005 の手順の環境（Worker 1・偽 Kernel・遅延 3 秒）は 0005 の `run.py` に直接書かれているので、protocol.yaml の環境と同じであることを実行時に確かめる
+- `run.py`・`analyze.py` は、`--seeds 1`（結果は使わない。判定も見ていない）で動作を確かめてから、測定の前にコミットした
