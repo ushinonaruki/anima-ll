@@ -260,8 +260,14 @@ def main() -> None:
     directory = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_DIR
     ALIGN.check(PROTOCOL)   # protocol と再利用する旧の実装がずれていたら止める
     b1, b2, b3 = (read(directory / name) for name in ("b1.json.gz", "b2b4.json.gz", "b3.json.gz"))
-    problems = completeness(b1, b2, b3) + manipulation_problems(b1)
+    manipulation = manipulation_problems(b1)
+    problems = completeness(b1, b2, b3) + manipulation
     j1, j2 = judge_b1(b1), judge_b2(b2)
+    if manipulation:
+        # 操作が成立していなければ、B1 は fails ではなく invalid。生の比較（identical_seeds など）は残す
+        j1["comparison_result"] = j1["result"]
+        j1["result"] = "invalid"
+        j1["manipulation_problems"] = manipulation
     j3, j4 = judge_b3(b3["runs"]), judge_b4(b2)
     jr = judge_reference_rule(j3, j4)
     for j in (j3, j4):
