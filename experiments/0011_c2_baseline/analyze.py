@@ -13,6 +13,10 @@
 
 使い方:
   python experiments/0011_c2_baseline/analyze.py [data/experiments/0011]
+  （同じ内容を <データのフォルダ>/report.json にも保存する）
+
+B1 の操作の確認：Kernel の条件ごと・入力ごとに、指定した種類の結果（ok → 中身あり、empty → 空、failure → 失敗）が
+1 件以上あり、ほかの種類が 0 件でなければ、B1 は fails ではなく invalid（problems）とする
 """
 
 import gzip
@@ -38,6 +42,7 @@ def load(name: str, path: str):
     return module
 
 
+ALIGN = load("alignment_0011", str(HERE / "alignment.py"))
 A4 = load("analyze_0004", "experiments/0004_adaptation/analyze.py")
 A5 = load("analyze_0005", "experiments/0005_response_threshold/analyze.py")
 A8 = load("analyze_0008", "experiments/0008_baseline_new_runtime/analyze.py")
@@ -113,14 +118,38 @@ def judge_b1(b1: dict) -> dict:
         per_input[inputs] = {
             "identical_seeds": identical,
             "mismatched_seeds": mismatched,
-            # 記録：Kernel の条件が実際に違う結果を返していたこと（発火は同じでも、中身・失敗は違う）
-            "kernel_results_mean": {k: mean("kernel_results", k) for k in ids},
+            "kernel_outcomes_total": {k: {o: sum(runs[k]["kernel_outcomes"][o] for runs in present if k in runs)
+                                          for o in OUTCOMES} for k in ids},
             "effects_mean": {k: mean("effects", k) for k in ids},
             "firings_mean": statistics.fmean(len(runs[ids[0]]["activity"]) for runs in present
                                              if ids[0] in runs) if present else None,
         }
     holds = all(v["identical_seeds"] >= p["required_identical_seeds"] for v in per_input.values())
     return {"result": "holds" if holds else "fails", "per_input": per_input}
+
+
+OUTCOMES = ("ok_nonempty", "ok_empty", "error")
+EXPECTED_OUTCOME = {"ok": "ok_nonempty", "empty": "ok_empty", "failure": "error"}
+
+
+def manipulation_problems(b1: dict) -> list[str]:
+    """B1 の操作が成立していたか（Kernel の条件が、指定した種類の結果だけを実際に返したか）。
+
+    成立していなければ B1 の判定は意味を持たないので、fails ではなく invalid（problems）にする。
+    入力ごとに、条件の指定した種類が 1 件以上あり、ほかの種類が 0 件であること。
+    """
+    problems = []
+    for kernel in PROTOCOL["b1"]["kernel_conditions"]:
+        expected = EXPECTED_OUTCOME[kernel["result"]]
+        for inputs in PROTOCOL["b1"]["inputs"]:
+            total = {o: sum(r["kernel_outcomes"][o] for r in b1["runs"]
+                            if r["kernel"] == kernel["id"] and r["inputs"] == inputs) for o in OUTCOMES}
+            if total[expected] == 0:
+                problems.append(f"B1 操作不成立：{kernel['id']}／{inputs} で {expected} が 1 件もない")
+            others = {o: n for o, n in total.items() if o != expected and n}
+            if others:
+                problems.append(f"B1 操作不成立：{kernel['id']}／{inputs} で指定外の結果 {others}")
+    return problems
 
 
 # ---- B2 ---------------------------------------------------------------------------
@@ -229,8 +258,9 @@ def records(new_runs: list[dict], old_runs: list[dict]) -> dict:
 
 def main() -> None:
     directory = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_DIR
+    ALIGN.check(PROTOCOL)   # protocol と再利用する旧の実装がずれていたら止める
     b1, b2, b3 = (read(directory / name) for name in ("b1.json.gz", "b2b4.json.gz", "b3.json.gz"))
-    problems = completeness(b1, b2, b3)
+    problems = completeness(b1, b2, b3) + manipulation_problems(b1)
     j1, j2 = judge_b1(b1), judge_b2(b2)
     j3, j4 = judge_b3(b3["runs"]), judge_b4(b2)
     jr = judge_reference_rule(j3, j4)
@@ -246,7 +276,9 @@ def main() -> None:
     }
     out["summary"] = {"B1": j1["result"], "B2": j2["result"], "B3": j3["result"], "B4": j4["result"],
                       "reference_value_rule": jr["result"], "chosen": jr["chosen"]}
-    print(json.dumps(out, ensure_ascii=False, indent=2, default=str))
+    text = json.dumps(out, ensure_ascii=False, indent=2, default=str)
+    (directory / "report.json").write_text(text + "\n", encoding="utf-8")   # 測定の commit を含む判定の記録
+    print(text)
 
 
 if __name__ == "__main__":

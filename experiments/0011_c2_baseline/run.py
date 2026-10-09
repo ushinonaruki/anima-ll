@@ -53,6 +53,7 @@ def load(name: str, path: str):
     return module
 
 
+ALIGN = load("alignment_0011", str(HERE / "alignment.py"))
 R4 = load("run_0004", "experiments/0004_adaptation/run.py")
 R5 = load("run_0005", "experiments/0005_response_threshold/run.py")
 R8 = load("run_0008", "experiments/0008_baseline_new_runtime/run.py")
@@ -130,8 +131,14 @@ def b1_once(kernel: dict, inputs: str, seed: int) -> dict:
     app = build(with_adaptation(base_raw(), float(alpha), tau), environment_raw(script, kernel), seed, log)
     asyncio.run(app.lifecycle.run(max_pulses=pulses))
     activity = [[e.pulse, e.data["unit_id"]] for e in log.events if e.type == "activity"]
-    kernel_events = sum(e.type in ("intent_completed", "intent_kernel_error") for e in log.events)
-    return {"activity": activity, "pulses": pulses, "kernel_results": kernel_events,
+    # 操作の確認用：Kernel が実際に返した結果の種類ごとの件数
+    outcomes = {"ok_nonempty": 0, "ok_empty": 0, "error": 0}
+    for e in log.events:
+        if e.type == "intent_completed":
+            outcomes["ok_empty" if e.data["output"] in (None, "") else "ok_nonempty"] += 1
+        elif e.type == "intent_kernel_error":
+            outcomes["error"] += 1
+    return {"activity": activity, "pulses": pulses, "kernel_outcomes": outcomes,
             "effects": sum(e.type == "effect" for e in log.events)}
 
 
@@ -232,7 +239,7 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=OUT_DIR)
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
-    assert PROTOCOL["plasticity"] == "none"
+    ALIGN.check(PROTOCOL)   # protocol と再利用する旧の実装がずれていたら止める
     started = time.time()
     jobs = [(run_b1, (args.seeds, str(args.out))), (run_b2, (args.seeds, str(args.out))),
             (run_b3, (args.seeds, str(args.out)))]
