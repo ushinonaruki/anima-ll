@@ -1,0 +1,66 @@
+# 実験 0011 の実行条件と判定基準（事前登録の一部。(c2) の実装の前にコミットする）
+#
+# なぜこの条件なのかは README.md に書く。ここには、run.py と analyze.py が実際に使う値だけを書く。
+# 値はどれも、この実験の手順を決めるもので、AnIma-ll の脳の値ではない。
+
+base_neuroarchitecture: config/neuroarchitecture/minimal-v3.yaml   # 値は minimal-v2 と同じ。(c2) の経路で解釈される
+plasticity: none
+
+# 旧の経路の比較対象（同じ seed・同じ条件）。データは保存済み
+old_reference:
+  experiment: 0010_drive_regime
+  intrinsic_drive: 0.0800
+  k1_data: experiments/0010_drive_regime/k1_drive0.0800.json.gz
+  k2_data: experiments/0010_drive_regime/k2_drive0.0800.json.gz
+
+adaptation_conditions:            # [α, τ_a]。0004・0005・0010 と同じ
+  - [0.0, 0]
+  - [0.005, 30]
+  - [0.005, 300]
+  - [0.005, 1200]
+  - [0.01, 30]
+  - [0.01, 300]
+  - [0.01, 1200]
+  - [0.02, 30]
+  - [0.02, 300]
+  - [0.02, 1200]
+seeds: {first: 1, last: 20}
+
+b1:                               # Kernel は活動の力学に入らないか（C4）
+  adaptation_condition: [0.01, 300]   # 参照値の条件だけで行う
+  kernel_conditions:              # 偽 Kernel の遅延（秒）。jitter は ± の幅
+    - {delay_seconds: 0,  delay_jitter_seconds: 0}
+    - {delay_seconds: 3,  delay_jitter_seconds: 0}
+    - {delay_seconds: 30, delay_jitter_seconds: 0}
+    - {delay_seconds: 3,  delay_jitter_seconds: 3}
+  inputs: [silent, part_b]        # 入力なし 3600 Pulse／0004 のパート B と同じ入力
+  silent_pulses: 3600
+  required_identical_seeds: 20    # 20 個体すべてで発火の記録が完全に一致
+
+b2:                               # 感覚の駆動は旧と同じ強さで u0 に届くか
+  procedure: 0005                 # 0005 と同じ手順（conditioning 5 回・probe の強さ 10 段階・2 枝）
+  compare_with: old_reference.k2_data
+  required: all_identical         # すべての条件・個体・枝で u0 の w* が一致
+
+b3:                               # 旧 K1（0004 パート A）を新しい経路で
+  silent_pulses: 3600
+  reference_conditions: [[0.01, 300], [0.01, 1200], [0.02, 300], [0.02, 1200]]
+  min_calmed_seeds: 16
+  windows: {early: [1, 600], late: [1801, 3600]}
+  applicability:                  # 0010 と同じ「該当しない」の基準
+    window: [1801, 3600]
+    min_active_seeds: 16
+
+b4:                               # 旧 K2（0005）を新しい経路で。B2 と同じ実行を使う
+  reference_conditions: [[0.01, 300], [0.01, 1200], [0.02, 300], [0.02, 1200]]
+  min_difference_from_alpha0: 0.3
+
+reference_value_rule:             # 旧 K3。B3・B4 がともに成り立ったときだけ当てはめる。参照値は変えない
+  reference_value: [0.01, 300]
+  selection: min_alpha_times_tau_then_alpha
+
+environment:                      # B1 以外は 0004〜0010 と同じ
+  workers: 1
+  kernel: fake_delayed
+  delay_seconds: 3
+  queue_capacity: null
