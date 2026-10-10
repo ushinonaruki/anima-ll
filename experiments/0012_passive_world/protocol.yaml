@@ -1,0 +1,60 @@
+# 実験 0012 の実行条件と判定基準（事前登録の一部。可塑性の実装の前にコミットする）
+#
+# なぜこの条件なのかは README.md に書く。ここには、run.py と analyze.py が実際に使う値だけを書く。
+# 値はどれも、この実験の手順を決めるもので、AnIma-ll の脳の生物値ではない。
+
+seeds: {first: 1, last: 20}
+
+brain:
+  dynamics_from: config/neuroarchitecture/minimal-v3.yaml   # 力学の値はここから（変えない）
+  sensory_units: [s1, s2, s3]
+  receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+  receptor_weight: 1.0              # Receptor → s。可塑性の対象外
+  plasticity:
+    rule: balanced_pair_window      # 釣り合った窓（d ≥ 1 で強め、d ≤ −1 で同じ大きさで弱め、d = 0 は学ばない）
+    trace: additive                 # 発火のたびに 1 を足す
+    trace_tau: activity_time_constant   # τ_x ＝ τ_m ＝ −1/ln(decay)（≒ 6.15 秒）
+    bounds: soft                    # 強める量 ×(w_max − w)/w_max、弱める量 × w/w_max
+    w_min: 0.0
+    w_max: threshold                # 設計図の閾値（0.5）
+    w0: half_w_max                  # θ/2
+    amplitude_ratio: 0.01           # A ／ w_max
+
+timeline:                           # Pulse（1 Pulse ＝ 1 秒）
+  total_pulses: 15000
+  pre_probes: {first: 600, every: 60, count: 20}
+  trials: {first: 1800, every: 60, count: 200}
+  post_probes: {first: 13800, every: 60, count: 20}
+
+stimulus:
+  delta_pulses: 2                   # A から B・C まで
+  p_b: 0.8                          # 200 回のうち 160 回が B、40 回が C（数は固定、順番は刺激用の乱数）
+  rng: "seed * 1000 + 12"           # 刺激用の乱数の種（Birth State の乱数とは別）
+  conditions: [ordered, shuffled, silent]
+  role_assignment: "(seed - 1) mod 6"   # 6 通りの並べ方の番号（下の順）
+  role_orders:                      # [A, B, C] に割り当てる Receptor
+    - [receptor.x1, receptor.x2, receptor.x3]
+    - [receptor.x1, receptor.x3, receptor.x2]
+    - [receptor.x2, receptor.x1, receptor.x3]
+    - [receptor.x2, receptor.x3, receptor.x1]
+    - [receptor.x3, receptor.x1, receptor.x2]
+    - [receptor.x3, receptor.x2, receptor.x1]
+
+probe:
+  clone_pulses: 10                  # 複製を進める長さ
+  response_window: [2, 4]           # t0 からの相対 Pulse（両端を含む）
+  a_fired_at: 1                     # 操作の確認：s_A が t0 + 1 に発火したか
+
+judgment:
+  h1:
+    min_seeds_vs_shuffled: 16       # D(順序あり) > D(順序を崩した刺激) の個体数
+    min_seeds_vs_silent: 16         # D(順序あり) > D(刺激なし) の個体数
+  m:
+    min_seeds: 16                   # 経験の後の w(A→B) − w(A→C) が 順序あり > 順序を崩した刺激 の個体数
+  manipulation:
+    min_a_fired_fraction: 0.9       # 条件ごとの、試しで s_A が t0 + 1 に発火した割合
+    expected_counts:
+      ordered: {A: 200, B: 160, C: 40, a_then_b: 160, a_then_c: 40}
+      shuffled: {A: 200, B: 160, C: 40}
+      silent: {A: 0, B: 0, C: 0}
+    clone_identity_check: true      # 試しなしの複製が本体と一致すること（各個体で 1 回）
