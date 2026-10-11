@@ -1,4 +1,4 @@
-# 実験 0014 の実行条件と判定基準（事前登録の案 v0.2。道具より前にコミットする）
+# 実験 0014 の実行条件と判定基準（事前登録の案 v0.3。道具より前にコミットする）
 #
 # なぜこの条件なのかは README.md に書く。値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。
 # 0012 v0.3 と同じ値は、そのまま引き継いだもの（新しく選んだ値には README で印をつける）。
@@ -14,9 +14,10 @@ brain:
 timeline:                               # Pulse（1 Pulse ＝ 1 秒）
   pulse_interval_seconds: 1.0
   trials: {first: 1, every: 60, count: 200}     # v0.2：経験は最初の Pulse から（Birth から Life History が始まる。README §3.1）
-  # v0.2：試しは、次の（来ない）A の時刻 trials.first ＋ count × every（＝ 12001）から毎 Pulse、
-  #   順応の時定数 τ_a（adaptation_tau ÷ pulse_interval ＝ 300）の 1 区間（12001〜12300）。新しい間隔・数は持たない
-  probes: {first: 12001, every: 1, count: adaptation_tau}
+  # 試しは、次の（来ない）A の時刻 trials.first ＋ count × every（＝ 12001）から毎 Pulse、
+  #   順応の時定数 τ_a の 1 区間（12001〜12300）。新しい間隔・数は持たない
+  #   v0.3：τ_a は秒なので、Pulse の数は adaptation_tau ÷ pulse_interval_seconds（＝ 300 ÷ 1.0 ＝ 300）
+  probes: {first: 12001, every: 1, count: "adaptation_tau / pulse_interval_seconds"}
   total_pulses: 12300                           # 本体は最後の試しの時刻まで（複製は t0 ＋ 2 まで）
 
 stimulus:
@@ -24,7 +25,9 @@ stimulus:
   b_offset: 2                           # 0012 の Δ と同じ
   c_offset: 30                          # 試行の間隔の半分。隣り合う A の中点（README §3.1）
   counts: {A: 200, B: 200, C: 200}      # B・C の数を揃える（0012 の刺激の数の偏りを設計で外す）
-  rng_shuffle: "seed * 1000 + 14"       # 順序を崩した刺激：順序ありの 600 個の札を、時刻のあいだで並べ替える
+  # 順序を崩した刺激：順序ありの 600 個の札を、時刻のあいだで並べ替える
+  # v0.3：数値の式をやめ、名前で分けた乱数の流れ random.Random("0014-shuffle:<seed>")（Birth State の整数の seed とは別の流れ）
+  rng_shuffle: "0014-shuffle:{seed}"
   conditions: [ordered, shuffled]
   role_assignment: "(seed - 1) mod 6"   # 0012 と同じ
   role_orders:
@@ -36,9 +39,12 @@ stimulus:
     - [receptor.x3, receptor.x2, receptor.x1]
 
 probe:
-  # v0.2：読み出しは t0 ＋ 2 の 1 Pulse だけ（A は t0 ＋ 1 に発火しうる。その伝達が B・C に最初に届く Pulse）
+  # 読み出しは t0 ＋ 2 の 1 Pulse だけ（A は t0 ＋ 1 に発火しうる。その伝達が B・C に最初に届く Pulse）
   #   複製は t0 ＋ 2 の処理の終わりで止める。窓・複製の長さという値は持たない
   read_at: 2
+  # v0.3：介入の時点。本体の t0 − 1 の終わりから試しの元（probe_base）を複製し、t0 に Receptor A を入れて t0 を処理する。
+  #   その t0 の処理の終わりで 2 つの腕に分ける（README §3.3）。t0 の終わりまで 2 腕は完全に同じ
+  fork_after: 0
 
 intervention:
   # 経験の後の各試しの時刻で、同じ本体から 2 つの複製を作る
@@ -53,16 +59,17 @@ judgment:
   primary: p
   # 順序ありの個体ごと：W(t) ＝ w(A→B) − w(A→C)（本体の Pulse t の処理の終わり）
   #   ΔR(t0) ＝ [B − C](as_is) − [B − C](equalized)、B・C は t0 ＋ 2 に発火したら 1
-  #   v0.2：向きは各試しで消した重みの差そのもの W(t0 − 1) で揃える
-  p: {statistic: "mean_t0(sign(W(t0 - 1)) * delta_R(t0))", passes_if: "> 0", condition: ordered}
-  # v0.2：W_exp は最後の経験の刺激の Pulse（trials の最後 ＋ c_offset）の処理の終わり。2 条件で同じ時刻
-  w: {statistic: "W_exp", passes_if: "ordered > shuffled"}
+  #   v0.3：向きは各試しで消した重みの差そのもの、介入の直前の W_probe(t0)（probe_base の t0 の処理の終わり）で揃える
+  p: {statistic: "mean_t0(sign(W_probe(t0)) * delta_R(t0))", passes_if: "> 0", condition: ordered}
+  # v0.3：W_post ＝ W(probes.first − 1) ＝ W(12000)。最初の試しの直前・次の（来ない）A の直前の周期の境界
+  w: {statistic: "W_post", passes_if: "ordered > shuffled"}
   manipulation:
     stimulus_counts: true               # 刺激の列と、本体が受けた感覚の出来事の両方（0012 と同じ）
     identical_before_divergence: true   # 同じ seed の 2 条件で、札が最初に違う Pulse より前の発火・接続の状態が一致
     clone_identity: true                # 何も変えない複製が本体と一致
     equalized_clone: true               # 4 本の重みが式どおり、組の和 ＝ w_max、a_AB ＋ a_AC が不変、痕跡・Unit の状態は as_is と同じ
-    probe_input_delivered: true         # 両方の複製が t0 に Receptor A の感覚の出来事を 1 つだけ受け、本体は受けない
+    probe_input_delivered: true         # probe_base が t0 に Receptor A の感覚の出来事を 1 つだけ受け、本体は受けない
+    arms_identical_until_divergence: true   # v0.3：2 腕の t0 ＋ 1 の発火が一致（分けた時点の確認）
     # v0.2：s_A が t0 ＋ 1 に発火したかは現象なので確認に入れない（記録に回す）
     revalidate_from_raw: true           # 操作の確認は、保存した真偽値ではなく、生の記録から再検証する
     no_statistics_when_invalid: true    # invalid のときは判定の量を計算も表示もしない
