@@ -113,3 +113,33 @@ def a_asym(weights: Mapping[str, float], i: str, j: str) -> float:
 
 def sign(x: float) -> int:
     return (x > 0) - (x < 0)
+
+
+# ---- 操作の確認（run.py の実行時の確認と、analyze.py の保存データの再検証が同じ関数を使う） ----------------
+
+def first_weight_change(activity: Iterable[list]) -> int | None:
+    """最初に重みが変わる Pulse：ある Unit が発火した Pulse p に、別の Unit が p より前に発火していた最初の p。
+
+    そのとき、別の Unit からこの Unit への接続が強まり（痕跡 > 0）、逆向きが弱まる。それより前は、どの接続も変わらない。
+    そのような p がなければ None（重みは一度も変わらない）。
+    """
+    first_fire: dict[str, int] = {}
+    for p, u in sorted(map(tuple, activity)):
+        if any(q < p for v, q in first_fire.items() if v != u):
+            return p
+        first_fire.setdefault(u, p)
+    return None
+
+
+def identical_until_first_weight_change(act_p: list, act_n: list) -> bool:
+    """README §5.1：可塑性あり・なしの発火の記録が、最初に重みが変わる Pulse まで一致するか。
+
+    最初に重みが変わる Pulse は、可塑性ありの記録から求める。重みが一度も変わらない個体（None）では、
+    可塑性は一度も働かないので、全区間の記録が一致しなければならない。
+    """
+    act_p, act_n = [list(a) for a in act_p], [list(a) for a in act_n]
+    first = first_weight_change(act_p)
+    if first is None:
+        return act_p == act_n
+    return [a for a in act_p if a[0] <= first] == [a for a in act_n if a[0] <= first]
+
