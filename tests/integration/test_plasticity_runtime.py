@@ -16,19 +16,21 @@ from anima_ll.domain.model.runtime_event import RuntimeEventType as T
 from anima_ll.domain.model.unit_step import UnitStepResult
 from anima_test_support import BASE, silent
 
+W0 = 0.005   # w_max／2（可塑性 v1.1：w_max ＝ α ＝ 0.01）
 BRAIN = {
     "version": 0, "delta_ttl_pulses": 10,
     "interfaces": {"resources": [], "receptors": [], "effectors": []},
     "defaults": {"dynamics": {"kind": "simple_activity", "decay": 0.85, "threshold": 0.5,
                               "refractory_pulses": 0, "intrinsic_drive": 0.08, "jitter": 0.1,
-                              "initial_activity_max_ratio": 0.5}},
+                              "initial_activity_max_ratio": 0.5,
+                              "adaptation_increment": 0.01, "adaptation_tau": 300}},
     "units": [{"id": "s1", "output": "relay"}, {"id": "s2", "output": "relay"}],
     "projections": [
-        {"from": "s1.main", "to": "s2", "weight": 0.25, "plastic": True},
-        {"from": "s2.main", "to": "s1", "weight": 0.25, "plastic": True},
+        {"from": "s1.main", "to": "s2", "weight": W0, "plastic": True},
+        {"from": "s2.main", "to": "s1", "weight": W0, "plastic": True},
     ],
     "plasticity": {"rule": "balanced_pair_window", "trace": "additive", "bounds": "soft",
-                   "trace_tau": "activity_time_constant", "w_min": 0.0, "w_max": "threshold",
+                   "trace_tau": "activity_time_constant", "w_min": 0.0, "w_max": "adaptation_increment",
                    "amplitude_ratio": 0.01},
 }
 ENV = {"resources": {}, "receptors": {}, "effectors": {}}
@@ -83,9 +85,9 @@ def test_t7_transmission_keeps_the_weight_frozen_at_its_pulse() -> None:
     v, c = views(log), connection_states(log)
     key = "s1.main->s2"
     w6_after = c[6][key]["weight"]                # 6 の境界で更新された重み（W_7）
-    assert c[5][key]["weight"] == 0.25 and w6_after > 0.25
-    # s1 の 6 の発火で成立した伝達（7 に届く）は、6 の冒頭の重み（0.25）のまま
-    assert v[(7, "s2")]["drives"] == [["s1", 0.25]]
+    assert c[5][key]["weight"] == W0 and w6_after > W0
+    # s1 の 6 の発火で成立した伝達（7 に届く）は、6 の冒頭の重み（W0）のまま
+    assert v[(7, "s2")]["drives"] == [["s1", W0]]
     # 更新された重みは、7 以降に成立した伝達から使われる（s1 の 7 の発火 → 8 に届く）
     assert v[(8, "s2")]["drives"] == [["s1", w6_after]]
 
@@ -102,6 +104,8 @@ def test_plasticity_block_without_plastic_connections_changes_nothing() -> None:
     cfg = silent(BASE)
     with_block = copy.deepcopy(cfg["neuro"])
     with_block["plasticity"] = copy.deepcopy(BRAIN["plasticity"])
+    # BASE の設計図には順応がない（α ＝ 0）ので、記号 adaptation_increment は使えない。数で書く
+    with_block["plasticity"]["w_max"] = 2 * W0
     for seed in (1, 9):
         assert run_activity(cfg["neuro"], cfg["env"], 400, seed) == run_activity(with_block, cfg["env"], 400, seed)
 
@@ -112,5 +116,5 @@ def test_plastic_connections_change_weights_and_are_saved_in_the_snapshot() -> N
     asyncio.run(app.lifecycle.run(max_pulses=600))
     snapshot = app.lifecycle.save_snapshot()
     assert set(snapshot.connections) == {"s1.main->s2", "s2.main->s1"}
-    assert any(v["weight"] != 0.25 for v in snapshot.connections.values())
+    assert any(v["weight"] != W0 for v in snapshot.connections.values())
     assert snapshot.connections == app.connections.export_state()

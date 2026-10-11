@@ -129,7 +129,7 @@ _PLASTICITY_BOUNDS = {"soft"}
 
 
 def _shared_dynamics_value(key: str, default_dynamics: dict[str, Any], units: tuple[UnitSpec, ...]) -> float:
-    """記号（threshold・activity_time_constant）を解決するための、全 Unit で共通の力学の値。"""
+    """記号（adaptation_increment・activity_time_constant）を解決するための、全 Unit で共通の力学の値。"""
     if key not in default_dynamics:
         raise ConfigError(f"plasticity: defaults.dynamics.{key} がないので記号を解決できません")
     value = default_dynamics[key]
@@ -161,8 +161,19 @@ def _plasticity(raw: Any, default_dynamics: dict[str, Any], units: tuple[UnitSpe
         tau = float(tau_raw)
 
     w_max_raw = _required_key(raw, "w_max", where)
-    w_max = (_shared_dynamics_value("threshold", default_dynamics, units)
-             if w_max_raw == "threshold" else float(w_max_raw))
+    if w_max_raw == "threshold":
+        # 可塑性 v1 の工学的な正規化（w_max ＝ θ）は、v1.1 で廃止した（docs/plasticity-v1.1-scale.md）。
+        # θ は受け手の回復中の尺度で、静止・待ちの受け手は 1 本の w0 ＝ θ／2 でほぼ必ず発火する
+        raise ConfigError("plasticity.w_max: threshold は可塑性 v1.1 で廃止しました（adaptation_increment を使う）")
+    if w_max_raw == "adaptation_increment":
+        # 可塑性 v1.1 の設計原則 P1：1 本の接続の 1 回の伝達が受け手に与える興奮は、受け手自身の
+        # 1 回の発火で生じる自己抑制（順応の 1 段 α）を超えない → w_max ＝ α
+        w_max = _shared_dynamics_value("adaptation_increment", default_dynamics, units)
+        if not w_max > 0:
+            raise ConfigError("plasticity.w_max: adaptation_increment は順応のある設計図（α > 0）でだけ使える"
+                              "（順応がなければ、この尺度もない）")
+    else:
+        w_max = float(w_max_raw)
     w_min = float(_required_key(raw, "w_min", where))
     if w_min != 0.0:
         raise ConfigError("plasticity.w_min: 柔らかい上限・下限（soft）は下限 0 でだけ定義している")
