@@ -1,0 +1,49 @@
+# 実験 0013 の実行条件と判定基準（事前登録の案 v0.1。道具より前にコミットする）
+#
+# なぜこの条件なのかは README.md に書く。値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。
+
+seeds: {first: 2001, last: 2020}        # 0012 の 1〜20・1001〜1020 は、同じ設計図の刺激なしをもう見ているので使わない
+
+brain:
+  plastic: experiments/0013_self_amplified_asymmetry/neuroarchitecture.yaml
+  nonplastic: experiments/0013_self_amplified_asymmetry/neuroarchitecture-nonplastic.yaml
+  dynamics_from: config/neuroarchitecture/minimal-v3.yaml   # 力学の値はここと同じ（alignment で確かめる）
+  units: [s1, s2, s3]
+
+conditions: [plastic, nonplastic]
+
+timeline:                               # Pulse（1 Pulse ＝ 1 秒）
+  pulse_interval_seconds: 1.0
+  total_pulses: 30000
+  early_window: [1001, 6000]            # E（両端を含む）
+  late_window: [25001, 30000]           # L（両端を含む）
+  weight_sample_every: 1000             # 記録用
+
+intervention:                           # 仕組みの確認 M（README §3.3）
+  at_pulse: 25000                       # この Pulse の終わりの可塑性ありの個体を 2 つ複製する
+  arms: [as_is, reset_to_w0]            # reset_to_w0：複製の上でだけ 6 本の重みを w0 に戻す（痕跡はそのまま）
+  window: [25001, 30000]
+
+eligibility:
+  pair_rule: both_units_rho_at_least_1  # ρ ＝ intrinsic_drive／((1 − decay) × threshold)、出生時のばらつきのあとの Unit の値（Pulse 0）
+
+judgment:
+  min_fraction_of_eligible: 0.8         # 適格な個体のうち、この割合以上（16／20 と同じ比）
+  h_d: {per_individual: majority_of_eligible_pairs_with_nonzero_b}
+  h_a: {per_individual: g_plastic_greater_than_g_nonplastic}
+  m: {per_individual: g_as_is_greater_than_g_reset}
+  primary: h_a
+  manipulation:
+    nonplastic_weights_unchanged: true
+    identical_birth_state: true
+    identical_until_first_weight_change: true
+    clone_identity_check: true
+    replay_matches_recorded_weights: 1.0e-12
+
+smoke:
+  seeds: {first: 3001, last: 3006}
+  checks:
+    manipulation: all                   # §5.1 をすべて満たす
+    d1_countable: eligible_pairs_early_window_total_follows_nonzero
+  hide: [h_d, h_a, m]                   # 動作確認では計算も表示もしない
+  on_failure: stop_and_amend
