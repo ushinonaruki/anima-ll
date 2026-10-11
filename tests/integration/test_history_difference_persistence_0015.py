@@ -184,6 +184,21 @@ def test_full_smoke_seed_passes_manipulation_from_raw(A, smoke_run) -> None:
         assert list(smoke_run["conditions"][c]["samples"]) == [str(t) for t in W.sample_times(PROTOCOL)]
 
 
+def test_run_condition_handles_a_divergence_after_the_first_sample() -> None:
+    """札が最初に違う Pulse が 2 以上（d − 1 が最初の標本 0 より後）でも、時刻を戻らずに記録できる。"""
+    seed = next(s for s in range(7001, 7007) if W.first_divergence(PROTOCOL, s) > 1)
+    import os
+    cwd = os.getcwd()
+    os.chdir(ROOT)
+    try:
+        R = _load("run_0015_test_divergence", EXP / "run.py")
+    finally:
+        os.chdir(cwd)
+    d = W.first_divergence(PROTOCOL, seed)
+    rec = R.run_condition(seed, "ordered", d)
+    assert rec["before_divergence"] is not None and "0" in rec["samples"] and "24000" in rec["samples"]
+
+
 def test_manipulation_detects_raw_problems(A, smoke_run) -> None:
     bad = copy.deepcopy(smoke_run)
     bad["conditions"]["ordered"]["sensory"].append([12001, smoke_run["roles"]["receptors"]["A"]])

@@ -46,13 +46,15 @@ def run_condition(seed: int, condition: str, diverge: int | None) -> dict:
     app = W.build(PROTOCOL, condition, seed, log)
     birth = W.unit_states(app)
     before = None
-    if diverge is not None:
-        W.advance_to(app, diverge - 1)
-        before = W.snapshot(app)
     samples = {}
-    for t in W.sample_times(PROTOCOL):
+    # 標本の時刻と、札が最初に違う Pulse の直前（d − 1）を、時刻の順に通る（d − 1 が最初の標本より後でも戻らない）
+    stops = sorted(set(W.sample_times(PROTOCOL)) | ({diverge - 1} if diverge is not None else set()))
+    for t in stops:
         W.advance_to(app, t)
-        samples[str(t)] = app.connections.export_state()
+        if diverge is not None and t == diverge - 1:
+            before = W.snapshot(app)
+        if t in W.sample_times(PROTOCOL):
+            samples[str(t)] = app.connections.export_state()
     return {"birth": birth, "before_divergence": before, "samples": samples,
             "activity": log.activity(), "sensory": log.sensory()}
 
