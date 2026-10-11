@@ -183,3 +183,18 @@ def test_reciprocal_pair_sum_is_conserved_from_half_w_max() -> None:
         w = store.weights()
         assert w[("s1", "main", "s2")] + w[("s2", "main", "s1")] == pytest.approx(w_max, abs=1e-15)
     assert store.weights()[("s1", "main", "s2")] != manifest.plasticity.w_max / 2   # 実際に動いている
+
+
+def test_reciprocal_pair_sum_is_conserved_even_when_an_update_is_clipped_at_the_bounds() -> None:
+    """切り詰めの前の 2 本は補数（z と w_max − z）なので、clip(z) ＋ clip(w_max − z) ＝ w_max（可塑性 v1.1 §8）。"""
+    w_max = 0.01
+    big = PlasticitySpec(rule="balanced_pair_window", trace="additive", bounds="soft",
+                         trace_tau_seconds=TAU, w_min=0.0, w_max=w_max, amplitude=3 * w_max)   # 1 回で範囲を越える振幅
+    ij = PlasticState(weight=0.009, pre_trace=2.0, post_trace=0.0)    # i → j（送り手 i の痕跡 2）
+    ji = PlasticState(weight=0.001, pre_trace=0.0, post_trace=2.0)    # j → i（受け手 i の痕跡 2）
+    raw_ij = ij.weight + big.amplitude * ij.pre_trace * (w_max - ij.weight) / w_max
+    assert raw_ij > w_max                                              # 切り詰めの前は上限を越えている
+    ij2 = balanced_pair_window(ij, pre_fired=False, post_fired=True, delta_time=1.0, spec=big)   # j が発火
+    ji2 = balanced_pair_window(ji, pre_fired=True, post_fired=False, delta_time=1.0, spec=big)
+    assert (ij2.weight, ji2.weight) == (w_max, 0.0)                    # 片方は上限、もう片方は下限に同時に当たる
+    assert ij2.weight + ji2.weight == pytest.approx(w_max, abs=1e-18)
