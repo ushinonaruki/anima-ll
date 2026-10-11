@@ -1,4 +1,4 @@
-"""可塑性 v1 の規則と接続の状態の単体テスト（可塑性 v1 の設計案 v0.2 §2・3・6）。"""
+"""可塑性 v1 の規則と接続の状態の単体テスト（可塑性 v1 の設計案 v0.2 §2・3・6、尺度は v1.1）。"""
 
 import copy
 import math
@@ -87,15 +87,16 @@ BRAIN = {
     "interfaces": {"resources": [], "receptors": ["receptor.x1"], "effectors": []},
     "defaults": {"dynamics": {"kind": "simple_activity", "decay": 0.85, "threshold": 0.5,
                               "refractory_pulses": 0, "intrinsic_drive": 0.08, "jitter": 0.1,
-                              "initial_activity_max_ratio": 0.5}},
+                              "initial_activity_max_ratio": 0.5,
+                              "adaptation_increment": 0.01, "adaptation_tau": 300}},
     "units": [{"id": "s1", "output": "relay"}, {"id": "s2", "output": "relay"}],
     "projections": [
         {"from": "receptor.x1.main", "to": "s1", "weight": 1.0},
-        {"from": "s1.main", "to": "s2", "weight": 0.25, "plastic": True},
-        {"from": "s2.main", "to": "s1", "weight": 0.25, "plastic": True},
+        {"from": "s1.main", "to": "s2", "weight": 0.005, "plastic": True},
+        {"from": "s2.main", "to": "s1", "weight": 0.005, "plastic": True},
     ],
     "plasticity": {"rule": "balanced_pair_window", "trace": "additive", "bounds": "soft",
-                   "trace_tau": "activity_time_constant", "w_min": 0.0, "w_max": "threshold",
+                   "trace_tau": "activity_time_constant", "w_min": 0.0, "w_max": "adaptation_increment",
                    "amplitude_ratio": 0.01},
 }
 
@@ -103,13 +104,18 @@ BRAIN = {
 def test_symbols_are_resolved_from_the_shared_dynamics() -> None:
     spec = parse_neuroarchitecture(copy.deepcopy(BRAIN)).plasticity
     assert spec.trace_tau_seconds == pytest.approx(TAU)
-    assert spec.w_max == 0.5 and spec.amplitude == pytest.approx(0.005)
+    assert spec.w_max == 0.01 and spec.amplitude == pytest.approx(0.0001)   # v1.1：w_max ＝ α
 
 
 @pytest.mark.parametrize("mutate, message", [
     (lambda b: b.pop("plasticity"), "plasticity"),
     (lambda b: b["projections"][0].update(plastic=True), "Unit どうし"),
-    (lambda b: b["projections"][1].update(weight=0.7), "外"),
+    (lambda b: b["projections"][1].update(weight=0.02), "外"),
+    # v1.1：w_max ＝ θ は廃止。α がない（0・未記入）設計図では adaptation_increment の尺度もない
+    (lambda b: b["plasticity"].update(w_max="threshold"), "廃止"),
+    (lambda b: b["defaults"]["dynamics"].update(adaptation_increment=0.0), "順応"),
+    (lambda b: b["defaults"]["dynamics"].pop("adaptation_increment"), "adaptation_increment"),
+    (lambda b: b["units"][1].update(dynamics={"adaptation_increment": 0.02}), "adaptation_increment"),
     (lambda b: b["units"][0].update(dynamics={"decay": 0.9}), "decay"),
     (lambda b: b["plasticity"].pop("amplitude_ratio"), "amplitude_ratio"),
     (lambda b: b["plasticity"].update(amplitude_ratio=-0.01), "amplitude_ratio"),
@@ -121,8 +127,8 @@ def test_symbols_are_resolved_from_the_shared_dynamics() -> None:
     (lambda b: b["defaults"]["dynamics"].update(decay=1.0), "decay"),
     (lambda b: b["projections"][1].update(weight=float("nan")), "有限"),
     # 同じ (送り手, 出力路, 受け手) の接続を 2 本書く。"s1" と "s1.main" は同じ出力路
-    (lambda b: b["projections"].append({"from": "s1", "to": "s2", "weight": 0.25, "plastic": True}), "重複"),
-    (lambda b: b["projections"].append({"from": "s1.main", "to": "s2", "weight": 0.1}), "重複"),
+    (lambda b: b["projections"].append({"from": "s1", "to": "s2", "weight": 0.005, "plastic": True}), "重複"),
+    (lambda b: b["projections"].append({"from": "s1.main", "to": "s2", "weight": 0.005}), "重複"),
 ])
 def test_invalid_plasticity_configs_are_rejected(mutate, message) -> None:
     brain = copy.deepcopy(BRAIN)
@@ -161,5 +167,5 @@ def test_weights_snapshot_is_frozen() -> None:
         snapshot[("s1", "main", "s2")] = 0.4   # type: ignore[index]
     store.apply_activity(["s1"], 1.0)
     store.apply_activity(["s2"], 1.0)
-    assert snapshot[("s1", "main", "s2")] == 0.25        # 写しは後の更新で変わらない
-    assert store.weights()[("s1", "main", "s2")] != 0.25
+    assert snapshot[("s1", "main", "s2")] == 0.005       # 写しは後の更新で変わらない
+    assert store.weights()[("s1", "main", "s2")] != 0.005
