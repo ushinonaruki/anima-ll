@@ -37,6 +37,9 @@ class EnvironmentSpec:
     resources: tuple[ResourceSpec, ...]
     receptors: tuple[ComponentSpec, ...]
     effectors: tuple[ComponentSpec, ...]
+    pulse_interval_seconds: float | None = None
+    """1 Pulse の秒数（時間の解像度）。減衰・順応・痕跡はすべて秒で書かれているので、認知の結果に効く。
+    本体の起動（__main__）では必須。実験の道具が時計を直接作る場合は、実験の protocol 側で決める。"""
 
     def capacities(self) -> dict[ResourceClass, int]:
         return {r.resource_class: r.capacity for r in self.resources}

@@ -21,6 +21,7 @@ brain:
     amplitude_ratio: 0.01           # A ／ w_max
 
 timeline:                           # Pulse（1 Pulse ＝ 1 秒）
+  pulse_interval_seconds: 1.0       # 1 Pulse の秒数。README で固定済みの値を機械が読める正本に写しただけ（2026-10-11、#46。値は変えていない）
   total_pulses: 15000
   pre_probes: {first: 600, every: 60, count: 20}
   trials: {first: 1800, every: 60, count: 200}

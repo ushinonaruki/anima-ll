@@ -197,7 +197,10 @@ def parse_environment(raw: dict[str, Any]) -> EnvironmentSpec:
     effectors = tuple(
         _component(cid, spec, EFFECTOR_PREFIX) for cid, spec in (raw.get("effectors") or {}).items()
     )
-    return EnvironmentSpec(resources=resources, receptors=receptors, effectors=effectors)
+    runtime = raw.get("runtime") or {}
+    interval = runtime.get("pulse_interval_seconds")
+    return EnvironmentSpec(resources=resources, receptors=receptors, effectors=effectors,
+                           pulse_interval_seconds=None if interval is None else float(interval))
 
 
 def _component(component_id: Any, raw: dict[str, Any] | str, prefix: str) -> ComponentSpec:

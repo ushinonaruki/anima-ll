@@ -7,7 +7,7 @@ from anima_ll.domain.model.unit_step import UnitStepResult
 class RelayOutput:
     """発火したら、新しく届いた内容をそのまま転送する。計算資源を使わない。"""
 
-    def on_fire(self, view: ReceptiveView, strength: float) -> UnitStepResult:
+    def on_fire(self, view: ReceptiveView) -> UnitStepResult:
         return UnitStepResult(
             proposed_deltas=tuple(
                 ProposedDelta(

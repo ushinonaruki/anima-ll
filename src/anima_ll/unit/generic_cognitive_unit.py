@@ -42,7 +42,7 @@ class GenericCognitiveUnit:
         self._state, firing = self._dynamics.advance(self._state, stimulus, context.delta_time)
         if firing is None:
             return UnitStepResult.empty()
-        step = self._output.on_fire(view, firing.strength)
+        step = self._output.on_fire(view)
         return replace(step, activity=ActivityEvent(self._unit_id, context.pulse))
 
     def handle_kernel_result(
