@@ -132,3 +132,18 @@ def test_statistics_use_plain_arithmetic_for_zero_terms_and_empty_sums(A) -> Non
     early = [[1100, "s1"], [1101, "s2"]]
     s = A.statistics(_synthetic_run([["s1", "s2"]], early, weights=w))
     assert s["b"] == {"s1-s2": 1} and s["c_birth"] == pytest.approx(0.003) and s["c"]
+
+
+def test_identical_until_first_weight_change_compares_whole_records_when_weights_never_change(R) -> None:
+    act = [[27, "s1"], [297, "s1"], [670, "s1"]]          # 発火する Unit が 1 つだけ → 重みは一度も変わらない
+    assert R.first_weight_change(act) is None
+    assert R.identical_until_first_weight_change(act, list(act), None)
+    assert not R.identical_until_first_weight_change(act, act[:2], None)
+    assert R.identical_until_first_weight_change([[5, "s1"], [9, "s2"], [20, "s1"]],
+                                                 [[5, "s1"], [9, "s2"], [21, "s1"]], 9)
+
+
+def test_invalid_data_does_not_compute_judgment_statistics(A, monkeypatch) -> None:
+    data = {"meta": {"smoke": False, "git_commit": "x", "protocol": {}, "manifests": {}}, "runs": []}
+    report = A.analyze(data)
+    assert not report["valid"] and report["judgment"] is None and report["per_seed"] is None

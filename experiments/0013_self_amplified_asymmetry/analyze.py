@@ -152,6 +152,10 @@ def analyze(data: dict) -> dict:
         return base | {"note": "動作確認（README §7：実行の操作の確認だけ）。C・H_A・M の量は計算していない",
                        "smoke_passed": not problems}
 
+    if problems:
+        # invalid のときは、判定の量（C・H_A・M）を計算も表示もしない（無効な run の結果を見ないため）
+        return base | {"primary": "c", "judgment": None, "per_seed": None, "records": None,
+                       "note": "invalid のため、C・H_A・M は計算していない"}
     per = {str(r["seed"]): statistics(r) for r in runs}
     eligible = [str(r["seed"]) for r in runs if r["eligible_pairs"]]
     need = PROTOCOL["judgment"]["min_fraction_of_eligible"]
@@ -159,11 +163,11 @@ def analyze(data: dict) -> dict:
     for key in ("c", "h_a", "m"):
         ok = [sd for sd in eligible if per[sd][key]]
         frac = len(ok) / len(eligible) if eligible else None
-        status = "invalid" if problems or not eligible else ("holds" if frac >= need else "fails")
+        status = "invalid" if not eligible else ("holds" if frac >= need else "fails")
         judgment[key] = {"status": status, "satisfied": len(ok), "eligible": len(eligible), "fraction": frac,
                          "required_fraction": need, "seeds": sorted(int(x) for x in ok)}
     return base | {"primary": "c", "judgment": judgment, "per_seed": per,
-                   "records": records(runs) if not problems else None}
+                   "records": records(runs)}
 
 
 def main() -> None:
@@ -177,6 +181,8 @@ def main() -> None:
     if report["smoke"]:
         print("【動作確認（README §7）。C・H_A・M の量は計算していない】")
         print(f"smoke_passed: {report['smoke_passed']}")
+    elif report["judgment"] is None:
+        print("invalid のため、C・H_A・M は計算していない")
     else:
         for key, name in (("c", "C（主）"), ("h_a", "H_A"), ("m", "M")):
             j = report["judgment"][key]

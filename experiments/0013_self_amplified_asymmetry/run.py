@@ -64,6 +64,17 @@ def first_weight_change(activity: list[list]) -> int | None:
     return None
 
 
+def identical_until_first_weight_change(act_p: list[list], act_n: list[list], first: int | None) -> bool:
+    """README §5.1：可塑性あり・なしの発火の記録が、最初に重みが変わる Pulse まで一致するか。
+
+    重みが一度も変わらない個体（発火する Unit が 1 つ以下など）では、可塑性は一度も働かないので、
+    全区間の記録が一致しなければならない（first が None のとき、全区間を比べる）。
+    """
+    if first is None:
+        return act_p == act_n
+    return [a for a in act_p if a[0] <= first] == [a for a in act_n if a[0] <= first]
+
+
 def replay_error(activity: list[list], weights_end: dict[str, float], manifest: dict) -> float:
     spec = W.parse_neuroarchitecture(manifest).plasticity
     spikes = {u: [p for p, v in activity if v == u] for u in PROTOCOL["brain"]["units"]}
@@ -132,8 +143,7 @@ def run_seed(seed: int) -> dict:
             "nonplastic_weights_unchanged": weights_n_start == all_weights(n),
             "identical_birth_state": birth_p == birth_n,
             "first_weight_change_pulse": first,
-            "identical_until_first_weight_change":
-                first is not None and [a for a in act_p if a[0] <= first] == [a for a in act_n if a[0] <= first],
+            "identical_until_first_weight_change": identical_until_first_weight_change(act_p, act_n, first),
             "clone_identity": ([a for a in act_p if window[0] <= a[0] <= window[1]] == log_as_is.activity()
                                and p.connections.export_state() == as_is.connections.export_state()),
             "reset_weights_are_w0": all(v["weight"] == w0 for v in reset_start.values()),
