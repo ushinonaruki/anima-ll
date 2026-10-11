@@ -80,10 +80,14 @@ smoke:
       # s_B が窓で発火した割合 と s_C が窓で発火した割合 が、どちらも reliable_fraction 未満
       max_fraction_exclusive: reliable
     c2_no_long_reverberation:
-      # 連鎖 ＝ s1〜s3 のどれかが発火した Pulse が途切れずに続く区間。
-      # 経験の前の試しの複製で、t0 + 1 から始まる連鎖が複製の最後（t0 + clone_pulses − 1）まで続いた割合、
-      # 順序ありの経験の各試行で、t + 1 から始まる連鎖が t + clone_pulses まで続いた割合 が、どちらも 1 − reliable_fraction 未満
-      max_fraction_exclusive: one_minus_reliable
+      # v0.3 改訂（ChatGPT レビュー）：旧の「連鎖の割合 < 1 − 0.9」は撤回。C2 から直接導く判定にした（README §5.5）
+      # 再興奮 ＝ 同じ s が、min_spontaneous_interval 未満の間隔で 2 回発火し、あとの発火が感覚の出来事によるものでない
+      #   （あとの発火の Pulse p の直前 p − 1 に、その s の Receptor の感覚の出来事がない）。
+      # min_spontaneous_interval ＝ 発火して activity が 0 に戻った Unit が、入力なしで次に発火できる最短の Pulse 数。
+      #   設計図の力学と出生時のばらつきの上限（駆動が最大・閾値が最小・順応 0）から決まる（alignment.py が計算して確かめる）
+      min_spontaneous_interval: derived_from_dynamics   # minimal-v3 では 9
+      scope: [main_runs_all_conditions_all_pulses, pre_probe_clones]   # 複製は、本体の t0 − 1 までの発火の列に複製の発火の列をつないで数える
+      max_count: 0                  # 1 回でも観測されたら C2 を満たさない
     c3_sensory_not_buried:
       # 順序ありの経験（全 smoke seed）で、s_B と s_C が t + 2（s_A の発火の駆動だけが届く Pulse）に両方発火した試行の割合が
       # reliable_fraction 未満
