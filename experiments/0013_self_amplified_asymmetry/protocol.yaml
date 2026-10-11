@@ -1,4 +1,4 @@
-# 実験 0013 の実行条件と判定基準（事前登録の案 v0.1。道具より前にコミットする）
+# 実験 0013 の実行条件と判定基準（事前登録の案 v0.2。道具より前にコミットする）
 #
 # なぜこの条件なのかは README.md に書く。値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。
 
@@ -28,10 +28,12 @@ eligibility:
   pair_rule: both_units_rho_at_least_1  # ρ ＝ intrinsic_drive／((1 − decay) × threshold)、出生時のばらつきのあとの Unit の値（Pulse 0）
 
 judgment:
-  min_fraction_of_eligible: 0.8         # 適格な個体のうち、この割合以上（16／20 と同じ比）
-  h_d: {per_individual: majority_of_eligible_pairs_with_nonzero_b}
-  h_a: {per_individual: g_plastic_greater_than_g_nonplastic}
-  m: {per_individual: g_as_is_greater_than_g_reset}
+  min_fraction_of_eligible: 0.8         # 成り立った個体数 ÷ 適格な個体数 ≥ これ（16／20 と同じ比。絶対数では判定しない）
+  birth_direction: sign_of_nonplastic_early_window_f   # b_ij ＝ sign(f_ij(E) of nonplastic)。b_ij ＝ 0 の組は H_D・H_A から外す
+  no_usable_pair: counts_as_not_satisfied             # 適格な個体で、使える組が 1 つもなければ「満たさない」（分母に残す）
+  h_d: {per_individual: majority_of_eligible_pairs_with_nonzero_b, direction: final_weight_sign_equals_b}
+  h_a: {per_individual: g_birth_plastic_greater_than_g_birth_nonplastic, g_birth: sum_over_eligible_nonzero_b_pairs_of_b_times_f_late}
+  m: {per_individual: g_as_is_greater_than_g_reset, orientation: sign_of_a_at_intervention, pairs: eligible_with_nonzero_a_at_intervention}
   primary: h_a
   manipulation:
     nonplastic_weights_unchanged: true
