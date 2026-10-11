@@ -1,6 +1,6 @@
 # 0006 競合に負けた計算の要求を持ち越す（L2-2）
 
-> **⚠ 不採用（2026-10-07）**：この実験の機構（`pending`）は main に入れていない。実装・`run.py`・`analyze.py`・結果のデータは `feat/l2-pending` ブランチ（commit `f1da4b4`、PR #15）にある。このファイルは設計・結果・不採用の理由の記録として main に置く。
+> **⚠ 不採用（2026-10-07）**：この実験の機構（`pending`）は main に入れていない。実装・`run.py`・`analyze.py`・結果データのアーカイブは、**closed PR #15 / commit `f1da4b4`** を参照する。このファイルは設計・結果・不採用の理由の記録として main に置く。
 >
 > **不採用の理由**：正式判定は H1・H2 とも支持で、操作的な仮説としては成り立った。しかし、Kernel の実行基盤での取り合い（LLM を 1 台しか動かせないこと）を Unit の認知状態に写しており、アーキテクチャの層を混同していると判断した。持ち越しで活動は約 2.4 倍になり、L2-1 の「落ち着く」が崩れた。これまで `llm_pool` の容量 1 と「負けたら捨てる」が、偶然ネットワークの強い抑制として働いていたことが分かった。詳しくは `docs/arbitrariness-audit.md` §4。
 
@@ -79,7 +79,7 @@ seed 1〜20 は無作為に選んだ 20 個体ではない。基準は統計的�
 
 ## 実行
 
-> main にはこの README だけがある。以下の `run.py`・`analyze.py` と結果のデータは `feat/l2-pending` ブランチ（commit `f1da4b4`）にあり、再現するにはそのコミットを checkout する。
+> main にはこの README だけがある。以下の `run.py`・`analyze.py` と結果データは **closed PR #15 / commit `f1da4b4`** に残っている。再現するには、そのコミットを直接 checkout する。
 
 ```bash
 python experiments/0006_pending_compute/run.py              # 160 本、数分
@@ -95,7 +95,7 @@ Docker では先頭に `docker compose run --rm --no-deps anima` を付ける。
 ## 結果
 
 > 測定：2026-10-07 19:40、commit `220c9cc`（事前登録と測定前の修正を含む版）、Claude の作業環境（Python 3.11、偽 Kernel・早送り、160 本・73 秒）
-> データ：`results.json.gz`（`feat/l2-pending` ブランチ、commit `f1da4b4` の同じフォルダ。main には無い）。`analyze.py` の完全性検査を通過
+> データ：`results.json.gz`（closed PR #15 / commit `f1da4b4` の同じフォルダ。main には無い）。`analyze.py` の完全性検査を通過
 
 **判定：H1（観測期間内の取り残しがほぼなくなる）支持／H2（負けた要求が後で計算される）支持**
 
