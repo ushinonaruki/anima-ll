@@ -169,3 +169,17 @@ def test_weights_snapshot_is_frozen() -> None:
     store.apply_activity(["s2"], 1.0)
     assert snapshot[("s1", "main", "s2")] == 0.005       # 写しは後の更新で変わらない
     assert store.weights()[("s1", "main", "s2")] != 0.005
+
+
+def test_reciprocal_pair_sum_is_conserved_from_half_w_max() -> None:
+    """可塑性 v1.1 §8：w(i→j) ＋ w(j→i) は、w0 ＝ w_max／2 の 2 本から始めれば w_max のまま保たれる（同時発火も含む）。"""
+    manifest = parse_neuroarchitecture(copy.deepcopy(BRAIN))
+    store = ConnectionStore(manifest)
+    w_max = manifest.plasticity.w_max
+    rng = random.Random(7)
+    for _ in range(5000):
+        fired = [u for u in ("s1", "s2") if rng.random() < 0.3]
+        store.apply_activity(fired, 1.0)
+        w = store.weights()
+        assert w[("s1", "main", "s2")] + w[("s2", "main", "s1")] == pytest.approx(w_max, abs=1e-15)
+    assert store.weights()[("s1", "main", "s2")] != manifest.plasticity.w_max / 2   # 実際に動いている
