@@ -1,4 +1,7 @@
-# 実験 0013 の実行条件と判定基準（事前登録の案 v0.4。道具より前にコミットする）
+# 実験 0013 の実行条件と判定基準（事前登録 v0.5。本番の前にコミットする）
+#
+# v0.5：smoke.checks.d1_countable を撤去した（README §7。0 は正当な観測値で、F_ij の数え方は契約テストで保証する）。
+# 判定・値・seed は v0.4 と同じ。判定の seed 2001〜2020 はまだ走らせていない
 #
 # なぜこの条件なのかは README.md に書く。値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。
 
@@ -45,7 +48,6 @@ judgment:
 smoke:
   seeds: {first: 3001, last: 3006}
   checks:
-    manipulation: all                   # §5.1 をすべて満たす
-    d1_countable: eligible_pairs_early_window_total_follows_nonzero
+    manipulation: all                   # §5.1 をすべて満たす（動作確認は実際の実行の操作の確認だけ）
   hide: [c, h_a, m]                   # 動作確認では計算も表示もしない
   on_failure: stop_and_amend
