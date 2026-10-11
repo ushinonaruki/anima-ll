@@ -108,8 +108,28 @@ def check(protocol: dict) -> None:
            "expected_counts.ordered が p_b・試行数と合わない")
     expect(ec["shuffled"] == {"A": count, "B": n_b, "C": count - n_b}, "expected_counts.shuffled が合わない")
     expect(ec["silent"] == {"A": 0, "B": 0, "C": 0}, "expected_counts.silent が 0 ではない")
-    smoke = protocol["smoke_seed"]
-    expect(not protocol["seeds"]["first"] <= smoke <= protocol["seeds"]["last"], "smoke_seed が判定の seed の範囲内")
+    # 動作確認（v0.3 §5.5）
+    S = _load("align_smoke_0012", HERE / "smoke.py")
+    sm = protocol["smoke"]
+    smoke_seeds = list(range(sm["seeds"]["first"], sm["seeds"]["last"] + 1))
+    formal = range(protocol["seeds"]["first"], protocol["seeds"]["last"] + 1)
+    expect(not any(s in formal for s in smoke_seeds), "動作確認の seed が判定の seed の範囲と重なる")
+    expect(sorted((s - 1) % 6 for s in smoke_seeds) == list(range(6)), "動作確認の seed が 6 通りの役の割り当てを一巡しない")
+    try:
+        expect(S.reliable_fraction(protocol) == j["manipulation"]["min_a_fired_fraction"], "reliable_fraction の解決が違う")
+        expect(S.t_min(protocol) >= 1, "T_min が 1 未満")
+    except ValueError as exc:
+        problems.append(f"動作確認の値が解決できない：{exc}")
+    checks = sm["checks"]
+    expect(set(checks) == {"c1_no_baseline_ceiling", "c2_no_long_reverberation", "c3_sensory_not_buried"},
+           "smoke.checks の項目が S1〜S3 と違う")
+    expect(checks["c1_no_baseline_ceiling"]["max_fraction_exclusive"] == "reliable", "S1 の基準が reliable ではない")
+    expect(checks["c3_sensory_not_buried"]["max_fraction_exclusive"] == "reliable", "S3 の基準が reliable ではない")
+    c2 = checks["c2_no_long_reverberation"]
+    expect(c2["min_spontaneous_interval"] == "derived_from_dynamics", "S2 の T_min が力学から導く形ではない")
+    expect(c2["scope"] == ["main_runs_all_conditions_all_pulses", "pre_probe_clones"], "S2 の範囲が想定と違う")
+    expect(c2["max_count"] == 0, "S2 の基準が 0 回ではない")
+    expect(sm["on_failure"] == "stop_and_amend", "動作確認が落ちたときの扱いが stop_and_amend ではない")
 
     if problems:
         raise SystemExit("protocol と 0012 の設計図・道具がずれている：\n- " + "\n- ".join(problems))

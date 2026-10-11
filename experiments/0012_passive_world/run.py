@@ -19,7 +19,7 @@
 
 使い方（リポジトリ直下で）:
   python experiments/0012_passive_world/run.py                       # 本番（seed 1〜20）
-  python experiments/0012_passive_world/run.py --smoke --out <scratch>  # 動作確認だけ（範囲外の seed 1001。結果は使わない）
+  python experiments/0012_passive_world/run.py --smoke --out <scratch>  # 動作確認（v0.3 §5.5。範囲外の seed 1001〜1006）
 Docker:
   docker compose run --rm --no-deps anima python experiments/0012_passive_world/run.py
 """
@@ -140,7 +140,7 @@ def git_commit() -> str:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--smoke", action="store_true",
-                        help="範囲外の smoke_seed だけで動作確認する（判定の seed を先に見ない）")
+                        help="範囲外の smoke.seeds だけで動作確認する（判定の seed を先に見ない。README §5.5）")
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args()
     if args.smoke and args.out is None:
@@ -148,7 +148,8 @@ def main() -> None:
     out = args.out or OUT_DIR
     out.mkdir(parents=True, exist_ok=True)
     ALIGN.check(PROTOCOL)   # protocol と設計図・道具がずれていたら止める
-    seeds = [PROTOCOL["smoke_seed"]] if args.smoke else formal_seeds()
+    sm = PROTOCOL["smoke"]["seeds"]
+    seeds = list(range(sm["first"], sm["last"] + 1)) if args.smoke else formal_seeds()
     started = time.time()
     runs: list[dict] = []
     with ProcessPoolExecutor(max_workers=min(len(seeds), os.cpu_count() or 1)) as pool:

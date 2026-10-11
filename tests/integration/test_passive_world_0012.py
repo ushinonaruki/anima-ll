@@ -94,13 +94,14 @@ def test_clone_without_probe_continues_exactly_like_the_main_individual() -> Non
     # 刺激と可塑性の変化を含む区間（経験の開始 1800 をまたぐ）で比べる
     log = W.ExperimentLog()
     app = W.build(PROTOCOL, "ordered", SEED, log)
+    initial = W.weights_of(app)
     W.advance_to(app, 1795)
     copied, clone_log = W.clone(app, log)
     W.advance_to(copied, 1900)
     W.advance_to(app, 1900)
     assert [a for a in log.activity() if a[0] > 1795] == clone_log.activity()
     assert full_state(copied) == full_state(app)
-    assert W.weights_of(app) != {cid: 0.25 for cid in W.weights_of(app)}   # 区間内で重みが実際に動いている
+    assert W.weights_of(app) != initial   # 重みが実際に動いている（複製が可塑性の状態まで写していることの確認になる）
 
 
 def test_probe_does_not_touch_the_main_individual() -> None:
@@ -150,3 +151,57 @@ def test_conditions_are_identical_before_the_experience_starts() -> None:
         W.advance_to(app, before - 1)
         results.append((log.activity(), full_state(app)))
     assert results[0] == results[1] == results[2]
+
+
+# ---- 動作確認 S1〜S3 の数え方（v0.3 §5.5。合成した記録で確かめる） ---------------------------------
+
+S = _load("smoke_0012_test", EXP / "smoke.py")
+
+
+def test_t_min_from_the_protocol_is_9_for_minimal_v3() -> None:
+    assert S.t_min(PROTOCOL) == 9
+
+
+def test_reexcitation_counts_intervals_below_t_min_but_not_at_t_min() -> None:
+    firings = [(100, "s1"), (108, "s1"), (200, "s2"), (209, "s2")]
+    found = S.reexcitations(firings, [], PROTOCOL)
+    assert [(x["unit"], x["interval"]) for x in found] == [("s1", 8)]
+
+
+def test_reexcitation_excludes_firings_caused_by_the_sensory_event() -> None:
+    # s3 の Receptor は receptor.x3。p − 1 に感覚の出来事があれば、p の発火は感覚の入力による
+    firings = [(1802, "s3"), (1803, "s3"), (1805, "s3")]
+    sensory = [(1802, "receptor.x3")]
+    found = S.reexcitations(firings, sensory, PROTOCOL)
+    assert [(x["first"], x["second"]) for x in found] == [(1803, 1805)]   # v0.2 の seed 1001 の形
+
+
+def test_clone_reexcitation_joins_main_history_and_ignores_the_probe_a() -> None:
+    roles = W.role_receptors(PROTOCOL, SEED)
+    units = W.role_units(PROTOCOL, SEED)
+    run = {
+        "seed": SEED, "condition": "ordered", "roles": roles, "role_units": units,
+        "activity": [[595, units["B"]]], "sensory": [],
+        "probes": [{"phase": "pre", "t0": 600,
+                    "fires": [[1, units["A"]], [3, units["B"]], [5, units["A"]]]}],
+    }
+    found = S.s2_reexcitations([run], PROTOCOL)["pre_probe_clones"]
+    # s_B：595（本体）→ 603（複製）は間隔 8 で数える。s_A：601 は A の感覚によるもの、605 は 601 から間隔 4 で数える
+    assert sorted((x["unit"], x["first"], x["second"]) for x in found) == sorted(
+        [(units["B"], 595, 603), (units["A"], 601, 605)])
+
+
+def test_s1_and_s3_fractions_from_synthetic_records() -> None:
+    units = W.role_units(PROTOCOL, SEED)
+    starts = W.trial_starts(PROTOCOL)
+    run = {
+        "seed": SEED, "condition": "ordered", "role_units": units,
+        "probes": [{"phase": "pre", "t0": 600, "fires": [[2, units["B"]], [4, units["C"]]]},
+                   {"phase": "pre", "t0": 660, "fires": [[3, units["B"]], [5, units["C"]]]},
+                   {"phase": "post", "t0": 13800, "fires": [[2, units["C"]]]}],
+        "activity": [[starts[0] + 2, units["B"]], [starts[0] + 2, units["C"]], [starts[1] + 2, units["B"]]],
+    }
+    s1 = S.s1_fractions([run], PROTOCOL)
+    assert (s1["B"], s1["C"], s1["probes"]) == (1.0, 0.5, 2)   # 窓は t0＋2〜4。post は数えない
+    s3 = S.s3_fraction([run], PROTOCOL, starts)
+    assert s3 == {"fraction": 1 / len(starts), "trials": len(starts)}

@@ -17,9 +17,13 @@
 - 記録（判定に使わない。README §6）：重みの時間の変化、釣り合いの確認、発火の頻度、試しの窓の発火の割合、
   役の割り当てごとの D
 
+- 動作確認（v0.3 §5.5）：smoke のデータでは、完全性・操作の確認・S1〜S3（smoke.py）だけを出す。
+  **D・W・H1・M・§6 の記録は計算しない**（判定の seed の前に、結果の見込みに触れないため）。
+  本番のデータでは、S1〜S3 の量も記録として出す（判定には使わない）
+
 使い方:
   python experiments/0012_passive_world/analyze.py [data/experiments/0012]
-  （同じ内容を <データのフォルダ>/report.json にも保存する。動作確認のデータ（smoke）は判定として扱わない）
+  （同じ内容を <データのフォルダ>/report.json にも保存する）
 """
 
 import gzip
@@ -46,6 +50,7 @@ def load(name: str, path: Path):
 
 ALIGN = load("alignment_0012", HERE / "alignment.py")
 W = load("world_0012", HERE / "world.py")
+SMOKE = load("smoke_0012", HERE / "smoke.py")
 CONDITIONS = PROTOCOL["stimulus"]["conditions"]
 
 
@@ -246,10 +251,29 @@ def observations(runs: list[dict], d: dict, w: dict) -> dict:
 
 # ---- 本体 -----------------------------------------------------------------------------
 
+def analyze_smoke(data: dict) -> dict:
+    """動作確認：完全性・操作の確認・S1〜S3 だけ。D・W・H1・M は計算しない。"""
+    sm = PROTOCOL["smoke"]["seeds"]
+    expected_seeds = list(range(sm["first"], sm["last"] + 1))
+    runs = data["runs"]
+    problems = completeness(data, expected_seeds)
+    manip_problems, manip_records = manipulation(runs) if not problems else ([], {})
+    problems += manip_problems
+    evaluation = SMOKE.evaluate(runs, PROTOCOL, W.trial_starts(PROTOCOL)) if not problems else None
+    return {
+        "experiment": "0012", "smoke": True,
+        "note": "動作確認（README §5.5）。D・W・H1・M は計算していない",
+        "git_commit": data["meta"]["git_commit"], "seeds": expected_seeds,
+        "valid": not problems, "problems": problems, "manipulation": manip_records,
+        "smoke_checks": evaluation,
+        "smoke_passed": bool(evaluation and evaluation["passed"] and not problems),
+    }
+
+
 def analyze(data: dict) -> dict:
-    smoke = bool(data["meta"].get("smoke"))
-    expected_seeds = [PROTOCOL["smoke_seed"]] if smoke else list(
-        range(PROTOCOL["seeds"]["first"], PROTOCOL["seeds"]["last"] + 1))
+    if data["meta"].get("smoke"):
+        return analyze_smoke(data)
+    expected_seeds = list(range(PROTOCOL["seeds"]["first"], PROTOCOL["seeds"]["last"] + 1))
     runs = data["runs"]
     problems = completeness(data, expected_seeds)
     manip_problems, manip_records = manipulation(runs) if not problems else ([], {})
@@ -277,8 +301,7 @@ def analyze(data: dict) -> dict:
 
     report = {
         "experiment": "0012",
-        "smoke": smoke,
-        "note": "動作確認のデータ。判定として扱わない" if smoke else None,
+        "smoke": False,
         "git_commit": data["meta"]["git_commit"],
         "valid": valid,
         "problems": problems,
@@ -291,6 +314,7 @@ def analyze(data: dict) -> dict:
         "manipulation": manip_records,
         "per_seed": {str(s): {"D": d[s], "W": wv[s], "R_pre": r_pre[s], "R_post": r_post[s]} for s in sorted(d)},
         "records": observations(runs, d, wv) if not completeness(data, expected_seeds) else None,
+        "smoke_quantities": SMOKE.evaluate(runs, PROTOCOL, W.trial_starts(PROTOCOL)) if valid else None,  # 記録（判定に使わない）
     }
     return report
 
@@ -300,12 +324,17 @@ def main() -> None:
     ALIGN.check(PROTOCOL)
     report = analyze(read(folder / "runs.json.gz"))
     (folder / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    j = report["judgment"]
-    if report["smoke"]:
-        print("【動作確認のデータ。判定として扱わない】")
     print(f"valid: {report['valid']}")
     for p in report["problems"]:
         print(f"  - {p}")
+    if report["smoke"]:
+        print("【動作確認（README §5.5）。D・W・H1・M は計算していない】")
+        for name, c in (report["smoke_checks"] or {}).get("checks", {}).items():
+            print(f"{name}: {'passed' if c['passed'] else 'FAILED'}  基準 {c['criterion']}")
+        print(f"smoke_passed: {report['smoke_passed']}")
+        print(f"saved {folder / 'report.json'}")
+        return
+    j = report["judgment"]
     print(f"H1: {j['h1']['status']} ({j['h1']['seeds_all_three']}/{j['h1']['out_of']}, 必要 {j['h1']['required']})")
     print(f"M : {j['m']['status']} ({j['m']['seeds_all_three']}/{j['m']['out_of']}, 必要 {j['m']['required']})")
     print(f"saved {folder / 'report.json'}")
