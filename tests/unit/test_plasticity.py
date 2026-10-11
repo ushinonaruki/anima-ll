@@ -112,6 +112,17 @@ def test_symbols_are_resolved_from_the_shared_dynamics() -> None:
     (lambda b: b["projections"][1].update(weight=0.7), "外"),
     (lambda b: b["units"][0].update(dynamics={"decay": 0.9}), "decay"),
     (lambda b: b["plasticity"].pop("amplitude_ratio"), "amplitude_ratio"),
+    (lambda b: b["plasticity"].update(amplitude_ratio=-0.01), "amplitude_ratio"),
+    (lambda b: b["plasticity"].update(amplitude_ratio=0.0), "amplitude_ratio"),
+    (lambda b: b["plasticity"].update(amplitude_ratio=float("nan")), "amplitude_ratio"),
+    (lambda b: b["plasticity"].update(amplitude_ratio=float("inf")), "amplitude_ratio"),
+    (lambda b: b["plasticity"].update(trace_tau=float("inf")), "有限"),
+    (lambda b: b["plasticity"].update(w_max=float("nan"), w_min=0.0), "有限"),
+    (lambda b: b["defaults"]["dynamics"].update(decay=1.0), "decay"),
+    (lambda b: b["projections"][1].update(weight=float("nan")), "有限"),
+    # 同じ (送り手, 出力路, 受け手) の接続を 2 本書く。"s1" と "s1.main" は同じ出力路
+    (lambda b: b["projections"].append({"from": "s1", "to": "s2", "weight": 0.25, "plastic": True}), "重複"),
+    (lambda b: b["projections"].append({"from": "s1.main", "to": "s2", "weight": 0.1}), "重複"),
 ])
 def test_invalid_plasticity_configs_are_rejected(mutate, message) -> None:
     brain = copy.deepcopy(BRAIN)

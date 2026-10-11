@@ -96,6 +96,13 @@ def parse_neuroarchitecture(raw: dict[str, Any]) -> NeuroarchitectureManifest:
     sources = {u.unit_id for u in units} | set(receptor_ids)
     targets = {u.unit_id for u in units} | set(effector_ids)
     projections = tuple(_projection(p, sources, targets) for p in raw.get("projections") or ())
+    # 接続の ID は (送り手, 出力路, 受け手) の組から決まる（接続の状態 仕様 §3.1）。
+    # 同じ組を 2 本書くと、伝達は 2 本分起きるのに接続の状態は 1 本になるので、設計図の時点で拒否する
+    seen_connections: set[str] = set()
+    for p in projections:
+        if p.connection_id in seen_connections:
+            raise ConfigError(f"projection {p.connection_id} が重複しています（同じ送り手・出力路・受け手の接続は 1 本だけ）")
+        seen_connections.add(p.connection_id)
     plasticity = _plasticity(raw.get("plasticity"), default_dynamics, units)
     if plasticity is None and any(p.plastic for p in projections):
         raise ConfigError("plastic: true の接続がありますが、plasticity（規則）が書かれていません")
@@ -147,6 +154,8 @@ def _plasticity(raw: Any, default_dynamics: dict[str, Any], units: tuple[UnitSpe
     tau_raw = _required_key(raw, "trace_tau", where)
     if tau_raw == "activity_time_constant":
         decay = _shared_dynamics_value("decay", default_dynamics, units)
+        if not 0.0 < decay < 1.0:
+            raise ConfigError(f"plasticity: decay {decay} からは時定数を決められません（0 < decay < 1 が必要）")
         tau = -1.0 / math.log(decay)      # Unit の activity の時定数 τ_m（秒）
     else:
         tau = float(tau_raw)
@@ -157,9 +166,13 @@ def _plasticity(raw: Any, default_dynamics: dict[str, Any], units: tuple[UnitSpe
     w_min = float(_required_key(raw, "w_min", where))
     if w_min != 0.0:
         raise ConfigError("plasticity.w_min: 柔らかい上限・下限（soft）は下限 0 でだけ定義している")
-    if not (tau > 0 and w_max > 0):
-        raise ConfigError("plasticity: trace_tau と w_max は正の値が必要です")
-    amplitude = float(_required_key(raw, "amplitude_ratio", where)) * w_max
+    if not (math.isfinite(tau) and tau > 0 and math.isfinite(w_max) and w_max > 0):
+        raise ConfigError("plasticity: trace_tau と w_max は有限の正の値が必要です")
+    amplitude_ratio = float(_required_key(raw, "amplitude_ratio", where))
+    # 負の値は「先に発火した側から後の側への接続を強める」という規則の向きを逆にしてしまう。0 は規則が働かない
+    if not (math.isfinite(amplitude_ratio) and amplitude_ratio > 0):
+        raise ConfigError(f"plasticity.amplitude_ratio: 有限の正の値が必要です（{amplitude_ratio}）")
+    amplitude = amplitude_ratio * w_max
     return PlasticitySpec(rule=rule, trace=trace, bounds=bounds, trace_tau_seconds=tau,
                           w_min=w_min, w_max=w_max, amplitude=amplitude)
 
@@ -223,6 +236,8 @@ def _projection(raw: dict[str, Any], sources: set[str], targets: set[str]) -> Pr
         weight = float(raw.get("weight", 1.0))
     else:
         weight = float(_required_key(raw, "weight", f"projection {source_ref} → {target_id}"))
+    if not math.isfinite(weight):
+        raise ConfigError(f"projection {source_ref} → {target_id}: weight は有限の値が必要です（{weight}）")
     plastic = bool(raw.get("plastic", False))   # 書かなければ可塑性の対象外（機構の有無の表し方。§2.4）
     if plastic and (source_id.startswith(RECEPTOR_PREFIX) or target_id.startswith(EFFECTOR_PREFIX)):
         raise ConfigError(f"projection {source_ref} → {target_id}: v1 の可塑性は Unit どうしの接続だけが対象です")
