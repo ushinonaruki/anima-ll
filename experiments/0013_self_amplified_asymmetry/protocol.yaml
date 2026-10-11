@@ -1,4 +1,4 @@
-# 実験 0013 の実行条件と判定基準（事前登録の案 v0.2。道具より前にコミットする）
+# 実験 0013 の実行条件と判定基準（事前登録の案 v0.3。道具より前にコミットする）
 #
 # なぜこの条件なのかは README.md に書く。値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。
 
@@ -33,7 +33,9 @@ judgment:
   no_usable_pair: counts_as_not_satisfied             # 適格な個体で、使える組が 1 つもなければ「満たさない」（分母に残す）
   h_d: {per_individual: majority_of_eligible_pairs_with_nonzero_b, direction: final_weight_sign_equals_b}
   h_a: {per_individual: g_birth_plastic_greater_than_g_birth_nonplastic, g_birth: sum_over_eligible_nonzero_b_pairs_of_b_times_f_late}
-  m: {per_individual: g_as_is_greater_than_g_reset, orientation: sign_of_a_at_intervention, pairs: eligible_with_nonzero_a_at_intervention}
+  m: {per_individual: g_as_is_greater_than_g_reset, orientation: sign_of_a_at_intervention, pairs: eligible_with_nonzero_a_at_intervention,
+      no_usable_pair: counts_as_not_satisfied}
+  loop_supported_only_if: [h_a, h_d, m]   # 正のフィードバックの輪が支持されたと言えるのは 3 つすべてが成り立ったときだけ（README §5.2）
   primary: h_a
   manipulation:
     nonplastic_weights_unchanged: true
