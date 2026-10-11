@@ -1,4 +1,5 @@
 import hashlib
+from collections.abc import Mapping
 import json
 from dataclasses import asdict
 
@@ -20,6 +21,7 @@ from anima_ll.domain.model.pulse import PulseContext
 from anima_ll.domain.model.runtime_event import RuntimeEvent, RuntimeEventType
 from anima_ll.domain.model.kernel_task import KernelStatus
 from anima_ll.domain.model.unit_step import UnitStepResult
+from anima_ll.domain.port.connection_state import ConnectionKey, ConnectionStatePort
 from anima_ll.domain.port.event_log import EventLog
 from anima_ll.runtime.brain_state_integrator import BrainStateIntegrator
 from anima_ll.runtime.compute_intent import ComputeIntent
@@ -69,10 +71,12 @@ class PulseRuntime:
         dispatcher: EffectorDispatcher,
         issuer: IdentifierIssuer,
         event_log: EventLog,
+        connections: ConnectionStatePort,
         initial_state: BrainState | None = None,
         state_sample_interval: int = 0,
     ) -> None:
         self._units = units
+        self._connections = connections
         self._claim_permissions = claim_permissions
         self._intake = intake
         self._view_builder = view_builder
@@ -106,6 +110,9 @@ class PulseRuntime:
         produced: list[StateDelta] = []
         drives: list[Drive] = []
         pending: list[_PendingRequest] = []
+        fired: list[UnitId] = []
+        # この Pulse の伝達に使う重みは、Pulse の冒頭の接続の状態で固定する（接続の状態 仕様 §5）
+        weights = self._connections.weights()
 
         # 1. 感覚の出来事（Receptor が成立させたもの）。駆動は Unit の発火と同じ運び方で運ぶ。
         #    中身が添えられていれば、中身の Delta として運ぶ（Receptor は View を持たないので来歴の起点）
@@ -114,7 +121,7 @@ class PulseRuntime:
             self._log.append(RuntimeEvent(RuntimeEventType.SENSORY, event.pulse,
                                           {"receptor_id": event.receptor_id,
                                            "with_material": event.material is not None}))
-            drives += self._transmit(event.receptor_id, event.pulse)
+            drives += self._transmit(event.receptor_id, event.pulse, weights)
             if event.material is not None:
                 proposal = ProposedDelta(kind=DeltaKind.CONTENT, payload=event.material)
                 produced += self._publish(event.receptor_id, proposal, frozenset(), None, None, pulse)
@@ -159,7 +166,8 @@ class PulseRuntime:
             if step.activity is not None:
                 self._log.append(RuntimeEvent(RuntimeEventType.ACTIVITY, pulse,
                                               {"unit_id": step.activity.unit_id}))
-                drives += self._transmit(step.activity.unit_id, pulse)
+                fired.append(step.activity.unit_id)
+                drives += self._transmit(step.activity.unit_id, pulse, weights)
             produced += self._collect_step(
                 unit.unit_id, step, view.delta_ids(), snapshot.snapshot_id, None, pulse, pending
             )
@@ -174,6 +182,9 @@ class PulseRuntime:
         to_brain = [d for d in produced if not is_effector(d.target_id)]
         to_effectors = [d for d in produced if is_effector(d.target_id)]
         self._state = self._integrator.integrate(self._state, to_brain, drives, pulse)
+        # 接続の状態の更新は、この Pulse の発火の出来事を Neuroarchitecture に渡すだけ（重みを決めない）。
+        # 更新は次の Pulse の冒頭の固定から見える。この Pulse に成立した伝達の重みは変わらない
+        self._connections.apply_activity(fired, context.delta_time)
 
         # 7. 外界への作用
         await self._dispatcher.dispatch(to_effectors)
@@ -190,6 +201,10 @@ class PulseRuntime:
                     RuntimeEvent(RuntimeEventType.UNIT_STATE, pulse,
                                  {"unit_id": unit.unit_id, "state": unit.export_state()})
                 )
+            connections = self._connections.export_state()
+            if connections:
+                self._log.append(RuntimeEvent(RuntimeEventType.CONNECTION_STATE, pulse,
+                                              {"connections": connections}))
 
     def _collect_step(
         self,
@@ -242,14 +257,16 @@ class PulseRuntime:
             self._violation(pulse, source_id, "unknown_effector", {"targets": unknown})
         return [d for d in outcome.deltas if d.target_id not in unknown]
 
-    def _transmit(self, source_id: ComponentId, pulse: PulseNumber) -> list[Drive]:
+    def _transmit(self, source_id: ComponentId, pulse: PulseNumber,
+                  weights: Mapping[ConnectionKey, float]) -> list[Drive]:
         """成立済みの出来事（Unit の発火・Receptor の感覚）を、接続に沿って駆動として運ぶ。
 
         送り手が Unit でも Receptor でも同じ運び方（活動の伝達 仕様 §3.3）：
-        接続を引き、この Pulse の重みを凍結し、次の Pulse に届ける。何が刺激かを判断しない。
+        接続を引き、この Pulse の冒頭に固定した重みを凍結し、次の Pulse に届ける。何が刺激かを判断しない。
         """
         return [
-            Drive(source_id=source_id, target_id=p.target_id, weight=p.weight, created_pulse=pulse)
+            Drive(source_id=source_id, target_id=p.target_id,
+                  weight=weights[(p.source_id, p.source_port, p.target_id)], created_pulse=pulse)
             for p in self._router.route_activity(source_id)
         ]
 

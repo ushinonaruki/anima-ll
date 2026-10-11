@@ -22,6 +22,7 @@ class RuntimeEventType:
     EFFECT = "effect"
     VIOLATION = "violation"
     UNROUTED = "unrouted"
+    CONNECTION_STATE = "connection_state"  # 観察用：可塑性の対象の接続の重み・痕跡の標本（unit_state と同じ間隔）
     UNIT_STATE = "unit_state"  # 観察用：Unit の私的な状態の標本（間隔は設定で決める。既定は記録しない）
 
 

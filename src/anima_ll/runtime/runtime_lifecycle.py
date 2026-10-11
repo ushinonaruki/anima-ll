@@ -3,6 +3,7 @@ import asyncio
 from anima_ll.domain.model.individual import IndividualSnapshot
 from anima_ll.domain.model.pulse import PulseContext
 from anima_ll.domain.port.clock import Clock
+from anima_ll.domain.port.connection_state import ConnectionStatePort
 from anima_ll.domain.port.snapshot_store import SnapshotStore
 from anima_ll.runtime.kernel_task_coordinator import KernelTaskCoordinator
 from anima_ll.runtime.pulse_runtime import PulseRuntime
@@ -23,6 +24,7 @@ class RuntimeLifecycle:
         pulse_runtime: PulseRuntime,
         coordinator: KernelTaskCoordinator,
         units: UnitRegistry,
+        connections: ConnectionStatePort,
         snapshot_store: SnapshotStore | None = None,
     ) -> None:
         self._individual_id = individual_id
@@ -30,6 +32,7 @@ class RuntimeLifecycle:
         self._pulse_runtime = pulse_runtime
         self._coordinator = coordinator
         self._units = units
+        self._connections = connections
         self._snapshot_store = snapshot_store
         self._stop_requested = False
         self._pulse = 0
@@ -64,6 +67,7 @@ class RuntimeLifecycle:
             individual_id=self._individual_id,
             pulse=self._pulse,
             units={unit.unit_id: unit.export_state() for unit in self._units.all()},
+            connections=self._connections.export_state(),
         )
         if self._snapshot_store is not None:
             self._snapshot_store.save(snapshot)

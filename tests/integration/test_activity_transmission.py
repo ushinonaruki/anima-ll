@@ -198,9 +198,9 @@ def test_t5_firing_record_is_independent_of_kernel_timing_and_result() -> None:
 
 
 # ---- T7：重みは伝達の成立時点で凍結される --------------------------------------------------
-# 注：今は static-weight の前段（precursor）の試験で、「設計図の重みが Drive に写される」ことまでしか
-#     確かめていない。本来の T7（W_t で成立した伝達は、境界で ConnectionState が W_{t+1} に変わっても
-#     W_t のまま）は、変わる ConnectionState を入れるときに本試験として追加する。
+# 注：これは static-weight の前段（precursor）の試験で、「設計図の重みが Drive に写される」ことまでを確かめる。
+#     本来の T7（W_t で成立した伝達は、境界で ConnectionState が W_{t+1} に変わっても W_t のまま）は、
+#     tests/integration/test_plasticity_runtime.py の test_t7_transmission_keeps_the_weight_frozen_at_its_pulse
 
 def test_t7_drive_carries_the_weight_frozen_at_transmission() -> None:
     manifest = parse_neuroarchitecture(BASE["neuro"])

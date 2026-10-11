@@ -22,3 +22,5 @@ class IndividualSnapshot:
     individual_id: str
     pulse: PulseNumber
     units: dict[UnitId, JsonValue] = field(default_factory=dict)
+    connections: dict[str, JsonValue] = field(default_factory=dict)
+    """可塑性の対象の接続の重み・痕跡（Life History）。可塑性がなければ空。"""
