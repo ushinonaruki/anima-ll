@@ -97,10 +97,14 @@ def manipulation(runs: list[dict]) -> list[str]:
     problems = []
     for r in runs:
         c = r["checks"]
-        for key in ("nonplastic_weights_unchanged", "identical_birth_state", "identical_until_first_weight_change",
+        for key in ("nonplastic_weights_unchanged", "identical_birth_state",
                     "clone_identity", "reset_weights_are_w0", "reset_traces_kept"):
             if not c[key]:
                 problems.append(f"seed {r['seed']}: {key}")
+        # 最初に重みが変わるまでの一致は、保存済みの真偽値ではなく、保存済みの生の発火の記録から再検証する
+        # （d2710f3 の run.py は、重みが一度も変わらない個体で誤って false を保存していた。#58）
+        if not W.identical_until_first_weight_change(r["activity"]["plastic"], r["activity"]["nonplastic"]):
+            problems.append(f"seed {r['seed']}: identical_until_first_weight_change")
         if not c["replay_error"] < tol:
             problems.append(f"seed {r['seed']}: 再生の計算と記録の重みの差 {c['replay_error']}")
     return problems
@@ -146,12 +150,16 @@ def analyze(data: dict) -> dict:
         problems += manipulation(runs)
     base = {"experiment": "0013", "smoke": smoke, "git_commit": data["meta"]["git_commit"], "seeds": expected,
             "valid": not problems, "problems": problems,
-            "first_weight_change_pulse": {str(r["seed"]): r["checks"]["first_weight_change_pulse"] for r in runs},
+            "first_weight_change_pulse": {str(r["seed"]): W.first_weight_change(r["activity"]["plastic"]) for r in runs},
             "eligible_pairs": {str(r["seed"]): r["eligible_pairs"] for r in runs}}
     if smoke:
         return base | {"note": "動作確認（README §7：実行の操作の確認だけ）。C・H_A・M の量は計算していない",
                        "smoke_passed": not problems}
 
+    if problems:
+        # invalid のときは、判定の量（C・H_A・M）を計算も表示もしない（無効な run の結果を見ないため）
+        return base | {"primary": "c", "judgment": None, "per_seed": None, "records": None,
+                       "note": "invalid のため、C・H_A・M は計算していない"}
     per = {str(r["seed"]): statistics(r) for r in runs}
     eligible = [str(r["seed"]) for r in runs if r["eligible_pairs"]]
     need = PROTOCOL["judgment"]["min_fraction_of_eligible"]
@@ -159,11 +167,11 @@ def analyze(data: dict) -> dict:
     for key in ("c", "h_a", "m"):
         ok = [sd for sd in eligible if per[sd][key]]
         frac = len(ok) / len(eligible) if eligible else None
-        status = "invalid" if problems or not eligible else ("holds" if frac >= need else "fails")
+        status = "invalid" if not eligible else ("holds" if frac >= need else "fails")
         judgment[key] = {"status": status, "satisfied": len(ok), "eligible": len(eligible), "fraction": frac,
                          "required_fraction": need, "seeds": sorted(int(x) for x in ok)}
     return base | {"primary": "c", "judgment": judgment, "per_seed": per,
-                   "records": records(runs) if not problems else None}
+                   "records": records(runs)}
 
 
 def main() -> None:
@@ -177,6 +185,8 @@ def main() -> None:
     if report["smoke"]:
         print("【動作確認（README §7）。C・H_A・M の量は計算していない】")
         print(f"smoke_passed: {report['smoke_passed']}")
+    elif report["judgment"] is None:
+        print("invalid のため、C・H_A・M は計算していない")
     else:
         for key, name in (("c", "C（主）"), ("h_a", "H_A"), ("m", "M")):
             j = report["judgment"][key]

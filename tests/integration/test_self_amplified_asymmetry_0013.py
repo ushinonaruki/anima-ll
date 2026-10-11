@@ -64,7 +64,7 @@ def test_twins_fire_identically_until_the_first_weight_change(R, seed) -> None:
     p, n = W.build(PROTOCOL, "plastic", seed, lp), W.build(PROTOCOL, "nonplastic", seed, ln)
     W.advance_to(p, 3000)
     W.advance_to(n, 3000)
-    first = R.first_weight_change(lp.activity())
+    first = W.first_weight_change(lp.activity())
     assert first is not None
     assert [a for a in lp.activity() if a[0] <= first] == [a for a in ln.activity() if a[0] <= first]
 
@@ -90,9 +90,9 @@ def test_as_is_clone_matches_main_and_reset_clone_has_w0_weights_with_traces_kep
 
 
 def test_first_weight_change_on_synthetic_records(R) -> None:
-    assert R.first_weight_change([[5, "s1"], [7, "s1"], [9, "s2"]]) == 9
-    assert R.first_weight_change([[5, "s1"], [5, "s2"], [6, "s3"]]) == 6   # 同じ Pulse は痕跡に入っていない
-    assert R.first_weight_change([[5, "s1"], [8, "s1"]]) is None
+    assert W.first_weight_change([[5, "s1"], [7, "s1"], [9, "s2"]]) == 9
+    assert W.first_weight_change([[5, "s1"], [5, "s2"], [6, "s3"]]) == 6   # 同じ Pulse は痕跡に入っていない
+    assert W.first_weight_change([[5, "s1"], [8, "s1"]]) is None
 
 
 def test_follows_and_asymmetries() -> None:
@@ -132,3 +132,34 @@ def test_statistics_use_plain_arithmetic_for_zero_terms_and_empty_sums(A) -> Non
     early = [[1100, "s1"], [1101, "s2"]]
     s = A.statistics(_synthetic_run([["s1", "s2"]], early, weights=w))
     assert s["b"] == {"s1-s2": 1} and s["c_birth"] == pytest.approx(0.003) and s["c"]
+
+
+def test_identical_until_first_weight_change_compares_whole_records_when_weights_never_change() -> None:
+    act = [[27, "s1"], [297, "s1"], [670, "s1"]]          # 発火する Unit が 1 つだけ → 重みは一度も変わらない
+    assert W.first_weight_change(act) is None
+    assert W.identical_until_first_weight_change(act, list(act))
+    assert not W.identical_until_first_weight_change(act, act[:2])
+    assert W.identical_until_first_weight_change([[5, "s1"], [9, "s2"], [20, "s1"]], [[5, "s1"], [9, "s2"], [21, "s1"]])
+    assert not W.identical_until_first_weight_change([[5, "s1"], [9, "s2"]], [[5, "s1"], [8, "s2"]])
+
+
+def _stored_run(seed, act_p, act_n, stored_identical):
+    return {"seed": seed, "activity": {"plastic": act_p, "nonplastic": act_n},
+            "checks": {"nonplastic_weights_unchanged": True, "identical_birth_state": True,
+                       "identical_until_first_weight_change": stored_identical, "clone_identity": True,
+                       "reset_weights_are_w0": True, "reset_traces_kept": True, "replay_error": 0.0}}
+
+
+def test_reanalysis_revalidates_from_raw_activity_not_the_stored_boolean(A) -> None:
+    """d2710f3 の run.py が保存した誤った false（重みが一度も変わらない個体）を、生の記録から正しく再検証できる。"""
+    act = [[27, "s1"], [297, "s1"]]
+    assert A.manipulation([_stored_run(2016, act, list(act), False)]) == []
+    # 逆に、保存済みが true でも、生の記録が一致しなければ問題として出す
+    assert A.manipulation([_stored_run(1, [[5, "s1"], [9, "s2"]], [[5, "s1"], [8, "s2"]], True)]) == [
+        "seed 1: identical_until_first_weight_change"]
+
+
+def test_invalid_data_does_not_compute_judgment_statistics(A, monkeypatch) -> None:
+    data = {"meta": {"smoke": False, "git_commit": "x", "protocol": {}, "manifests": {}}, "runs": []}
+    report = A.analyze(data)
+    assert not report["valid"] and report["judgment"] is None and report["per_seed"] is None
