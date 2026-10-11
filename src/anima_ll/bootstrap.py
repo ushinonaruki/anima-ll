@@ -146,7 +146,9 @@ def _build_unit(spec: UnitSpec, rng: random.Random) -> GenericCognitiveUnit:
         adaptation_increment=float(d.params.get("adaptation_increment", 0.0)),
         adaptation_tau_seconds=float(d.params.get("adaptation_tau", 0.0)),
     )
-    initial = ActivityState(activity=rng.uniform(0.0, threshold * 0.5))
+    # 出生時の activity のばらつきの幅（閾値に対する比）。Birth State の初期条件なので設計図に書く
+    initial_max_ratio = float(_required(d.params, "initial_activity_max_ratio", where))
+    initial = ActivityState(activity=rng.uniform(0.0, threshold * initial_max_ratio))
 
     o = spec.output
     output: UnitOutput

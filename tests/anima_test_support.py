@@ -16,7 +16,8 @@ BASE = {
             "effectors": ["effector.console"],
         },
         "defaults": {"dynamics": {"kind": "simple_activity", "decay": 0.85, "threshold": 0.5,
-                                  "refractory_pulses": 3, "intrinsic_drive": 0.08, "jitter": 0.1}},
+                                  "refractory_pulses": 3, "intrinsic_drive": 0.08, "jitter": 0.1,
+                                  "initial_activity_max_ratio": 0.5}},
         "units": [
             {"id": "u0", "output": "relay"},
             {"id": "u1", "output": {"kind": "kernel_request", "resource": "llm_pool", "max_inputs": 8}},

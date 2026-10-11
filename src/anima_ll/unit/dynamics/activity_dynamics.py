@@ -19,8 +19,7 @@ class ActivityState:
 
 @dataclass(frozen=True)
 class Firing:
-    strength: float
-    """発火の強さ（0〜1）。claim の強さとして使われる。"""
+    """発火した、という力学の結果。強さは持たない（使う場所がないため。計算資源境界 §7・接続の状態 仕様 §4.1）。"""
 
 
 class ActivityDynamics(Protocol):

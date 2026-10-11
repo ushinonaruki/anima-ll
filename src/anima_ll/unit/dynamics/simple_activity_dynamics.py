@@ -47,7 +47,6 @@ class SimpleActivityDynamics:
         if state.refractory_remaining > 0:
             return ActivityState(activity, state.refractory_remaining - 1, adaptation, state.fire_count), None
         if activity >= self.threshold + adaptation:
-            strength = min(1.0, activity)  # claim の式は変えない（順応は発火のタイミングを通して間接に効く）
             return (
                 ActivityState(
                     0.0,
@@ -55,7 +54,7 @@ class SimpleActivityDynamics:
                     adaptation + self.adaptation_increment,
                     state.fire_count + 1,
                 ),
-                Firing(strength),
+                Firing(),
             )
         return ActivityState(activity, 0, adaptation, state.fire_count), None
 

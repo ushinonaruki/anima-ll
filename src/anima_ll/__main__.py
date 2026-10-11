@@ -45,7 +45,8 @@ def main() -> None:
     parser.add_argument("--individual", type=Path, default=DEFAULT_INDIVIDUAL)
     parser.add_argument("--seed", type=int, default=None, help="個体の seed を上書きする（実験用）")
     parser.add_argument("--pulses", type=int, default=None, help="省略すると Ctrl+C まで動き続ける")
-    parser.add_argument("--interval", type=float, default=1.0, help="1 Pulse の秒数")
+    parser.add_argument("--interval", type=float, default=None,
+                        help="1 Pulse の秒数を上書きする（実験用）。ふだんは実行環境の runtime.pulse_interval_seconds")
     parser.add_argument("--clock", choices=["realtime", "fast"], default="realtime")
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
     parser.add_argument("--state-log-interval", type=int, default=0,
@@ -65,11 +66,16 @@ def main() -> None:
         "environment": args.environment,
         "individual": args.individual,
     }
+    environment = YamlEnvironmentSource(args.environment).load()
+    interval = args.interval if args.interval is not None else environment.pulse_interval_seconds
+    if interval is None:
+        # 1 Pulse の秒数は時間の解像度として認知に効くので、コードに既定値を置かない
+        raise SystemExit(f"{args.environment}: runtime.pulse_interval_seconds が書かれていません（--interval でも指定できます）")
     app = build_application(
         YamlNeuroarchitectureSource(args.neuroarchitecture).load(),
-        YamlEnvironmentSource(args.environment).load(),
+        environment,
         birth,
-        clock=make_clock(args.clock, args.interval),
+        clock=make_clock(args.clock, interval),
         event_log=event_log,
         snapshot_store=JsonSnapshotStore(args.data_dir / "snapshots"),
         run_metadata={
@@ -78,7 +84,8 @@ def main() -> None:
             "config_sha256": {k: _sha256(v) for k, v in config_files.items()},
             "seed_overridden": args.seed is not None,
             "clock": args.clock,
-            "interval_seconds": args.interval,
+            "interval_seconds": interval,
+            "interval_overridden": args.interval is not None,
             "git_commit": _git_commit(),
             "state_log_interval": args.state_log_interval,
         },

@@ -25,3 +25,6 @@ receptors:
 effectors:
   effector.console:
     kind: console
+
+runtime:
+  pulse_interval_seconds: 1.0   # 1 Pulse の秒数（時間の解像度）。減衰・順応は秒で書かれているので認知に効く。値に根拠なし（台帳 §3.9）

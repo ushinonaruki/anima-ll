@@ -33,6 +33,7 @@ defaults:
                            # 平衡値 ≒ drive / (1 - decay) ≒ 0.53 で閾値をわずかに上回る。
                            # 0.05 だと平衡値 ≒ 0.33 で、入力がない限り一度も発火しない
     jitter: 0.1          # Unit ごとのパラメータのばらつき（±10%）
+    initial_activity_max_ratio: 0.5   # 2026-10-11：コード内にあった値（threshold × 0.5）を明示しただけ。値は変えていない
 
 units:
   - id: u0
