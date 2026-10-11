@@ -1,0 +1,59 @@
+# 実験 0015 の実行条件と判定基準（事前登録の案 v0.1。道具より前にコミットする）
+#
+# なぜこの条件なのかは README.md に書く。値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。
+# 経験の区間は 0014 v0.3 と同じ設計（設計図・刺激・時刻）。新しく選んだ値は README §3 の表に印をつける。
+
+seeds: {first: 6001, last: 6020}        # これまでに走らせた seed（1〜20・1001〜1020・2001〜2020・3001〜3006・4001〜4020・5001〜5006）を避ける
+
+brain:
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml   # 0012 v0.3 の設計図そのまま（0014 と同じ）
+  dynamics_from: config/neuroarchitecture/minimal-v3.yaml
+  sensory_units: [s1, s2, s3]
+  receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+
+timeline:                               # Pulse（1 Pulse ＝ 1 秒）
+  pulse_interval_seconds: 1.0
+  trials: {first: 1, every: 60, count: 200}   # 0014 と同じ
+  # 経験の終わり ＝ trials.first − 1 ＋ count × every ＝ 12000（0014 の W_post と同じ周期の境界）
+  experience_end: "trials.first - 1 + trials.count * trials.every"
+  # 無入力の区間の長さ ＝ 経験の区間の長さ（12000）。総 Pulse ＝ 2 × 経験の終わり ＝ 24000
+  total_pulses: "2 * experience_end"
+  sample_every: "trials.every"          # 記録用の標本の間隔（60）。判定には使わない
+
+stimulus:                               # 0014 と同じ（乱数の流れの名前だけ 0015 で分ける）
+  b_offset: 2
+  c_offset: 30
+  counts: {A: 200, B: 200, C: 200}
+  rng_shuffle: "0015-shuffle:{seed}"
+  conditions: [ordered, shuffled]
+  role_assignment: "(seed - 1) mod 6"
+  role_orders:
+    - [receptor.x1, receptor.x2, receptor.x3]
+    - [receptor.x1, receptor.x3, receptor.x2]
+    - [receptor.x2, receptor.x1, receptor.x3]
+    - [receptor.x2, receptor.x3, receptor.x1]
+    - [receptor.x3, receptor.x1, receptor.x2]
+    - [receptor.x3, receptor.x2, receptor.x1]
+
+judgment:
+  # W(t) ＝ w(A→B) − w(A→C)（本体の Pulse t の処理の終わり）
+  # D(t) ＝ W_ordered(t) − W_shuffled(t)（同じ seed）
+  # D0 ＝ D(experience_end)、DT ＝ D(total_pulses)
+  primary: p
+  p: {statistic: "sign(D0) * DT", passes_if: "> 0"}
+  applies_to: "D0 != 0"                 # D0 ＝ 0 の個体は N/A（持続を問う差が始めに存在しない）。0 に潰さない
+  denominator: applicable_individuals   # 成り立った個体数 ÷ 適用対象の個体数（D0 ≠ 0）≥ min_fraction
+  min_fraction: 0.8                     # 0012〜0014 と同じ比
+  manipulation:
+    stimulus_counts: true               # 刺激の列と、本体が受けた感覚の出来事の両方（0014 と同じ）
+    input_free_after_experience: true   # experience_end より後に感覚の出来事が 1 つもない
+    identical_before_divergence: true   # 同じ seed の 2 条件で、札が最初に違う Pulse より前の発火・状態が一致
+    replay_matches_recorded_weights: 1.0e-12   # 発火の記録から可塑性の規則を再生した重みと、記録の重みの差（0013 と同じ）
+    revalidate_from_raw: true
+    no_statistics_when_invalid: true
+
+smoke:
+  seeds: {first: 7001, last: 7006}
+  checks: {manipulation: all}           # 実行の操作の確認だけ
+  hide: [p]                             # D0・DT・P も計算しない・出力しない（常設チェック D4）
+  on_failure: stop_and_amend
