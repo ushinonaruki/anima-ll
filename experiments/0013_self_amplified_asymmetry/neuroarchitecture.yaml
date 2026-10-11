@@ -1,0 +1,51 @@
+# 実験 0013 用の脳の設計図（可塑性あり）
+#
+# 【位置づけ】実験 0013（README.md §2）の足場。AnIma-ll の脳の新しい版ではない。
+#   0012 v0.3 の設計図（experiments/0012_passive_world/neuroarchitecture.yaml）から Receptor を除いたもの。
+#   力学は minimal-v3 と同じ、可塑性は v1.1（w_max ＝ α、w0 ＝ α／2）。外からの刺激はない
+#
+
+version: 3
+delta_ttl_pulses: 10
+
+interfaces:
+  resources: []
+  receptors: []
+  effectors: []
+
+defaults:
+  dynamics:              # minimal-v3 の defaults.dynamics と完全に同じ
+    kind: simple_activity
+    decay: 0.85
+    threshold: 0.5
+    refractory_pulses: 0
+    intrinsic_drive: 0.08
+    jitter: 0.1
+    initial_activity_max_ratio: 0.5
+    adaptation_increment: 0.01
+    adaptation_tau: 300
+
+units:
+  - id: s1
+    output: relay
+  - id: s2
+    output: relay
+  - id: s3
+    output: relay
+
+plasticity:
+  rule: balanced_pair_window
+  trace: additive
+  bounds: soft
+  trace_tau: activity_time_constant
+  w_min: 0.0
+  w_max: adaptation_increment
+  amplitude_ratio: 0.01
+
+projections:
+  - { from: s1.main, to: s2, weight: 0.005, plastic: true }
+  - { from: s1.main, to: s3, weight: 0.005, plastic: true }
+  - { from: s2.main, to: s1, weight: 0.005, plastic: true }
+  - { from: s2.main, to: s3, weight: 0.005, plastic: true }
+  - { from: s3.main, to: s1, weight: 0.005, plastic: true }
+  - { from: s3.main, to: s2, weight: 0.005, plastic: true }
