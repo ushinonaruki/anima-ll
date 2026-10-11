@@ -3,6 +3,7 @@
 - domain   は domain だけを import する
 - runtime  は domain と runtime だけ
 - unit     は domain と unit だけ
+- neuroarchitecture（接続の状態・可塑性）は domain と neuroarchitecture だけ。runtime は domain の port を通して使う
 - adapter.X は domain と adapter.X だけ（adapter 同士も依存しない）
 - bootstrap と __main__ だけが全部を import できる
 - domain・runtime・unit は外部ライブラリを使わない（標準ライブラリだけ）
@@ -17,7 +18,7 @@ import pytest
 PACKAGE_ROOT = Path(__file__).resolve().parents[2] / "src" / "anima_ll"
 PACKAGE = "anima_ll"
 FREE_LAYERS = {"bootstrap", "__main__"}
-PURE_LAYERS = {"domain", "runtime", "unit"}
+PURE_LAYERS = {"domain", "runtime", "unit", "neuroarchitecture"}
 
 
 def layer_of_module_path(relative: Path) -> str:
@@ -43,6 +44,8 @@ def allowed_layers(layer: str) -> set[str]:
         return {"domain", "runtime"}
     if layer == "unit":
         return {"domain", "unit"}
+    if layer == "neuroarchitecture":
+        return {"domain", "neuroarchitecture"}
     if layer.startswith("adapter"):
         return {"domain", layer}
     return set()

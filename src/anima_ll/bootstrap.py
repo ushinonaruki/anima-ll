@@ -41,6 +41,7 @@ from anima_ll.runtime.receptive_view_builder import ReceptiveViewBuilder
 from anima_ll.runtime.runtime_lifecycle import RuntimeLifecycle
 from anima_ll.runtime.unit_registry import UnitRegistry
 from anima_ll.unit.dynamics.activity_dynamics import ActivityState
+from anima_ll.neuroarchitecture.connections import ConnectionStore
 from anima_ll.unit.dynamics.simple_activity_dynamics import SimpleActivityDynamics
 from anima_ll.unit.generic_cognitive_unit import GenericCognitiveUnit
 from anima_ll.unit.output.kernel_request_output import KernelRequestOutput
@@ -174,6 +175,7 @@ class Application:
     units: UnitRegistry
     receptors: dict[str, Receptor] = field(default_factory=dict)
     effectors: dict[str, Effector] = field(default_factory=dict)
+    connections: ConnectionStore | None = None
 
 
 class ConfigurationMismatch(ValueError):
@@ -235,6 +237,7 @@ def build_application(
     built = [_build_unit(spec, rng) for spec in manifest.units]  # seed の消費順を固定するため全部作る
     units = UnitRegistry((unit_overrides or {}).get(u.unit_id) or u for u in built)
     coordinator = KernelTaskCoordinator(kernels, environment.capacities(), issuer)
+    connections = ConnectionStore(manifest)   # 個体の Neuroarchitecture の接続の状態（初期の重みは設計図から）
 
     pulse_runtime = PulseRuntime(
         units=units,
@@ -249,6 +252,7 @@ def build_application(
         dispatcher=EffectorDispatcher(list(effectors.values())),
         issuer=issuer,
         event_log=event_log,
+        connections=connections,
         state_sample_interval=state_sample_interval,
     )
     lifecycle = RuntimeLifecycle(
@@ -257,9 +261,10 @@ def build_application(
         pulse_runtime=pulse_runtime,
         coordinator=coordinator,
         units=units,
+        connections=connections,
         snapshot_store=snapshot_store,
     )
-    return Application(lifecycle, pulse_runtime, units, receptors, effectors)
+    return Application(lifecycle, pulse_runtime, units, receptors, effectors, connections)
 
 
 def make_clock(mode: str, interval_seconds: float) -> Clock:
