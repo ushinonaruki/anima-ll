@@ -8,8 +8,8 @@
 判定：成り立った個体数 ÷ 適格な個体数（適格な組が 1 つ以上ある個体）≥ min_fraction_of_eligible
 操作の確認（README §5.1）が 1 つでも成り立たなければ invalid。
 
-動作確認（smoke）のデータでは、完全性・操作の確認・d ＝ 1 の組が数えられること（README §7）だけを出す。
-C・H_A・M の量は計算しない。
+動作確認（smoke）のデータでは、完全性・操作の確認（README §5.1・§7）だけを出す。C・H_A・M の量は計算しない。
+（v0.5：d ＝ 1 の組の数が 0 でないことの検査は撤去した。0 は正当な観測値で、F_ij の数え方は契約テストで保証する）
 
 使い方:
   python experiments/0013_self_amplified_asymmetry/analyze.py [data/experiments/0013]
@@ -106,19 +106,6 @@ def manipulation(runs: list[dict]) -> list[str]:
     return problems
 
 
-def d1_countable(runs: list[dict]) -> dict:
-    """README §7：適格な組で、前の窓（可塑性なし）の F_ij ＋ F_ji が 0 でないこと。"""
-    zero = []
-    n = 0
-    for r in runs:
-        F = W.follows(r["activity"]["nonplastic"], window("early_window"))
-        for i, j in map(tuple, r["eligible_pairs"]):
-            n += 1
-            if F.get((i, j), 0) + F.get((j, i), 0) == 0:
-                zero.append({"seed": r["seed"], "pair": f"{i}-{j}"})
-    return {"eligible_pairs": n, "pairs_with_zero_follows": zero, "passed": n > 0 and not zero}
-
-
 # ---- 記録（判定に使わない。README §6） ------------------------------------------------------
 
 def records(runs: list[dict]) -> dict:
@@ -162,9 +149,8 @@ def analyze(data: dict) -> dict:
             "first_weight_change_pulse": {str(r["seed"]): r["checks"]["first_weight_change_pulse"] for r in runs},
             "eligible_pairs": {str(r["seed"]): r["eligible_pairs"] for r in runs}}
     if smoke:
-        d1 = d1_countable(runs) if not problems else None
-        return base | {"note": "動作確認（README §7）。C・H_A・M の量は計算していない", "d1_countable": d1,
-                       "smoke_passed": bool(not problems and d1 and d1["passed"])}
+        return base | {"note": "動作確認（README §7：実行の操作の確認だけ）。C・H_A・M の量は計算していない",
+                       "smoke_passed": not problems}
 
     per = {str(r["seed"]): statistics(r) for r in runs}
     eligible = [str(r["seed"]) for r in runs if r["eligible_pairs"]]
@@ -190,10 +176,6 @@ def main() -> None:
         print(f"  - {p}")
     if report["smoke"]:
         print("【動作確認（README §7）。C・H_A・M の量は計算していない】")
-        d1 = report["d1_countable"]
-        if d1:
-            print(f"d1_countable: {'passed' if d1['passed'] else 'FAILED'}（適格な組 {d1['eligible_pairs']}、"
-                  f"F が 0 の組 {len(d1['pairs_with_zero_follows'])}）")
         print(f"smoke_passed: {report['smoke_passed']}")
     else:
         for key, name in (("c", "C（主）"), ("h_a", "H_A"), ("m", "M")):
