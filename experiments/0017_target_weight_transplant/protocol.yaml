@@ -1,4 +1,4 @@
-# 実験 0017 の実行条件と判定基準（事前登録の案 v0.2。道具より前にコミットする）
+# 実験 0017 の実行条件と判定基準（事前登録の案 v0.3。道具より前にコミットする）
 #
 # なぜこの条件なのかは README.md に書く。値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。
 # 経験と無入力の区間は 0015 v0.2 と同じ（順序あり・順序を崩した の 2 条件）。試しの時刻・読み出しは 0016 v0.2 と同じ。
@@ -73,5 +73,12 @@ judgment:
 smoke:
   seeds: {first: 10101, last: 10106}
   checks: {manipulation: all}
-  hide: [E, s, D_fork, dm_fork]         # 各試しの E・個体ごとの S に加え、移植の差（D・平均の成分の差）も計算しない・表示しない・報告に出さない
+  # 次はどれも、計算しない・表示しない・保存した報告に出さない（開発中も出力しない。README §7、常設チェック D4）
+  hide:
+    - E                                 # 各試しの E(t0)
+    - s                                 # 個体ごとの S と判定
+    - D_fork                            # 各試しの W_as_is − W_transplanted
+    - dm_fork                           # 各試しの m_as_is − m_transplanted（平均の成分の差）
+    - target_weight_differences         # 4 本それぞれの weight の差（Δw(A→B)＝Δx・Δw(A→C)＝Δy・Δw(B→A)・Δw(C→A)）
+    - changed_weight_count              # 各試しで 4 本のうち違った本数
   on_failure: stop_and_amend
