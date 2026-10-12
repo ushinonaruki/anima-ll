@@ -1,4 +1,4 @@
-# 実験 0019 の実行条件と判定基準（事前登録の案 v0.1。道具より前にコミットする）
+# 実験 0019 の実行条件と判定基準（事前登録の案 v0.2。道具より前にコミットする）
 #
 # なぜこの条件なのかは README.md に書く。値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。
 # 経験・無入力の区間・試しの時刻・runtime の境界は 0017 v0.3・0018 v0.2 と同じ。違うのは介入と seed だけ：
@@ -83,6 +83,6 @@ smoke:
     - dm_fork                           # 各試しの m_ordered − m_shuffled（＝ 2 腕の m の差）
     - target_weight_differences         # 2 腕の 4 本それぞれの差
     - changed_weight_count              # 各試しで 2 腕の 4 本のうち違った本数
-    - recipient_contrast_displacement   # 各試しの W_o − 0（標準化で 2 腕に共通に加えた変位）
+    - recipient_contrast_displacement   # 各試しの W_o（旧値 − 新値＝標準化で取り除いた量。実際に加えた差分は −W_o）
     - donor_contrast_offset             # 各試しの W_s − 0（提供側の自然な contrast。介入の量ではない）
   on_failure: stop_and_amend
