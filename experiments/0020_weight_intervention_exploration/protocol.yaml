@@ -1,4 +1,4 @@
-# 探索 0020 の実行条件と記録項目（探索の設計 v0.2。判定を置かない。実行の前に固定する）
+# 探索 0020 の実行条件と記録項目（探索の設計 v0.3。判定を置かない。実行の前に固定する）
 #
 # これは事前登録した検証ではなく、仮説を作るための探索である（README §0）。holds／fails の判定を置かない。
 # なぜこの条件なのかは README.md に書く。値はどれも、この探索の手順を決める足場で、AnIma-ll の脳の生物値ではない。
@@ -68,3 +68,5 @@ execution:                              # 一度限りの実行（README §7.1�
   rerun: refuse                         # 開始・終了の記録・結果があれば、完了・中断を問わず実行しない
   end_commit_check: true                # 終わりに HEAD・作業ツリーが開始時の commit のままか確かめ直す
   on_failure: disclose_and_use_new_seed_range   # 失敗しても同じ範囲で再実行しない（README §0）
+  max_workers: 2                        # 同時に動かすプロセスの上限（実行前に固定。CPU 数に合わせて増やさない）
+  results_must_match_seeds: true        # 保存の前に、結果の seed の列が期待の列と件数・順序・重複なしで完全に一致すること（不一致は failed）

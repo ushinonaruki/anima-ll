@@ -220,9 +220,10 @@ def _check_data(check_run, mode="check", commit=FAKE_COMMIT, runs=None):
                      "protocol": PROTOCOL, "manifest": W.manifest_raw(PROTOCOL), "seeds": seeds},
             "runs": runs}
     proto_sha = G.sha256_file(EXP / "protocol.yaml")
-    records = {"start": {"mode": mode, "git_commit": commit, "seeds": seeds, "protocol_sha256": proto_sha},
-               "finish": {"status": "completed", "mode": mode, "git_commit_start": commit, "git_commit_end": commit,
-                          "seeds": seeds, "runs_sha256": "f" * 64},
+    ek = {"experiment": "0020", "kind": "exploration"}
+    records = {"start": ek | {"mode": mode, "git_commit": commit, "seeds": seeds, "protocol_sha256": proto_sha},
+               "finish": ek | {"status": "completed", "mode": mode, "git_commit_start": commit,
+                               "git_commit_end": commit, "seeds": seeds, "runs_sha256": "f" * 64},
                "runs_sha256": "f" * 64}
     return data, records
 
@@ -280,6 +281,8 @@ def test_run_records_are_verified(A, check_run) -> None:
         (lambda r: r.__setitem__("runs_sha256", "e" * 64), "sha256"),
         (lambda r: r["start"].__setitem__("protocol_sha256", "e" * 64), "protocol.yaml"),
         (lambda r: r["start"].__setitem__("mode", "exploration"), "mode"),
+        (lambda r: r["start"].__setitem__("experiment", "0019"), "experiment・kind"),
+        (lambda r: r["finish"].__setitem__("kind", "verification"), "experiment・kind"),
     ]:
         r = copy.deepcopy(rec)
         mutate(r)
@@ -523,3 +526,82 @@ def test_main_refuses_unsafe_invocations(R, monkeypatch, tmp_path) -> None:
         with pytest.raises(SystemExit, match=needle):
             R.main()
     assert not (ROOT / "data" / "experiments" / "0020" / G.START).exists()
+
+
+
+# ---- 並列数の上限と、保存の前の全件の一致（README §7.1、#82 再レビュー） ------------------------------------
+
+def test_pool_map_uses_the_fixed_worker_cap_regardless_of_cpu_count(R, monkeypatch) -> None:
+    """同時に動かすプロセスの上限は protocol の 2 で、CPU 数が多くても増えない。"""
+    assert R.MAX_WORKERS == PROTOCOL["execution"]["max_workers"] == 2
+    seen = []
+
+    class FakePool:
+        def __init__(self, max_workers):
+            seen.append(max_workers)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def map(self, fn, seeds):
+            return map(fn, seeds)
+
+    monkeypatch.setattr(R, "ProcessPoolExecutor", FakePool)
+    monkeypatch.setattr("os.cpu_count", lambda: 64)
+    assert [r["seed"] for r in R._pool_map(lambda s: {"seed": s}, list(range(13001, 13101)))] == list(range(13001, 13101))
+    assert [r["seed"] for r in R._pool_map(lambda s: {"seed": s}, [13101])] == [13101]
+    assert seen == [2, 1]
+
+
+def _timed_worker(seed):
+    """実際のプロセスで、開始・終了の時刻と pid を記録する（並列数の契約のためだけ）。"""
+    import os as _os
+    import time as _time
+    t0 = _time.monotonic()
+    _time.sleep(0.15)
+    t1 = _time.monotonic()
+    path = Path(_os.environ["ANIMA_0020_TIMING_DIR"]) / f"{seed}.json"
+    path.write_text(json.dumps({"seed": seed, "pid": _os.getpid(), "t0": t0, "t1": t1}), encoding="utf-8")
+    return {"seed": seed}
+
+
+@pytest.mark.skipif(__import__("multiprocessing").get_start_method(allow_none=False) != "fork",
+                    reason="テスト関数を子プロセスへ渡すのに fork が要る（本番の run.py は fork・spawn のどちらでも動く）")
+def test_pool_map_never_runs_more_than_two_processes_at_once(R, monkeypatch, tmp_path) -> None:
+    """実際のプロセスで：同時に動くのは 2 つまで、使うプロセスも 2 つまで、各 seed はちょうど 1 回、結果は seed の順。"""
+    monkeypatch.setenv("ANIMA_0020_TIMING_DIR", str(tmp_path))
+    seeds = list(range(13101, 13111))
+    out = list(R._pool_map(_timed_worker, seeds))
+    assert [r["seed"] for r in out] == seeds
+    rec = [json.loads(p.read_text(encoding="utf-8")) for p in tmp_path.glob("*.json")]
+    assert sorted(r["seed"] for r in rec) == seeds                     # 各 seed ちょうど 1 回
+    assert len({r["pid"] for r in rec}) <= 2
+    events = sorted([(r["t0"], 1) for r in rec] + [(r["t1"], -1) for r in rec])
+    running = peak = 0
+    for _, d in events:
+        running += d
+        peak = max(peak, running)
+    assert peak <= 2
+
+
+@pytest.mark.parametrize("name,bad_mapper", [
+    ("欠落", lambda fn, seeds: (fn(s) for s in seeds[:-1])),
+    ("重複", lambda fn, seeds: (fn(s) for s in [seeds[0], seeds[0]])),
+    ("別の seed", lambda fn, seeds: (fn(s + 1000) for s in seeds)),
+    ("多すぎる", lambda fn, seeds: (fn(s) for s in seeds + seeds[:1])),
+    ("順序", lambda fn, seeds: (fn(s) for s in reversed(seeds))),
+    ("辞書でない", lambda fn, seeds: (None for _ in seeds)),
+])
+def test_execute_never_marks_incomplete_results_completed(repo, R, name, bad_mapper) -> None:
+    """mapper が正常に終わっても結果が期待の seed の列と一致しなければ、failed を残し、結果も completed も作らない。"""
+    head = _git(repo, "rev-parse", "HEAD")
+    out = repo.parent / f"out_{name}"
+    with pytest.raises(R.G.GuardError, match="結果"):
+        R.execute("check", [13101, 13102], out, repo, head, runner=lambda s: {"seed": s}, mapper=bad_mapper)
+    fin = json.loads((out / G.FINISH).read_text(encoding="utf-8"))
+    assert fin["status"] == "failed" and fin["seeds_touched"] == [13101, 13102]
+    assert fin["experiment"] == "0020" and fin["kind"] == "exploration"
+    assert not (out / G.RUNS).exists()

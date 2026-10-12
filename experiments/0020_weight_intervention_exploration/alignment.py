@@ -1,4 +1,4 @@
-"""protocol.yaml（探索の設計 v0.2 の正本）と、0020 の設計図・道具が同じ条件かを機械的に確かめる。
+"""protocol.yaml（探索の設計 v0.3 の正本）と、0020 の設計図・道具が同じ条件かを機械的に確かめる。
 
 ズレていたら実行・解析を止める。run.py と analyze.py の両方が最初に呼ぶ。
 """
@@ -23,7 +23,8 @@ CHECKS = {"stimulus_counts": True, "input_free_after_experience": True, "identic
           "clone_identity": True, "transplant": True, "replay_history_12000": 1.0e-12,
           "affine_matches_runtime": 1.0e-12, "divergence_reconstruction": True, "revalidate_from_raw": True}
 EXECUTION = {"measurement_commit": "required", "start_record": "run_started.json", "finish_record": "run_finished.json",
-             "rerun": "refuse", "end_commit_check": True, "on_failure": "disclose_and_use_new_seed_range"}
+             "rerun": "refuse", "end_commit_check": True, "on_failure": "disclose_and_use_new_seed_range",
+             "max_workers": 2, "results_must_match_seeds": True}
 
 
 def _world():

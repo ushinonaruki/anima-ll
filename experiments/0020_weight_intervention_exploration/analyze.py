@@ -1,4 +1,4 @@
-"""探索 0020 の記録の解析（探索の設計 v0.2 に従う。判定を置かない）。正本は protocol.yaml。
+"""探索 0020 の記録の解析（探索の設計 v0.3 に従う。判定を置かない）。正本は protocol.yaml。
 
 1. 実行の記録（開始・終了の記録、結果の sha256。guard.py）と、データの完全性（mode・seed・commit）を確かめる（README §5・§7.1）
 2. 操作の確認（README §5）を、保存した生の記録から再検証する。分岐の記録は、保存した値を信じず、両腕の全発火の列から
@@ -117,6 +117,8 @@ def verify_records(records: dict | None, data: dict, mode: str) -> list[str]:
         problems.append("終了の記録（run_finished.json）がない")
     if start is None or fin is None:
         return problems
+    if any(r.get("experiment") != "0020" or r.get("kind") != "exploration" for r in (start, fin)):
+        problems.append("開始・終了の記録の experiment・kind が 0020・exploration ではない")
     if fin.get("status") != "completed":
         problems.append(f"終了の記録が completed ではない（{fin.get('status')!r}：{fin.get('reason')}）")
     if start.get("mode") != mode or fin.get("mode") != mode:
