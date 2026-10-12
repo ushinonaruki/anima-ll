@@ -1,4 +1,4 @@
-# 探索 0020 の実行条件と記録項目（探索の設計 v0.1。判定を置かない。実行の前に固定する）
+# 探索 0020 の実行条件と記録項目（探索の設計 v0.2。判定を置かない。実行の前に固定する）
 #
 # これは事前登録した検証ではなく、仮説を作るための探索である（README §0）。holds／fails の判定を置かない。
 # なぜこの条件なのかは README.md に書く。値はどれも、この探索の手順を決める足場で、AnIma-ll の脳の生物値ではない。
@@ -60,3 +60,11 @@ checks:                                 # 操作の確認（現象には条件�
   affine_matches_runtime: 1.0e-12       # 各腕の 24000 の重みが、その腕の 12000 の重み・痕跡と自分の発火の列からの affine の再構成と一致
   divergence_reconstruction: true       # 最初の分岐の Pulse で、直前の状態から再構成した発火の判定が、両腕の実際の発火と一致
   revalidate_from_raw: true
+
+execution:                              # 一度限りの実行（README §7.1、guard.py）
+  measurement_commit: required          # 探索は --measurement-commit と HEAD が一致し、作業ツリーがその commit と一致するときだけ（環境変数・"unknown" で代えない）
+  start_record: run_started.json        # seed に触れる前に排他的に作る（O_CREAT | O_EXCL）
+  finish_record: run_finished.json      # completed か failed。結果と終了の記録は原子的に保存
+  rerun: refuse                         # 開始・終了の記録・結果があれば、完了・中断を問わず実行しない
+  end_commit_check: true                # 終わりに HEAD・作業ツリーが開始時の commit のままか確かめ直す
+  on_failure: disclose_and_use_new_seed_range   # 失敗しても同じ範囲で再実行しない（README §0）

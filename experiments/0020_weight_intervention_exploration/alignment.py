@@ -1,4 +1,4 @@
-"""protocol.yaml（探索の設計 v0.1 の正本）と、0020 の設計図・道具が同じ条件かを機械的に確かめる。
+"""protocol.yaml（探索の設計 v0.2 の正本）と、0020 の設計図・道具が同じ条件かを機械的に確かめる。
 
 ズレていたら実行・解析を止める。run.py と analyze.py の両方が最初に呼ぶ。
 """
@@ -22,10 +22,19 @@ SEEN = (set(range(1, 21)) | set(range(1001, 1021)) | set(range(2001, 2021)) | se
 CHECKS = {"stimulus_counts": True, "input_free_after_experience": True, "identical_before_divergence": True,
           "clone_identity": True, "transplant": True, "replay_history_12000": 1.0e-12,
           "affine_matches_runtime": 1.0e-12, "divergence_reconstruction": True, "revalidate_from_raw": True}
+EXECUTION = {"measurement_commit": "required", "start_record": "run_started.json", "finish_record": "run_finished.json",
+             "rerun": "refuse", "end_commit_check": True, "on_failure": "disclose_and_use_new_seed_range"}
 
 
 def _world():
     spec = importlib.util.spec_from_file_location("world_0020_for_alignment", HERE / "world.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _guard():
+    spec = importlib.util.spec_from_file_location("guard_0020_for_alignment", HERE / "guard.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -66,6 +75,9 @@ def check(protocol: dict) -> None:
     expect(iv == {"at": W.INTERVENTION_AT, "arms": list(W.ARMS), "rule": W.INTERVENTION_RULE, "new_values": "none"},
            "介入が想定と違う")
     expect(protocol["checks"] == CHECKS, "操作の確認の項目が想定と違う")
+    expect(protocol.get("execution") == EXECUTION, "一度限りの実行の決まりが想定と違う")
+    G = _guard()
+    expect((EXECUTION["start_record"], EXECUTION["finish_record"]) == (G.START, G.FINISH), "開始・終了の記録の名前が道具と違う")
     seeds = set(range(protocol["seeds"]["first"], protocol["seeds"]["last"] + 1))
     syn = set(range(protocol["synthetic_seeds"]["first"], protocol["synthetic_seeds"]["last"] + 1))
     expect(len(seeds) == 100, "探索の個体数が 100 ではない")

@@ -8,6 +8,7 @@
 
 import copy
 import importlib.util
+import json
 import math
 from pathlib import Path
 
@@ -32,6 +33,7 @@ def _load(name: str, path: Path):
 
 
 W = _load("world_0020_test", EXP / "world.py")
+G = _load("guard_0020_test", EXP / "guard.py")
 SPEC = W.plasticity(PROTOCOL)
 W_MAX = SPEC.w_max
 
@@ -207,11 +209,82 @@ def test_checks_detect_raw_problems(A, check_run) -> None:
             "weight", b["conditions"]["ordered"]["connections_12000"][ids["AB"]]["weight"] + 1e-9)))
 
 
+FAKE_COMMIT = "0" * 40
+
+
+def _check_data(check_run, mode="check", commit=FAKE_COMMIT, runs=None):
+    """通しの確認のデータと、それに合う開始・終了の記録（in-memory。結果のファイルの sha256 は固定の値で代える）。"""
+    runs = [check_run] if runs is None else runs
+    seeds = [r["seed"] for r in runs]
+    data = {"meta": {"experiment": "0020", "kind": "exploration", "mode": mode, "git_commit": commit,
+                     "protocol": PROTOCOL, "manifest": W.manifest_raw(PROTOCOL), "seeds": seeds},
+            "runs": runs}
+    proto_sha = G.sha256_file(EXP / "protocol.yaml")
+    records = {"start": {"mode": mode, "git_commit": commit, "seeds": seeds, "protocol_sha256": proto_sha},
+               "finish": {"status": "completed", "mode": mode, "git_commit_start": commit, "git_commit_end": commit,
+                          "seeds": seeds, "runs_sha256": "f" * 64},
+               "runs_sha256": "f" * 64}
+    return data, records
+
+
 def test_check_report_hides_records(A, check_run) -> None:
-    data = {"meta": {"git_commit": "x", "protocol": PROTOCOL, "manifest": W.manifest_raw(PROTOCOL)},
-            "runs": [check_run]}
-    report = A.analyze(data, check_only=True)
-    assert report["valid"] and not ({"summary", "per_seed"} & set(report))
+    data, records = _check_data(check_run)
+    report = A.analyze(data, "check", records)
+    assert report["valid"], report["problems"]
+    assert not ({"summary", "per_seed"} & set(report))
+
+
+def test_check_completeness_rejects_bad_data(A, check_run) -> None:
+    """空のデータ・seed の重複・meta と実データの不一致・mode の偽装・commit の偽装・範囲外の seed は invalid（README §5）。"""
+    def invalid(data, records, mode="check", needle=None):
+        r = A.analyze(data, mode, records)
+        assert not r["valid"]
+        if needle:
+            assert any(needle in p for p in r["problems"]), r["problems"]
+
+    # レビューで再現された形：runs ＝ []、git_commit ＝ "unknown"、mode の印なし、meta.seeds ＝ [13001]
+    repro = {"meta": {"git_commit": "unknown", "check": False, "seeds": [13001], "protocol": PROTOCOL,
+                      "manifest": W.manifest_raw(PROTOCOL)}, "runs": []}
+    invalid(repro, None, needle="個体が 1 つもない")
+    data, rec = _check_data(check_run, runs=[])
+    invalid(data, rec, needle="個体が 1 つもない")
+    data, rec = _check_data(check_run, runs=[check_run, check_run])
+    invalid(data, rec, needle="seed が重複")
+    data, rec = _check_data(check_run)
+    data["meta"]["seeds"] = [13198]
+    invalid(data, rec, needle="meta の seed の列")
+    data, rec = _check_data(check_run, mode="exploration")
+    invalid(data, rec, mode="check", needle="データの mode")        # 探索のデータを通しの確認として解析しない
+    data, rec = _check_data(check_run)
+    invalid(data, rec, mode="exploration", needle="データの mode")  # 通しの確認のデータを探索として解析しない
+    invalid(data, rec, mode="exploration", needle="13001〜13100 の全件ではない")
+    data, rec = _check_data(check_run, commit="unknown")
+    invalid(data, rec, needle="40 桁の commit")
+    data, rec = _check_data(check_run)
+    data["meta"]["experiment"] = "0019"
+    invalid(data, rec, needle="experiment・kind")
+    bad = copy.deepcopy(check_run)
+    bad["seed"] = 13001                                               # 探索の範囲の seed（中身は 13199 のまま）
+    data, rec = _check_data(check_run, runs=[bad])
+    invalid(data, rec, needle="範囲の外の seed")
+
+
+def test_run_records_are_verified(A, check_run) -> None:
+    """開始・終了の記録がない・failed・commit や sha256 の不一致は invalid（README §7.1）。"""
+    data, rec = _check_data(check_run)
+    for mutate, needle in [
+        (lambda r: r.__setitem__("start", None), "開始の記録"),
+        (lambda r: r.__setitem__("finish", None), "終了の記録"),
+        (lambda r: r["finish"].__setitem__("status", "failed"), "completed ではない"),
+        (lambda r: r["finish"].__setitem__("git_commit_end", "1" * 40), "commit"),
+        (lambda r: r.__setitem__("runs_sha256", "e" * 64), "sha256"),
+        (lambda r: r["start"].__setitem__("protocol_sha256", "e" * 64), "protocol.yaml"),
+        (lambda r: r["start"].__setitem__("mode", "exploration"), "mode"),
+    ]:
+        r = copy.deepcopy(rec)
+        mutate(r)
+        report = A.analyze(data, "check", r)
+        assert not report["valid"] and any(needle in p for p in report["problems"]), (needle, report["problems"])
 
 
 def test_record_structure_and_identities(A, check_run) -> None:
@@ -224,3 +297,229 @@ def test_record_structure_and_identities(A, check_run) -> None:
     d0 = rec["delta_targets_12000"]
     for k in ("AB", "AC"):
         assert abs(rec["J"][k] - rec["dS"][k] * d0[k]) < 1e-15
+
+
+
+def test_trains_identical_is_derived_from_full_trains(A, check_run) -> None:
+    """trains_identical は保存した分岐の記録ではなく、全発火の列から決まる（記録を消しても変わらない）。"""
+    sp = check_run["arms"]["spikes"]
+    expected = A.first_difference(sp["control"], sp["intervention"]) is None
+    bad = copy.deepcopy(check_run)
+    bad["arms"]["divergence"] = None
+    assert A.record_run(bad)["trains_identical"] == expected == A.record_run(check_run)["trains_identical"]
+
+
+# ---- 分岐の記録の独立な再検証（README §5）。合成の 2 腕で ---------------------------------------------------
+
+def _arms(res):
+    return {"spikes": res["spikes"], "divergence": res["divergence"]}
+
+
+def test_divergence_record_is_revalidated_from_full_trains(A) -> None:
+    res, fork, _, _ = _pair(DIVERGES)
+    assert A.check_divergence(_arms(res), fork, 0, N, 1e-12) == []
+    t = res["divergence"]["pulse"]
+    assert A.first_difference(res["spikes"]["control"], res["spikes"]["intervention"])[0] == t
+
+    def problems(mutate):
+        arms = copy.deepcopy(_arms(res))
+        mutate(arms)
+        return A.check_divergence(arms, fork, 0, N, 1e-12)
+
+    # 欠落・時刻の改変・Unit の改変・発火のコピーの改変・直前の状態の改変を検出する
+    assert any("分岐の記録がない" in p for p in problems(lambda a: a.__setitem__("divergence", None)))
+    assert any("Pulse・Unit" in p for p in problems(lambda a: a["divergence"].__setitem__("pulse", t + 1)))
+    assert any("Pulse・Unit" in p for p in problems(lambda a: a["divergence"].__setitem__("units", ["s9"])))
+    assert any("コピー（t）" in p for p in problems(
+        lambda a: a["divergence"]["spikes"]["t"]["control"].append([t, "s9"])))
+    assert any("コピー（t-1）" in p for p in problems(
+        lambda a: a["divergence"]["spikes"]["t-1"]["intervention"].clear() if a["divergence"]["spikes"]["t-1"]["intervention"]
+        else a["divergence"]["spikes"]["t-1"]["intervention"].append([t - 1, "s9"])))
+    cid = next(iter(fork["control"]["connections"]))
+    assert any("接続の状態" in p for p in problems(
+        lambda a: a["divergence"]["before"]["t-2"]["control"]["connections"][cid].__setitem__(
+            "weight", a["divergence"]["before"]["t-2"]["control"]["connections"][cid]["weight"] + 1e-9)))
+    uid = next(iter(fork["control"]["units"]))
+    assert any("fire_count" in p for p in problems(
+        lambda a: a["divergence"]["before"]["t-1"]["intervention"]["units"][uid].__setitem__(
+            "fire_count", a["divergence"]["before"]["t-1"]["intervention"]["units"][uid]["fire_count"] + 1)))
+    assert any("再構成" in p for p in problems(
+        lambda a: a["divergence"]["before"]["t-1"]["control"]["units"][uid].__setitem__("activity", 10.0)))
+    # 全発火の列そのものを改変すると、最初の差が変わる（記録の Pulse・Unit と合わなくなる）
+    assert problems(lambda a: a["spikes"]["intervention"].__setitem__(
+        slice(None), [x for x in a["spikes"]["intervention"] if x[0] != t] + [[t, u] for u in spikes_at_(a, "control", t)]))
+
+
+def spikes_at_(arms, arm, t):
+    return sorted(u for p, u in arms["spikes"][arm] if p == t)
+
+
+def test_divergence_record_on_identical_trains(A) -> None:
+    """列が同じなら分岐の記録は None でなければならない（作り話の分岐を検出する）。"""
+    res, fork, _, _ = _pair(SILENT_IDENTICAL)
+    assert res["divergence"] is None and A.check_divergence(_arms(res), fork, 0, N, 1e-12) == []
+    arms = copy.deepcopy(_arms(res))
+    arms["divergence"] = {"pulse": 5, "units": ["s1"], "before": {}, "spikes": {}}
+    assert any("一度も分かれないのに" in p for p in A.check_divergence(arms, fork, 0, N, 1e-12))
+
+
+def test_spike_trains_must_be_well_formed(A) -> None:
+    res, fork, _, _ = _pair(SILENT_IDENTICAL)
+    for mutate, needle in [(lambda a: a["spikes"]["control"].append([N + 1, "s1"]), "外の Pulse"),
+                           (lambda a: a["spikes"]["control"].insert(0, [N, "s1"]), "順に並んでいない"),
+                           (lambda a: a["spikes"]["control"].extend([[N, "s2"], [N, "s2"]]), "重複")]:
+        arms = copy.deepcopy(_arms(res))
+        mutate(arms)
+        assert any(needle in p for p in A.check_divergence(arms, fork, 0, N, 1e-12)), needle
+
+
+def test_sign_relation_does_not_count_zeros_as_agreement(A) -> None:
+    assert A.sign_relation(0.0, 0.0) == "both_zero"
+    assert A.sign_relation(0.0, 1e-9) == A.sign_relation(-1e-9, 0.0) == "one_zero"
+    assert A.sign_relation(2.0, 1e-9) == "agree" and A.sign_relation(-2.0, 1e-9) == "disagree"
+
+
+# ---- 一度限りの実行の保護（README §7.1）。使い捨ての git リポジトリで ------------------------------------
+
+import subprocess  # noqa: E402
+
+
+def _git(repo, *args):
+    return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=True).stdout.strip()
+
+
+@pytest.fixture
+def repo(tmp_path):
+    """protocol.yaml だけを置いた使い捨てのリポジトリ（execute が protocol の sha256 を読むため）。"""
+    r = tmp_path / "repo"
+    (r / "experiments" / "0020_weight_intervention_exploration").mkdir(parents=True)
+    (r / "experiments" / "0020_weight_intervention_exploration" / "protocol.yaml").write_bytes(
+        (EXP / "protocol.yaml").read_bytes())
+    (r / ".gitignore").write_text("/out/\n", encoding="utf-8")
+    _git(r, "init", "-q")
+    _git(r, "config", "user.email", "t@example.invalid")
+    _git(r, "config", "user.name", "t")
+    _git(r, "add", "-A")
+    _git(r, "commit", "-q", "-m", "init")
+    return r
+
+
+@pytest.fixture
+def R():
+    return _load("run_0020_test", EXP / "run.py")
+
+
+def _serial(fn, seeds):
+    return (fn(s) for s in seeds)
+
+
+def test_guard_requires_a_clean_real_commit(repo, monkeypatch) -> None:
+    head = _git(repo, "rev-parse", "HEAD")
+    monkeypatch.setenv("ANIMA_GIT_COMMIT", "f" * 40)                 # 環境変数では commit を代えられない
+    assert G.verify_clean_commit(repo) == head == G.verify_clean_commit(repo, head)
+    with pytest.raises(G.GuardError, match="指定した commit"):
+        G.verify_clean_commit(repo, "1" * 40)
+    (repo / "untracked.py").write_text("x = 1\n", encoding="utf-8")
+    with pytest.raises(G.GuardError, match="作業ツリー"):
+        G.verify_clean_commit(repo, head)
+    (repo / "untracked.py").unlink()
+    (repo / "experiments" / "0020_weight_intervention_exploration" / "protocol.yaml").write_text("x: 1\n")
+    with pytest.raises(G.GuardError, match="作業ツリー"):
+        G.verify_clean_commit(repo, head)
+    with pytest.raises(G.GuardError, match="git"):
+        G.verify_clean_commit(repo.parent / "not_a_repo")
+
+
+def test_execute_runs_once_and_saves_atomically(repo, R) -> None:
+    out = repo / "out"
+    head = _git(repo, "rev-parse", "HEAD")
+    calls = []
+    runner = lambda s: calls.append(s) or {"seed": s}
+    rec = R.execute("check", [13101, 13102], out, repo, head, runner=runner, mapper=_serial)
+    assert rec["status"] == "completed" and rec["git_commit_start"] == rec["git_commit_end"] == head
+    assert calls == [13101, 13102]
+    assert sorted(p.name for p in out.iterdir()) == [G.FINISH, G.START, G.RUNS]   # 一時ファイルが残らない
+    assert G.sha256_file(out / G.RUNS) == rec["runs_sha256"]
+    start = json.loads((out / G.START).read_text(encoding="utf-8"))
+    assert start["git_commit"] == head and start["seeds"] == [13101, 13102] and start["mode"] == "check"
+    before = {p.name: p.read_bytes() for p in out.iterdir()}
+    # 2 回目は、seed に触れる前に拒否し、何も上書きしない
+    with pytest.raises(R.G.GuardError):
+        R.execute("check", [13101, 13102], out, repo, head, runner=runner, mapper=_serial)
+    assert calls == [13101, 13102] and {p.name: p.read_bytes() for p in out.iterdir()} == before
+
+
+def test_execute_refuses_before_touching_seeds(repo, R) -> None:
+    head = _git(repo, "rev-parse", "HEAD")
+    calls = []
+    runner = lambda s: calls.append(s) or {"seed": s}
+    with pytest.raises(R.G.GuardError, match="指定した commit"):
+        R.execute("exploration", [13001], repo.parent / "out1", repo, "1" * 40, runner=runner, mapper=_serial)
+    (repo / "dirty.txt").write_text("x", encoding="utf-8")
+    with pytest.raises(R.G.GuardError, match="作業ツリー"):
+        R.execute("exploration", [13001], repo.parent / "out2", repo, head, runner=runner, mapper=_serial)
+    (repo / "dirty.txt").unlink()
+    (repo.parent / "out3").mkdir()
+    (repo.parent / "out3" / G.START).write_text("{}", encoding="utf-8")       # 中断した実行の跡
+    with pytest.raises(R.G.GuardError, match="既にある"):
+        R.execute("exploration", [13001], repo.parent / "out3", repo, head, runner=runner, mapper=_serial)
+    (repo.parent / "out4").mkdir()
+    (repo.parent / "out4" / G.FINISH).write_text("{}", encoding="utf-8")      # 終了の記録だけが残っている
+    with pytest.raises(R.G.GuardError, match="既にある"):
+        R.execute("exploration", [13001], repo.parent / "out4", repo, head, runner=runner, mapper=_serial)
+    with pytest.raises(R.G.GuardError):
+        R.execute("exploration", [], repo.parent / "out5", repo, head, runner=runner, mapper=_serial)
+    with pytest.raises(R.G.GuardError):
+        R.execute("exploration", [13001, 13001], repo.parent / "out6", repo, head, runner=runner, mapper=_serial)
+    assert calls == []
+    assert not (repo.parent / "out1").exists() and not (repo.parent / "out2").exists()
+
+
+def test_execute_records_failure_and_does_not_save_results(repo, R) -> None:
+    head = _git(repo, "rev-parse", "HEAD")
+
+    def runner(s):
+        if s == 13102:
+            raise RuntimeError("boom")
+        return {"seed": s}
+
+    out = repo / "out"
+    with pytest.raises(RuntimeError, match="boom"):
+        R.execute("check", [13101, 13102], out, repo, head, runner=runner, mapper=_serial)
+    fin = json.loads((out / G.FINISH).read_text(encoding="utf-8"))
+    assert fin["status"] == "failed" and fin["seeds_touched"] == [13101, 13102] and "boom" in fin["reason"]
+    assert not (out / G.RUNS).exists()
+    with pytest.raises(R.G.GuardError):                                  # 失敗した範囲を黙って再実行しない
+        R.execute("check", [13101, 13102], out, repo, head, runner=lambda s: {"seed": s}, mapper=_serial)
+
+
+def test_execute_detects_head_moving_during_the_run(repo, R) -> None:
+    head = _git(repo, "rev-parse", "HEAD")
+
+    def runner(s):                                                     # 計測の途中で HEAD が動く
+        (repo / f"moved_{s}.txt").write_text("x", encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", f"moved {s}")
+        return {"seed": s}
+
+    out = repo / "out"
+    with pytest.raises(R.G.GuardError, match="指定した commit"):
+        R.execute("check", [13101], out, repo, head, runner=runner, mapper=_serial)
+    fin = json.loads((out / G.FINISH).read_text(encoding="utf-8"))
+    assert fin["status"] == "failed" and fin["git_commit_start"] == head
+    assert not (out / G.RUNS).exists()
+
+
+def test_main_refuses_unsafe_invocations(R, monkeypatch, tmp_path) -> None:
+    """探索の起動は --measurement-commit が必須で、出力先は固定。--check は探索の出力先・範囲外の seed を使えない。"""
+    for argv, needle in [
+        ([], "--measurement-commit"),
+        (["--measurement-commit", "0" * 40, "--out", str(tmp_path)], "固定"),
+        (["--check", "13199"], "--out"),
+        (["--check", "13001", "--out", str(tmp_path)], "合成・確認専用"),
+        (["--check", "13199", "--out", str(ROOT / "data" / "experiments" / "0020")], "探索の出力先"),
+    ]:
+        monkeypatch.setattr("sys.argv", ["run.py", *argv])
+        with pytest.raises(SystemExit, match=needle):
+            R.main()
+    assert not (ROOT / "data" / "experiments" / "0020" / G.START).exists()
