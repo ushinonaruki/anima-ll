@@ -1,4 +1,4 @@
-# 実験 0016 の実行条件と判定基準（事前登録の案 v0.1。道具より前にコミットする）
+# 実験 0016 の実行条件と判定基準（事前登録の案 v0.2。道具より前にコミットする）
 #
 # なぜこの条件なのかは README.md に書く。値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。
 # 経験と無入力の区間は 0015 v0.2 と同じ（順序ありの条件だけ）。試しと介入は 0014 v0.3 と同じ。
@@ -18,7 +18,8 @@ timeline:                               # Pulse（1 Pulse ＝ 1 秒）
   endpoint: "2 * experience_end"                       # 24000（0015 の終端）
   # 試し：終端の次の Pulse から毎 Pulse、順応の時定数 τ_a の 1 区間（24001〜24300）
   probes: {first: "endpoint + 1", every: 1, count: "adaptation_tau / pulse_interval_seconds"}
-  total_pulses: "endpoint + probes.count"              # 24300（本体は最後の試しの時刻まで）
+  total_pulses: "endpoint + probes.count"              # 24300：本体は最後の試しの時刻まで（最後の試しの元は 24299 の終わりから作る）
+  clone_end: "t0 + probe.read_at"                      # 各試しの複製は t0 ＋ 2 まで進む（最後の試しでは 24302）
 
 stimulus:                               # 0014・0015 の順序ありと同じ（順序を崩した条件は置かない）
   b_offset: 2
@@ -47,8 +48,8 @@ judgment:
   # 個体ごと：S ＝ Σ_t0 E(t0)
   primary: s
   s: {statistic: "sum_t0(E(t0))", passes_if: "> 0"}   # nonzero causal-readout test（向きの検定ではない）
-  applies_to: all_individuals           # ρ などで適格を切らない（README §4）
-  min_fraction: 0.8
+  applies_to: all_individuals           # ρ などで適格を切らない。W_probe が全試しで 0 の個体も N/A にせず S ＝ 0 の不成立（README §4）
+  min_fraction: 0.8                     # 同じ Neuroarchitecture に対する Birth State 間の頑健性の基準（効果の大きさの閾値ではない）
   manipulation:
     stimulus_counts: true               # 刺激の列と本体が受けた感覚の出来事（順序ありの形）
     input_free_after_experience: true   # 本体は experience_end より後に感覚の出来事を受けない
@@ -63,5 +64,5 @@ judgment:
 smoke:
   seeds: {first: 8101, last: 8106}
   checks: {manipulation: all}
-  hide: [s]                             # E・S は計算しない・出力しない
+  hide: [E, s]                          # 各試しの E も個体ごとの S も、計算しない・表示しない・報告に出さない
   on_failure: stop_and_amend
