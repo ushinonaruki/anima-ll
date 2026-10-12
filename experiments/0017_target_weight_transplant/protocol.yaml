@@ -1,0 +1,84 @@
+# 実験 0017 の実行条件と判定基準（事前登録の案 v0.3。道具より前にコミットする）
+#
+# なぜこの条件なのかは README.md に書く。値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。
+# 経験と無入力の区間は 0015 v0.2 と同じ（順序あり・順序を崩した の 2 条件）。試しの時刻・読み出しは 0016 v0.2 と同じ。
+# 介入だけが新しい：0014・0016 の equalize（式で作る値）の代わりに、同じ seed・同じ時点・同じ試しの手順の
+# shuffled が実際にとった A–B・A–C の 4 本の重みを、ordered の腕へ移植する（新しい数値を作らない）。
+
+seeds: {first: 10001, last: 10020}      # これまでに走らせた seed（1〜20・1001〜1020・2001〜2020・3001〜3006・4001〜4020・5001〜5006・6001〜6020・7001〜7006・8001〜8020・8101〜8106）と、合成・探索に使った 9001〜9399 を避ける
+synthetic_seeds: {first: 9400, last: 9499}   # 合成の契約テスト専用（判定にも smoke にも使わない。使ったものは道具の PR に記録）
+
+brain:
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml   # 0014〜0016 と同じ
+  dynamics_from: config/neuroarchitecture/minimal-v3.yaml
+  sensory_units: [s1, s2, s3]
+  receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+
+timeline:                               # Pulse（1 Pulse ＝ 1 秒）。0016 と同じ
+  pulse_interval_seconds: 1.0
+  trials: {first: 1, every: 60, count: 200}
+  experience_end: "trials.first - 1 + trials.count * trials.every"   # 12000
+  endpoint: "2 * experience_end"                       # 24000（0015 の終端）
+  probes: {first: "endpoint + 1", every: 1, count: "adaptation_tau / pulse_interval_seconds"}   # 24001〜24300
+  total_pulses: "endpoint + probes.count"              # 24300：両条件の本体をここまで進める
+  clone_end: "t0 + probe.read_at"                      # 受け手の 2 腕は t0 ＋ 2 まで。提供側の試しの元は t0 の終わりまで
+
+stimulus:                               # 0015 と同じ（乱数の流れの名前だけ 0017 で分ける。常設チェック C4）
+  b_offset: 2
+  c_offset: 30
+  counts: {A: 200, B: 200, C: 200}
+  rng_shuffle: "0017-shuffle:{seed}"
+  conditions: [ordered, shuffled]
+  role_assignment: "(seed - 1) mod 6"
+  role_orders:
+    - [receptor.x1, receptor.x2, receptor.x3]
+    - [receptor.x1, receptor.x3, receptor.x2]
+    - [receptor.x2, receptor.x1, receptor.x3]
+    - [receptor.x2, receptor.x3, receptor.x1]
+    - [receptor.x3, receptor.x1, receptor.x2]
+    - [receptor.x3, receptor.x2, receptor.x1]
+
+probe:                                  # 0014 v0.3・0016 と同じ
+  read_at: 2                            # t0 ＋ 2 の 1 Pulse だけを読む
+  fork_after: 0                         # 本体の t0 − 1 の終わりから試しの元を複製し、t0 に A を入れて t0 を処理した終わりで分ける
+  recipient: ordered                    # 2 腕の土台（Unit の状態・痕跡・B–C・対象外のすべて）は ordered の試しの元
+  donor: shuffled                       # 移植する 4 本の値は、shuffled の本体から同じ手順（t0 − 1 の終わりで複製、t0 に A、t0 を処理）で作った試しの元の t0 の終わりの値
+  boundary: after_pulse_t0_plasticity_before_t0_plus_1_weight_freeze   # 受け手・提供側とも同じ境界（README §3.3）
+
+intervention:
+  arms: [as_is, transplanted]
+  rule: transplant_ab_ac_target_weights_from_donor   # w(A→B)・w(A→C)・w(B→A)・w(C→A) の 4 本の weight だけを提供側の値に置き換える。痕跡・Unit の状態・B–C の 2 本・対象外は ordered のまま
+  new_values: none                      # 式で作る値・切り詰め・拡大縮小・適用条件を置かない（README §3）
+
+judgment:
+  # 各試し：E(t0) ＝ |B_as_is − B_transplanted| ＋ |C_as_is − C_transplanted|（B・C は t0 ＋ 2 に発火したら 1）
+  # 個体ごと：S ＝ Σ_t0 E(t0)
+  primary: s
+  s: {statistic: "sum_t0(E(t0))", passes_if: "> 0"}   # nonzero causal-readout test（向きの検定ではない）
+  applies_to: all_individuals           # 適格を切らない。4 本が全試しで提供側と一致（移植が何も変えない）個体も N/A にせず S ＝ 0 の不成立（README §4）
+  min_fraction: 0.8                     # 同じ Neuroarchitecture に対する Birth State 間の頑健性の基準（効果の大きさの閾値ではない）
+  manipulation:
+    stimulus_counts: true               # 両条件で、刺激の列と本体が受けた感覚の出来事（0015 と同じ）
+    input_free_after_experience: true   # 両条件の本体は experience_end より後に感覚の出来事を受けない
+    identical_before_divergence: true   # 同じ seed の 2 条件で、札が最初に違う Pulse より前の発火・状態が一致（0015 と同じ）
+    clone_identity: true                # 何も変えない複製が本体と一致（各個体・各条件で 1 回）
+    probe_input_delivered: true         # 受け手・提供側の試しの元がどちらも t0 に Receptor A の出来事を 1 つだけ受ける
+    transplanted_clone: true            # 4 本の weight が提供側の値と完全に一致、組の和 ＝ w_max、痕跡・Unit の状態・B–C・対象外は as_is と同じ
+    fork_matches_bodies: true           # 2 腕の分けた直後（移植の前）の重み ＝ ordered の本体の t0 の終わり、提供側の 4 本 ＝ shuffled の本体の t0 の終わり（README §3.3）
+    arms_identical_until_divergence: true   # 2 腕の t0 ＋ 1 の発火が一致
+    replay_matches_recorded_weights: 1.0e-12  # 両条件の終端（24000）の重みが、発火の記録から再生した重みと一致
+    revalidate_from_raw: true
+    no_statistics_when_invalid: true
+
+smoke:
+  seeds: {first: 10101, last: 10106}
+  checks: {manipulation: all}
+  # 次はどれも、計算しない・表示しない・保存した報告に出さない（開発中も出力しない。README §7、常設チェック D4）
+  hide:
+    - E                                 # 各試しの E(t0)
+    - s                                 # 個体ごとの S と判定
+    - D_fork                            # 各試しの W_as_is − W_transplanted
+    - dm_fork                           # 各試しの m_as_is − m_transplanted（平均の成分の差）
+    - target_weight_differences         # 4 本それぞれの weight の差（Δw(A→B)＝Δx・Δw(A→C)＝Δy・Δw(B→A)・Δw(C→A)）
+    - changed_weight_count              # 各試しで 4 本のうち違った本数
+  on_failure: stop_and_amend
