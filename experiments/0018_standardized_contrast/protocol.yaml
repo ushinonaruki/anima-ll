@@ -1,0 +1,88 @@
+# 実験 0018 の実行条件と判定基準（事前登録の案 v0.2。道具より前にコミットする）
+#
+# なぜこの条件なのかは README.md に書く。値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。
+# 経験・無入力の区間・試しの時刻・runtime の境界は 0017 v0.3 と同じ。違うのは介入と seed だけ：
+# 2 腕とも A–B／A–C の 4 本を対称標準化背景（A→B・A→C の forward mean m ＝ (x ＋ y)／2 を w_max／2。4 本全体の平均ではない）に置き、W だけを
+# 腕 O-std では ordered の、腕 S-std では shuffled の、同じ時点・同じ境界の値にする。
+
+seeds: {first: 11001, last: 11020}      # 新しい seed。0017 の 10001〜10020 は結果を見ているので使わない（D5）。これまでの seed（1〜20・1001〜1020・2001〜2020・3001〜3006・4001〜4020・5001〜5006・6001〜6020・7001〜7006・8001〜8020・8101〜8106・10001〜10020・10101〜10106）と合成・探索の 9001〜9499 を避ける
+synthetic_seeds: {first: 9500, last: 9599}   # 合成の契約テスト専用（判定にも smoke にも使わない。使ったものは道具の PR に記録）
+
+brain:
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml   # 0014〜0017 と同じ
+  dynamics_from: config/neuroarchitecture/minimal-v3.yaml
+  sensory_units: [s1, s2, s3]
+  receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+
+timeline:                               # Pulse（1 Pulse ＝ 1 秒）。0016・0017 と同じ
+  pulse_interval_seconds: 1.0
+  trials: {first: 1, every: 60, count: 200}
+  experience_end: "trials.first - 1 + trials.count * trials.every"   # 12000
+  endpoint: "2 * experience_end"                       # 24000
+  probes: {first: "endpoint + 1", every: 1, count: "adaptation_tau / pulse_interval_seconds"}   # 24001〜24300
+  total_pulses: "endpoint + probes.count"              # 24300
+  clone_end: "t0 + probe.read_at"                      # 2 腕は t0 ＋ 2 まで。提供側の試しの元は t0 の終わりまで
+
+stimulus:                               # 0015・0017 と同じ（乱数の流れの名前だけ 0018 で分ける。常設チェック C4）
+  b_offset: 2
+  c_offset: 30
+  counts: {A: 200, B: 200, C: 200}
+  rng_shuffle: "0018-shuffle:{seed}"
+  conditions: [ordered, shuffled]
+  role_assignment: "(seed - 1) mod 6"
+  role_orders:
+    - [receptor.x1, receptor.x2, receptor.x3]
+    - [receptor.x1, receptor.x3, receptor.x2]
+    - [receptor.x2, receptor.x1, receptor.x3]
+    - [receptor.x2, receptor.x3, receptor.x1]
+    - [receptor.x3, receptor.x1, receptor.x2]
+    - [receptor.x3, receptor.x2, receptor.x1]
+
+probe:                                  # 0017 と同じ
+  read_at: 2
+  fork_after: 0
+  recipient: ordered                    # 2 腕の土台（Unit の状態・痕跡・B–C・対象外）は ordered の試しの元
+  donor: shuffled                       # W_shuffled は、shuffled の本体から同じ手順で作った試しの元の t0 の終わりの値
+  boundary: after_pulse_t0_plasticity_before_t0_plus_1_weight_freeze   # 受け手・提供側とも同じ境界（0017 §3.3）
+
+intervention:
+  arms: [ordered_std, shuffled_std]     # どちらも自然な状態ではないので as_is とは呼ばない
+  rule: symmetric_standardized_mean_background_with_history_contrast
+  # 各腕：m ＝ w_max／2、W ＝ その履歴の W(t0)（ordered_std は受け手の、shuffled_std は提供側の）
+  #   w(A→B) ＝ m ＋ W／2、w(A→C) ＝ m − W／2、w(B→A) ＝ w_max − w(A→B)、w(C→A) ＝ w_max − w(A→C)
+  background_mean: "w_max / 2"          # 自然にありうる全ての W（|W| ≤ w_max）を、切り詰めなしで 1 つの固定の平均に載せられる唯一の値（README §3.2）
+  new_values: none                      # 切り詰め・拡大縮小・適用条件を置かない
+
+judgment:
+  # 各試し：E(t0) ＝ |B_ordered_std − B_shuffled_std| ＋ |C_ordered_std − C_shuffled_std|（B・C は t0 ＋ 2 に発火したら 1）
+  # 個体ごと：S ＝ Σ_t0 E(t0)
+  primary: s
+  s: {statistic: "sum_t0(E(t0))", passes_if: "> 0"}   # standardized-background sufficiency test（nonzero。向きの検定ではない）
+  applies_to: all_individuals           # W_ordered ＝ W_shuffled の試し・個体も専用に除外しない（README §4）
+  min_fraction: 0.8                     # Birth State 間の頑健性の基準（効果の大きさの閾値ではない）
+  manipulation:
+    stimulus_counts: true
+    input_free_after_experience: true
+    identical_before_divergence: true
+    clone_identity: true
+    probe_input_delivered: true         # 受け手・提供側の試しの元がどちらも t0 に Receptor A の出来事を 1 つだけ受ける
+    standardized_arms: true             # 2 腕の 4 本が式どおり（W は各履歴の値、m ＝ w_max／2、組の和 ＝ w_max）。痕跡・Unit の状態・B–C・対象外は受け手の試しの元と同じ
+    fork_matches_bodies: true           # 受け手の試しの元の重み ＝ ordered の本体の t0 の終わり、提供側の 4 本 ＝ shuffled の本体の t0 の終わり
+    arms_identical_until_divergence: true   # 2 腕の t0 ＋ 1 の発火が一致
+    replay_matches_recorded_weights: 1.0e-12  # 両条件の終端（24000）の重みが、発火の記録から再生した重みと一致
+    revalidate_from_raw: true
+    no_statistics_when_invalid: true
+
+smoke:
+  seeds: {first: 11101, last: 11106}
+  checks: {manipulation: all}
+  # 次はどれも、計算しない・表示しない・保存した報告に出さない（開発中も出力しない。README §7、常設チェック D4）
+  hide:
+    - E                                 # 各試しの E(t0)
+    - s                                 # 個体ごとの S と判定
+    - D_fork                            # 各試しの W_ordered − W_shuffled（＝ 2 腕の W の差）
+    - target_weight_differences         # 2 腕の 4 本それぞれの差
+    - changed_weight_count              # 各試しで 2 腕の 4 本のうち違った本数
+    - recipient_mean_displacement       # 各試しの m_o − w_max／2（標準化で 2 腕に共通に加えた変位）
+    - donor_mean_offset                 # 各試しの m_s − w_max／2（提供側の自然な offset。介入の量ではない）
+  on_failure: stop_and_amend
