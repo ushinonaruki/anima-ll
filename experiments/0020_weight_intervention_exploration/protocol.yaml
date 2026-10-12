@@ -1,0 +1,62 @@
+# 探索 0020 の実行条件と記録項目（探索の設計 v0.1。判定を置かない。実行の前に固定する）
+#
+# これは事前登録した検証ではなく、仮説を作るための探索である（README §0）。holds／fails の判定を置かない。
+# なぜこの条件なのかは README.md に書く。値はどれも、この探索の手順を決める足場で、AnIma-ll の脳の生物値ではない。
+# 経験・無入力の区間・刺激の列は 0015 v0.2 と同じ（乱数の流れの名前だけ 0020 で分ける）。
+
+kind: exploration                      # 判定なし。holds／fails へ換算しない
+seeds: {first: 13001, last: 13100}      # 探索専用。100 個体を全件記録・全件報告する。以後どの formal にも使わない
+synthetic_seeds: {first: 13101, last: 13200}   # 合成の契約テストと、道具の通しの確認専用（探索の記録には入れない）
+
+brain:
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml   # 0014〜0019 と同じ
+  dynamics_from: config/neuroarchitecture/minimal-v3.yaml
+  sensory_units: [s1, s2, s3]
+  receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+
+timeline:                               # Pulse（1 Pulse ＝ 1 秒）。0015 と同じ
+  pulse_interval_seconds: 1.0
+  trials: {first: 1, every: 60, count: 200}
+  experience_end: "trials.first - 1 + trials.count * trials.every"   # 12000：介入の時点
+  total_pulses: "2 * experience_end"    # 24000：終端
+  sample_every: "trials.every"          # 60：重み・Unit の状態の標本の間隔
+
+stimulus:                               # 0015 と同じ（乱数の流れの名前だけ 0020 で分ける。常設チェック C4）
+  b_offset: 2
+  c_offset: 30
+  counts: {A: 200, B: 200, C: 200}
+  rng_shuffle: "0020-shuffle:{seed}"
+  conditions: [ordered, shuffled]
+  role_assignment: "(seed - 1) mod 6"
+  role_orders:
+    - [receptor.x1, receptor.x2, receptor.x3]
+    - [receptor.x1, receptor.x3, receptor.x2]
+    - [receptor.x2, receptor.x1, receptor.x3]
+    - [receptor.x2, receptor.x3, receptor.x1]
+    - [receptor.x3, receptor.x1, receptor.x2]
+    - [receptor.x3, receptor.x2, receptor.x1]
+
+intervention:
+  at: experience_end                    # Pulse 12000 の可塑性の更新まで終わり、12001 の重みの固定の前（README §2）
+  arms: [control, intervention]         # control ＝ ordered の本体そのもの。intervention ＝ 12000 の ordered の複製
+  rule: transplant_ab_ac_target_weights_from_shuffled   # 介入腕の w(A→B)・w(A→C)・w(B→A)・w(C→A) だけを、shuffled の本体の 12000 の値に置き換える（0017 と同じ移植。新しい数値なし）
+  new_values: none
+
+records:                                # README §4。すべて保存した生の記録から独立に再計算できる形で保存する
+  per_pulse_both_arms: [spikes, min_margin]            # 全発火の列、各 Unit の閾値までの余裕の最小（発火しなかった Pulse での θ ＋ adaptation − activity）
+  samples_every: [target_weights, unit_states]         # 60 Pulse ごと
+  first_divergence: [pulse, units, snapshots_t_minus_2_and_t_minus_1]   # 2 腕の発火の列が最初に違った Pulse と、その直前 2 Pulse の両腕の全状態
+  endpoints: [connections_12000, connections_24000, traces_12000]
+  natural_reference: shuffled_continued_to_24000       # 自然な shuffled の本体も 24000 まで（記録だけ）
+  derived: [affine_S_B_per_arm, potentiation_depression_split_per_arm, M_I, M_C, J, log_S]   # analyze.py が生の記録から計算
+
+checks:                                 # 操作の確認（現象には条件を課さない。常設チェック D1）
+  stimulus_counts: true
+  input_free_after_experience: true
+  identical_before_divergence: true     # ordered／shuffled の札が最初に違う Pulse より前
+  clone_identity: true                  # 12000 で作った何も変えない複製が、24000 まで control と一致
+  transplant: true                      # 介入腕の 4 本 ＝ shuffled の 12000 の値。それ以外（Unit の状態・痕跡・B–C・対象外）は control と同じ
+  replay_history_12000: 1.0e-12         # ordered・shuffled の 12000 の重みが、発火の記録から Pulse 1 から再生した重みと一致
+  affine_matches_runtime: 1.0e-12       # 各腕の 24000 の重みが、その腕の 12000 の重み・痕跡と自分の発火の列からの affine の再構成と一致
+  divergence_reconstruction: true       # 最初の分岐の Pulse で、直前の状態から再構成した発火の判定が、両腕の実際の発火と一致
+  revalidate_from_raw: true
