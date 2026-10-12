@@ -1,0 +1,67 @@
+# 実験 0016 の実行条件と判定基準（事前登録の案 v0.1。道具より前にコミットする）
+#
+# なぜこの条件なのかは README.md に書く。値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。
+# 経験と無入力の区間は 0015 v0.2 と同じ（順序ありの条件だけ）。試しと介入は 0014 v0.3 と同じ。
+
+seeds: {first: 8001, last: 8020}        # これまでに走らせた seed（1〜20・1001〜1020・2001〜2020・3001〜3006・4001〜4020・5001〜5006・6001〜6020・7001〜7006）と、合成専用の 9001 を避ける
+
+brain:
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml   # 0014・0015 と同じ
+  dynamics_from: config/neuroarchitecture/minimal-v3.yaml
+  sensory_units: [s1, s2, s3]
+  receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+
+timeline:                               # Pulse（1 Pulse ＝ 1 秒）
+  pulse_interval_seconds: 1.0
+  trials: {first: 1, every: 60, count: 200}            # 0014・0015 と同じ
+  experience_end: "trials.first - 1 + trials.count * trials.every"   # 12000（0015 と同じ）
+  endpoint: "2 * experience_end"                       # 24000（0015 の終端）
+  # 試し：終端の次の Pulse から毎 Pulse、順応の時定数 τ_a の 1 区間（24001〜24300）
+  probes: {first: "endpoint + 1", every: 1, count: "adaptation_tau / pulse_interval_seconds"}
+  total_pulses: "endpoint + probes.count"              # 24300（本体は最後の試しの時刻まで）
+
+stimulus:                               # 0014・0015 の順序ありと同じ（順序を崩した条件は置かない）
+  b_offset: 2
+  c_offset: 30
+  counts: {A: 200, B: 200, C: 200}
+  conditions: [ordered]
+  role_assignment: "(seed - 1) mod 6"
+  role_orders:
+    - [receptor.x1, receptor.x2, receptor.x3]
+    - [receptor.x1, receptor.x3, receptor.x2]
+    - [receptor.x2, receptor.x1, receptor.x3]
+    - [receptor.x2, receptor.x3, receptor.x1]
+    - [receptor.x3, receptor.x1, receptor.x2]
+    - [receptor.x3, receptor.x2, receptor.x1]
+
+probe:                                  # 0014 v0.3 と同じ
+  read_at: 2                            # t0 ＋ 2 の 1 Pulse だけを読む
+  fork_after: 0                         # 本体の t0 − 1 の終わりから試しの元を複製し、t0 に A を入れて t0 を処理した終わりで 2 腕に分ける
+
+intervention:                           # 0014 v0.3 と同じ
+  arms: [as_is, equalized]
+  rule: equalize_ab_ac_weight_contrast_preserving_pair_sums
+
+judgment:
+  # 各試し：E(t0) ＝ |B_as_is − B_equalized| ＋ |C_as_is − C_equalized|（B・C は t0 ＋ 2 に発火したら 1）
+  # 個体ごと：S ＝ Σ_t0 E(t0)
+  primary: s
+  s: {statistic: "sum_t0(E(t0))", passes_if: "> 0"}   # nonzero causal-readout test（向きの検定ではない）
+  applies_to: all_individuals           # ρ などで適格を切らない（README §4）
+  min_fraction: 0.8
+  manipulation:
+    stimulus_counts: true               # 刺激の列と本体が受けた感覚の出来事（順序ありの形）
+    input_free_after_experience: true   # 本体は experience_end より後に感覚の出来事を受けない
+    clone_identity: true                # 何も変えない複製が本体と一致（各個体で 1 回）
+    equalized_clone: true               # 0014 と同じ（4 本の式、組の和、a_AB ＋ a_AC 不変、痕跡・Unit の状態・B–C は as_is と同じ）
+    probe_input_delivered: true         # 試しの元が t0 に Receptor A の出来事を 1 つだけ受ける
+    arms_identical_until_divergence: true   # 2 腕の t0 ＋ 1 の発火が一致
+    replay_matches_recorded_weights: 1.0e-12  # 終端（24000）の重みが、発火の記録から再生した重みと一致
+    revalidate_from_raw: true
+    no_statistics_when_invalid: true
+
+smoke:
+  seeds: {first: 8101, last: 8106}
+  checks: {manipulation: all}
+  hide: [s]                             # E・S は計算しない・出力しない
+  on_failure: stop_and_amend
