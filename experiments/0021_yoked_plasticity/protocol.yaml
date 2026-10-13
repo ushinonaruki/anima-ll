@@ -1,4 +1,7 @@
-# 実験 0021 の実行条件と記録項目（事前登録のドラフト v0.1。レビューで確定し、道具の実装の前に固定する）
+# 実験 0021 の実行条件と記録項目（事前登録 v0.1。#85 でレビュー済み、マージをもって確定。道具の実装の前に固定する）
+#
+# 測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を開示し、
+# 新しい版・新しい seed の範囲で行う（README の Status）。
 #
 # 種別：事前登録した記述的な介入実験。集団の holds／fails・0.8 の合格基準・方向の事前予想は置かない（README §0）。
 # なぜこの条件なのかは README.md に書く。値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。
@@ -67,7 +70,8 @@ observations:                           # README §5。個体ごとに記述（�
     - t2                                # min{t ∈ W : F_I(t) ≠ F_Y(t)}。なければ none（窓の中で未検出）
     - U2
     - t2_minus_t1
-    - window_after_t1                   # T − t1（t2 を観測できた長さ。除外には使わない）
+    - remaining_after_t1                # T − t1：t1 から終端までの残り Pulse 数（除外には使わない）
+    - t2_detectable_pulses              # max(0, T − t1 − 1)：t2 を検出できる Pulse（t1+2〜T）の個数
     - full_trains: [C, I, Y]
     - spike_counts_per_unit: [C, I, Y]          # W 全体
     - spike_counts_per_unit_from_t2: [I, Y]     # t2〜T（t2 を含む）
@@ -91,7 +95,7 @@ records:                                # README §4。すべて保存した生�
 
 checks:                                 # README §6。操作だけを確かめる（現象には条件を課さない。常設チェック D1）
   inherited_from_0020: [stimulus_counts, input_free_after_experience, identical_before_label_divergence,
-                        replay_history_12000, transplant, first_pulse_identical]
+                        transplant, first_pulse_identical]   # 12000 の再生は numeric.replay_history_12000
   exact:                                # 厳密に一致（同じ演算の道筋なので完全一致すべきもの）
     - twin_equals_C                     # 発火・接続の状態・Unit の状態（標本と T）
     - Y0_equals_C                       # 同上
@@ -103,6 +107,7 @@ checks:                                 # README §6。操作だけを確かめ�
     - no_clipping                       # 重みが [0, w_max] の外に出ない・切り詰めが働かない
     - divergence_decisions_reconstructed   # t1・t2 で、直前の状態から再構成した発火の判定が実際と一致
   numeric:                              # 許容誤差（絶対値）。0020 の 1e-12 を基準に対象ごとに固定
+    replay_history_12000: 1.0e-12       # ordered・shuffled の 12000 の重み ＝ 発火の記録から Pulse 1 から再生した重み（0020 から継承）
     affine_reconstruction_T: 1.0e-12    # 各腕の T の重み ＝ t0 の状態と「可塑性に使った列」（C・I・twin は自分、Y・Y0 は C）からの再構成
     P_identity: 1.0e-12                 # w_Y − w_C ＝ Φ_C·δω（移植した 4 本、標本と T）
     pair_sum: 1.0e-12                   # すべての腕・組で w(i→j) ＋ w(j→i) ＝ w_max
