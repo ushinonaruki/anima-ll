@@ -1,0 +1,137 @@
+# 実験 0021 の実行条件と記録項目（事前登録 v0.1。#85 でレビュー済み、マージをもって確定。道具の実装の前に固定する）
+#
+# 測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を開示し、
+# 新しい版・新しい seed の範囲で行う（README の Status）。
+#
+# 種別：事前登録した記述的な介入実験。集団の holds／fails・0.8 の合格基準・方向の事前予想は置かない（README §0）。
+# なぜこの条件なのかは README.md に書く。値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。
+# 世界・経験・介入は 0020 と同じ（乱数の流れの名前だけ 0021 で分ける。常設チェック C4）。新しい数値は置かない。
+
+experiment: "0021"
+kind: preregistered_descriptive_intervention
+seeds: {first: 14001, last: 14100}            # 本番。100 個体を全件記録・全件報告する。以後どの実験にも使わない
+synthetic_seeds: {first: 14101, last: 14200}  # 合成の契約テストと道具の通しの確認専用（本番の記録には入れない）
+
+brain:
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml   # 0014〜0020 と同じ
+  dynamics_from: config/neuroarchitecture/minimal-v3.yaml
+  sensory_units: [s1, s2, s3]
+  receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+  refractory_pulses: 0                  # 前提（数式のメモ §1）。設計図の値と一致することを確かめる
+
+timeline:                               # Pulse（1 Pulse ＝ 1 秒）。0020 と同じ
+  pulse_interval_seconds: 1.0
+  trials: {first: 1, every: 60, count: 200}
+  experience_end: "trials.first - 1 + trials.count * trials.every"   # 12000 ＝ t0
+  total_pulses: "2 * experience_end"    # 24000 ＝ T
+  window: "experience_end + 1 .. total_pulses"   # W ＝ 12001〜24000（入力なし）
+  sample_every: "trials.every"          # 60：接続の状態・Unit の状態の標本の間隔
+
+stimulus:                               # 0020 と同じ（乱数の流れの名前だけ 0021）
+  b_offset: 2
+  c_offset: 30
+  counts: {A: 200, B: 200, C: 200}
+  rng_shuffle: "0021-shuffle:{seed}"
+  conditions: [ordered, shuffled]
+  shuffled_runs_to: experience_end      # shuffled は donor の値を取るためだけに 12000 まで（24000 まで進めない）
+  role_assignment: "(seed - 1) mod 6"
+  role_orders:
+    - [receptor.x1, receptor.x2, receptor.x3]
+    - [receptor.x1, receptor.x3, receptor.x2]
+    - [receptor.x2, receptor.x1, receptor.x3]
+    - [receptor.x2, receptor.x3, receptor.x1]
+    - [receptor.x3, receptor.x1, receptor.x2]
+    - [receptor.x3, receptor.x2, receptor.x1]
+
+intervention:                           # 0017／0020 と同じ移植。新しい数値なし
+  at: experience_end                    # Pulse 12000 の可塑性の更新が終わったあと、12001 の重みの固定の前
+  rule: transplant_ab_ac_target_weights_from_shuffled   # I の w(A→B)・w(A→C)・w(B→A)・w(C→A) を shuffled の 12000 の値に。組をまとめて置き換え、痕跡は残す
+  new_values: none
+
+arms:                                   # README §2。t0 の終わりに分ける
+  C:    {start: ordered,         transmission: own, plasticity_input: own}   # 基準
+  I:    {start: transplant_of_C, transmission: own, plasticity_input: own}   # 自分の発火で可塑性を更新
+  Y:    {start: clone_of_I,      transmission: own, plasticity_input: C}     # 可塑性の更新を C の発火の列に置き換える（yoked）
+  twin: {start: clone_of_C,      transmission: own, plasticity_input: own, role: check}   # 複製の確認
+  Y0:   {start: clone_of_C,      transmission: own, plasticity_input: C,   role: check}   # yoke の仕組みの確認（δω ＝ 0）
+
+yoke:
+  connections: all_plastic              # 全 6 接続（s1〜s3 のあいだ）
+  replaces: [fire_events, traces]       # 可塑性の更新に渡す発火の集合を C のものにする（出来事と痕跡の両方が C の列で進む）
+  unit_state: own                       # activity・順応は自分の発火で進む（可塑性ではない）
+  pulse_order: [C, I, Y, twin, Y0]      # 各 Pulse で C を先に進め、その Pulse の C の発火の集合を Y・Y0 の終わりの更新に渡す
+  pulse_match: required                 # 渡す発火の集合の Pulse 番号が一致すること
+  runtime_core_unchanged: true          # 置き換えは実験の道具の中だけ。Runtime の本体は変えない
+
+observations:                           # README §5。個体ごとに記述（判定なし）
+  primary:
+    - t1                                # min{t ∈ W : F_C(t) ≠ F_I(t)}。なければ null
+    - U1                                # t1 の対称差の Unit と、どちらの腕で発火したか。t1 なしなら null
+    - t2                                # min{t ∈ W : F_I(t) ≠ F_Y(t)}。なければ null（窓の中で未検出）
+    - U2                                # t2 なしなら null
+    - t2_minus_t1                       # t2 なしなら null
+    - remaining_after_t1                # T − t1：t1 から終端までの残り Pulse 数（除外には使わない）。t1 なしなら null。t1 あり・t2 なしでも値を保持
+    - t2_detectable_pulses              # max(0, T − t1 − 1)：t2 を検出できる Pulse（t1+2〜T）の個数。t1 なしなら null。t1 あり・t2 なしでも定義式の値を保持（0 にしない）
+    - full_trains: [C, I, Y]
+    - spike_counts_per_unit: [C, I, Y]          # W 全体。全個体で数え、実際の 0 を保持
+    - spike_counts_per_unit_from_t2: [I, Y]     # t2〜T（t2 を含む）。t2 なしなら null
+    - differing_pulses: {I_Y: true, C_I: true, C_Y: true}   # 発火の集合が違う Pulse の数。全個体で数え、実際の 0 を保持
+  secondary:
+    - t2_contributions                  # README §3.2 の K_ij(t2)（j ∈ U2、送り手 i ごと）。記述のみ。t2 なしなら null
+    - t1_contributions                  # 数式のメモ F3c（j ∈ U1）。記述のみ。t1 なしなら null
+    - P_F_D_per_connection              # T の P ＝ Y − C、F ＝ I − Y、D ＝ I − C（6 本）。向きの関係は 0 を別に分ける
+    - W_contrast_as_difference          # W ＝ w(A→B) − w(A→C) は 2 本の差として記録。単一の S を仮定しない
+  not_used: [G_ratio, population_holds_fails, threshold_0_8, direction_prediction, clopper_pearson]
+  missing_values:                     # README §5.1 の欠測値の規約
+    null_if_no_t1: [t1, U1, remaining_after_t1, t2_detectable_pulses, t1_contributions]   # t1 なしなら t2 もないので下も null
+    null_if_no_t2: [t2, U2, t2_minus_t1, spike_counts_per_unit_from_t2, t2_contributions]
+    always_counted_keep_zero: [spike_counts_per_unit, differing_pulses]                # 全個体で数え、実際の 0 を 0 として保持
+    keep_formula_value_if_t1_without_t2: [remaining_after_t1, t2_detectable_pulses]    # t2 がないという理由だけで 0 にしない
+    null_is_not_zero: true             # null を 0 として集計しない。分布では null の個体を除き、その個数を併記
+
+records:                                # README §4。すべて保存した生の記録から独立に再計算できる形
+  conditions: [birth_states, before_label_divergence, connections_12000, units_12000, activity_and_sensory_1_to_12000]
+  fork: [all_arms_full_state_at_t0]     # Unit の状態・接続の状態（重み・痕跡）
+  per_pulse_all_arms: [spikes]          # C・I・Y・twin・Y0 の W の全発火
+  samples_every: [connection_states, unit_states]   # 60 Pulse ごと、全腕
+  at_divergences:                       # t1（C と I、Y も）・t2（I と Y）の直前 2 Pulse の全状態と発火
+    t1: {arms: [C, I, Y], snapshots: [t_minus_2, t_minus_1], spikes: [t_minus_1, t]}
+    t2: {arms: [I, Y],    snapshots: [t_minus_2, t_minus_1], spikes: [t_minus_1, t]}
+  endpoints: [connection_states_T_all_arms, unit_states_T_all_arms]
+
+checks:                                 # README §6。操作だけを確かめる（現象には条件を課さない。常設チェック D1）
+  inherited_from_0020: [stimulus_counts, input_free_after_experience, identical_before_label_divergence,
+                        transplant, first_pulse_identical]   # 12000 の再生は numeric.replay_history_12000
+  exact:                                # 厳密に一致（同じ演算の道筋なので完全一致すべきもの）
+    - twin_equals_C                     # 発火・接続の状態・Unit の状態（標本と T）
+    - Y0_equals_C                       # 同上
+    - I_equals_Y_until_t1               # 発火は t1 まで、接続の状態は t1 − 1 まで。t1 なしなら W 全体
+    - Y_traces_equal_C_traces           # 全 6 接続、標本と T
+    - P_zero_on_untransplanted_pairs    # B–C の組で w_Y ＝ w_C
+    - t1_C_Y_equals_t1_C_I              # t1′ ＝ t1、Unit も同じ
+    - t2_at_least_t1_plus_2             # t2 があれば t1 もあり、t2 ≥ t1 ＋ 2
+    - no_clipping                       # 重みが [0, w_max] の外に出ない・切り詰めが働かない
+    - divergence_decisions_reconstructed   # t1・t2 で、直前の状態から再構成した発火の判定が実際と一致
+  numeric:                              # 許容誤差（絶対値）。0020 の 1e-12 を基準に対象ごとに固定
+    replay_history_12000: 1.0e-12       # ordered・shuffled の 12000 の重み ＝ 発火の記録から Pulse 1 から再生した重み（0020 から継承）
+    affine_reconstruction_T: 1.0e-12    # 各腕の T の重み ＝ t0 の状態と「可塑性に使った列」（C・I・twin は自分、Y・Y0 は C）からの再構成
+    P_identity: 1.0e-12                 # w_Y − w_C ＝ Φ_C·δω（移植した 4 本、標本と T）
+    pair_sum: 1.0e-12                   # すべての腕・組で w(i→j) ＋ w(j→i) ＝ w_max
+    divergence_activity_reconstruction: 1.0e-12   # t1・t2 の判定の直前の activity の再構成
+    t2_decomposition_identity: 1.0e-12  # Σ_i K_ij(t2) ＝ ã_j^I(t2) − ã_j^Y(t2)（README §3.2 の導出の確認）
+  revalidate_from_raw: true
+  invalid_individuals: report_all       # 失敗した個体も除かず、どの確認が成り立たなかったかと一緒に全件報告
+
+execution:                              # 0020 の一度限りの実行の契約を継承（README §7.1）。値はすべて 0021 のもの
+  experiment_id: "0021"
+  output_dir: data/experiments/0021     # 本番の出力先は固定（--out は使えない）
+  protocol_path: experiments/0021_yoked_plasticity/protocol.yaml
+  measurement_commit: required
+  start_record: run_started.json
+  finish_record: run_finished.json
+  rerun: refuse
+  end_commit_check: true
+  on_failure: disclose_and_use_new_seed_range
+  max_workers: 2
+  results_must_match_seeds: true
+  no_0020_references: true              # 道具に 0020 の experiment ID・出力先・protocol のパス・seed の範囲・乱数の流れの名前が残っていないことを契約テストで確かめる
