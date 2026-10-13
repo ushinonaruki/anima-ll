@@ -65,23 +65,29 @@ yoke:
 
 observations:                           # README §5。個体ごとに記述（判定なし）
   primary:
-    - t1                                # min{t ∈ W : F_C(t) ≠ F_I(t)}。なければ none
-    - U1                                # t1 の対称差の Unit と、どちらの腕で発火したか
-    - t2                                # min{t ∈ W : F_I(t) ≠ F_Y(t)}。なければ none（窓の中で未検出）
-    - U2
-    - t2_minus_t1
-    - remaining_after_t1                # T − t1：t1 から終端までの残り Pulse 数（除外には使わない）
-    - t2_detectable_pulses              # max(0, T − t1 − 1)：t2 を検出できる Pulse（t1+2〜T）の個数
+    - t1                                # min{t ∈ W : F_C(t) ≠ F_I(t)}。なければ null
+    - U1                                # t1 の対称差の Unit と、どちらの腕で発火したか。t1 なしなら null
+    - t2                                # min{t ∈ W : F_I(t) ≠ F_Y(t)}。なければ null（窓の中で未検出）
+    - U2                                # t2 なしなら null
+    - t2_minus_t1                       # t2 なしなら null
+    - remaining_after_t1                # T − t1：t1 から終端までの残り Pulse 数（除外には使わない）。t1 なしなら null。t1 あり・t2 なしでも値を保持
+    - t2_detectable_pulses              # max(0, T − t1 − 1)：t2 を検出できる Pulse（t1+2〜T）の個数。t1 なしなら null。t1 あり・t2 なしでも定義式の値を保持（0 にしない）
     - full_trains: [C, I, Y]
-    - spike_counts_per_unit: [C, I, Y]          # W 全体
-    - spike_counts_per_unit_from_t2: [I, Y]     # t2〜T（t2 を含む）
-    - differing_pulses: {I_Y: true, C_I: true, C_Y: true}   # 発火の集合が違う Pulse の数
+    - spike_counts_per_unit: [C, I, Y]          # W 全体。全個体で数え、実際の 0 を保持
+    - spike_counts_per_unit_from_t2: [I, Y]     # t2〜T（t2 を含む）。t2 なしなら null
+    - differing_pulses: {I_Y: true, C_I: true, C_Y: true}   # 発火の集合が違う Pulse の数。全個体で数え、実際の 0 を保持
   secondary:
-    - t2_contributions                  # README §3.2 の K_ij(t2)（j ∈ U2、送り手 i ごと）。記述のみ
-    - t1_contributions                  # 数式のメモ F3c（j ∈ U1）。記述のみ
+    - t2_contributions                  # README §3.2 の K_ij(t2)（j ∈ U2、送り手 i ごと）。記述のみ。t2 なしなら null
+    - t1_contributions                  # 数式のメモ F3c（j ∈ U1）。記述のみ。t1 なしなら null
     - P_F_D_per_connection              # T の P ＝ Y − C、F ＝ I − Y、D ＝ I − C（6 本）。向きの関係は 0 を別に分ける
     - W_contrast_as_difference          # W ＝ w(A→B) − w(A→C) は 2 本の差として記録。単一の S を仮定しない
   not_used: [G_ratio, population_holds_fails, threshold_0_8, direction_prediction, clopper_pearson]
+  missing_values:                     # README §5.1 の欠測値の規約
+    null_if_no_t1: [t1, U1, remaining_after_t1, t2_detectable_pulses, t1_contributions]   # t1 なしなら t2 もないので下も null
+    null_if_no_t2: [t2, U2, t2_minus_t1, spike_counts_per_unit_from_t2, t2_contributions]
+    always_counted_keep_zero: [spike_counts_per_unit, differing_pulses]                # 全個体で数え、実際の 0 を 0 として保持
+    keep_formula_value_if_t1_without_t2: [remaining_after_t1, t2_detectable_pulses]    # t2 がないという理由だけで 0 にしない
+    null_is_not_zero: true             # null を 0 として集計しない。分布では null の個体を除き、その個数を併記
 
 records:                                # README §4。すべて保存した生の記録から独立に再計算できる形
   conditions: [birth_states, before_label_divergence, connections_12000, units_12000, activity_and_sensory_1_to_12000]
