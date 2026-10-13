@@ -19,13 +19,16 @@ t − 1 の状態・t − 2 の重み・t − 1 の発火から独立に再構�
 report は既にあれば上書きしない。書いてはいけない場所を指定したときは、解析の前に、何も読まず・書かずに止まる（report_destination）。
 """
 
+import contextlib
 import gzip
 import importlib.util
 import itertools
 import json
 import math
+import os
 import statistics
 import sys
+import time
 from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 
@@ -745,12 +748,49 @@ def analyze_folder(folder: Path, mode: str) -> dict:
     return analyze(read(folder / G.RUNS), mode, records)
 
 
-def report_destination(folder: Path, mode: str) -> Path:
-    """report を書いてよい場所。だめなら GuardError。
+# ---- 成果物の公開（一度限り。中断に備える。#92 のレビュー 5505249564）------------------------------------------
+#
+# 本番の解析は 2 つの成果物（差の系列 differences_series.json.gz と report.json）を出す。公開の手順と記録：
+#   1. 書いてよい場所かを、何も読まず・書かずに確かめる（report_destination）
+#   2. 解析の記録 analysis_log.jsonl を排他的に作り、「開始」と入力の sha256（raw・実行の記録・protocol・道具）を残す。
+#      以後この記録には追記だけをする（書き換え・削除はしない）
+#   3. 成果物を計算する（解析は決定論的。report に時刻を入れず、gzip の mtime は 0）。report には入力の sha256 と、
+#      差の系列の sha256・バイト数を入れる（後から照合できる）
+#   4. 差の系列 → report の順に公開する。公開は一時ファイル（試行ごとに別の名前）に書いて fsync し、os.link で本名に置く
+#      （本名が既にあれば失敗する。上書きしない）。公開するたびに「書いた」と sha256 を記録に追記する
+#   5. 最後に「完了」と成果物の sha256 を追記する
+# 途中で例外・中断があれば「失敗」と、その時点にある成果物の sha256 を追記する（中断で追記できなかった場合も、記録には
+# 「開始」と「書いた」が残る）。成果物を黙って消す・書き直すことはしない。seed は走らせ直さない。
+#
+# 中断の後は、明示的な --resume でだけ再開する（何もなければ、既にある成果物・記録を理由に止まる）。再開では：
+#   - 入力の sha256 が「開始」のときと完全に同じであること、「書いた」と記録した成果物が消えていないこと
+#   - 同じ raw から決定論的に計算し直した成果物と、既にある成果物のバイト列（sha256）が一致すること
+# を確かめ、一致すれば既にあるものはそのまま残し、ないものだけを公開して「完了」を追記する。1 つでも合わなければ
+# （破損・入力の変化・成果物の消失・記録の破損）、「復旧不能」と理由を追記して止まる。以後の再開は拒否し、手動の監査の判断に委ねる。
+# 完了した解析は、--verify で、成果物・記録・入力の sha256 を照合できる（何も書かない）。
+
+LOG = "analysis_log.jsonl"
+TOOL_FILES = ("analyze.py", "world.py", "alignment.py", "guard.py")
+
+
+def _artifact_names(mode: str) -> tuple[str, ...]:
+    """公開の順序。差の系列（本番だけ）を先、report を後にする（report があれば、それが参照する系列もある）。"""
+    return (SERIES, REPORT) if mode == "formal" else (REPORT,)
+
+
+def _tmp_names(folder: Path) -> list[str]:
+    names = (REPORT, SERIES, LOG)
+    return sorted(p.name for p in folder.iterdir() if p.is_file() and any(p.name.startswith(n + ".tmp") for n in names)) \
+        if folder.is_dir() else []
+
+
+def report_destination(folder: Path, mode: str, resume: bool = False) -> Path:
+    """report を書いてよい場所。だめなら GuardError（何も読まず・書かずに止まる）。
 
     - 本番（formal）：この実験の出力先（protocol の execution.output_dir）だけ。他の実験のフォルダには書かない
     - 通しの確認（check）：data/experiments の下（本番・他の実験のデータの場所）には書かない
-    - どちらも、既に report があれば上書きしない（解析は 1 回だけ。既存の report はバイト単位で変えない）
+    - 再開（resume）でなければ、report・差の系列・解析の記録・それらの一時ファイルのどれかが既にあれば止まる（上書きしない。
+      解析は 1 回だけ）。中断の後の扱いは publish（--resume）
     """
     f, root, own = folder.resolve(), DATA_ROOT.resolve(), OWN_DIR.resolve()
     if mode == "formal":
@@ -761,38 +801,218 @@ def report_destination(folder: Path, mode: str) -> Path:
             raise G.GuardError(f"通しの確認の解析の report は data/experiments の下（{folder}）に書かない")
     else:
         raise G.GuardError(f"未知の mode（{mode}）")
-    dest = f / REPORT
-    for name in (REPORT, REPORT + ".tmp", SERIES, SERIES + ".tmp"):
-        if (f / name).exists():
-            raise G.GuardError(f"{f / name} が既にある（上書きしない。解析は 1 回だけ）")
-    return dest
+    if not resume:
+        found = [n for n in (REPORT, SERIES, LOG) if (f / n).exists()] + _tmp_names(f)
+        if found:
+            raise G.GuardError(f"{f} に {found} が既にある（上書きしない。解析は 1 回だけ。中断の後なら --resume で照合して完了する）")
+    return f / REPORT
+
+
+def analysis_context(folder: Path, mode: str) -> dict:
+    """解析の入力の sha256（raw・実行の記録・protocol・道具）。開始のときと再開のときで完全に同じであることを確かめる。"""
+    def sha(path: Path):
+        return G.sha256_file(path) if path.exists() else None
+    return {"experiment": EXPERIMENT, "kind": KIND, "mode": mode,
+            "runs_sha256": sha(folder / G.RUNS), "run_started_sha256": sha(folder / G.START),
+            "run_finished_sha256": sha(folder / G.FINISH), "protocol_sha256": G.sha256_file(REPO / PROTOCOL_PATH),
+            "tool_sha256": {n: G.sha256_file(REPO / HERE / n) for n in TOOL_FILES}}
+
+
+def build_outputs(folder: Path, mode: str) -> tuple[dict, dict[str, bytes]]:
+    """解析（読むだけ）。report の中身と、差の系列のバイト列（本番で観測の量を計算したときだけ）。決定論的。"""
+    report = analyze_folder(folder, mode)
+    series: dict[str, bytes] = {}
+    if mode == "formal" and "per_seed" in report:
+        series[SERIES] = gzip.compress(json.dumps(difference_series(read(folder / G.RUNS))).encode("utf-8"), mtime=0)
+    return report, series
+
+
+def render(report: dict, series: Mapping[str, bytes], context: dict) -> dict[str, bytes]:
+    """公開するバイト列。report には入力の sha256 と、差の系列の sha256・バイト数を入れる（後から照合できる）。"""
+    artifacts = {name: {"sha256": G.sha256_bytes(b), "bytes": len(b)} for name, b in series.items()}
+    full = report | {"inputs": context, "artifacts": artifacts}
+    return dict(series) | {REPORT: json.dumps(full, ensure_ascii=False, indent=2).encode("utf-8")}
+
+
+def read_log(folder: Path) -> list[dict]:
+    """解析の記録を読む。読めない行があれば GuardError（記録の破損。手動の監査へ）。"""
+    events = []
+    for k, line in enumerate((folder / LOG).read_text(encoding="utf-8").splitlines(), 1):
+        try:
+            e = json.loads(line)
+        except json.JSONDecodeError as err:
+            raise G.GuardError(f"解析の記録の {k} 行目が読めない（記録の破損。手動の監査の判断に委ねる）") from err
+        if not isinstance(e, dict) or "event" not in e or "attempt" not in e:
+            raise G.GuardError(f"解析の記録の {k} 行目の形が想定と違う（手動の監査の判断に委ねる）")
+        events.append(e)
+    return events
+
+
+def _append(folder: Path, event: dict, create: bool = False) -> None:
+    """解析の記録に 1 行を追記する（create のときは排他的に作る）。追記だけで、書き換え・削除はしない。"""
+    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | (os.O_EXCL if create else 0)
+    fd = os.open(folder / LOG, flags, 0o644)
+    with os.fdopen(fd, "a", encoding="utf-8") as f:
+        f.write(json.dumps(event | {"time_unix": time.time()}, ensure_ascii=False) + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+    G._fsync_dir(folder)
+
+
+def _publish_file(path: Path, data: bytes, attempt: int) -> None:
+    """試行ごとに別の名前の一時ファイルに書いて fsync し、os.link で本名に置く（本名が既にあれば失敗する。上書きしない）。"""
+    tmp = path.with_name(f"{path.name}.tmp-{attempt}")
+    with open(tmp, "xb") as f:
+        f.write(data)
+        f.flush()
+        os.fsync(f.fileno())
+    os.link(tmp, path)
+    os.unlink(tmp)
+    G._fsync_dir(path.parent)
+
+
+def _present(folder: Path, names: Iterable[str]) -> dict:
+    return {n: (G.sha256_file(folder / n) if (folder / n).exists() else None) for n in names}
+
+
+class Unrecoverable(G.GuardError):
+    """再開しても安全に完了できない（入力の変化・成果物の破損・消失・記録の破損）。手動の監査の判断に委ねる。"""
+
+
+def publish(folder: Path, mode: str, resume: bool = False) -> dict:
+    """解析して成果物を公開する（README §7.2 の一度限りの解析。上の手順）。返す値：report の中身（入力・成果物の sha256 つき）。"""
+    names = _artifact_names(mode)
+    context = analysis_context(folder, mode)
+    written: dict[str, str] = {}
+    if not resume:
+        report_destination(folder, mode)                  # 既に何かあれば止まる（ここでも確かめ直す）
+        attempt = 1
+        _append(folder, {"event": "started", "attempt": attempt, "context": context}, create=True)
+    else:
+        if not (folder / LOG).exists():
+            raise Unrecoverable("再開できる解析の記録がない（成果物だけがあるなら、手動の監査の判断に委ねる）")
+        events = read_log(folder)
+        if events[0].get("event") != "started":
+            raise Unrecoverable("解析の記録が「開始」で始まっていない（手動の監査の判断に委ねる）")
+        if any(e["event"] == "completed" for e in events):
+            raise G.GuardError("この解析は既に完了している（再開しない。--verify で照合できる）")
+        if any(e["event"] == "unrecoverable" for e in events):
+            raise Unrecoverable("この解析は復旧不能として記録済み（再開しない。手動の監査の判断を待つ）")
+        attempt = max(int(e["attempt"]) for e in events) + 1
+        written = {e["file"]: e["sha256"] for e in events if e["event"] == "written"}
+        _append(folder, {"event": "resumed", "attempt": attempt, "context": context,
+                         "present": _present(folder, names), "stale_tmp": _tmp_names(folder)})
+        reasons = []
+        if context != events[0]["context"]:
+            reasons.append("入力（raw・実行の記録・protocol・道具）の sha256 が開始のときと違う")
+        reasons += [f"{n} は書いた記録があるのに、ない" for n in written if not (folder / n).exists()]
+        if reasons:
+            _append(folder, {"event": "unrecoverable", "attempt": attempt, "reasons": reasons})
+            raise Unrecoverable("；".join(reasons) + "（手動の監査の判断に委ねる）")
+    try:
+        report, series = build_outputs(folder, mode)
+        files = render(report, series, context)
+        reasons = [f"{n} があるのに、計算し直した成果物に含まれない" for n in names
+                   if n not in files and (folder / n).exists()]
+        for n in names:
+            if n not in files:
+                continue
+            path, sha = folder / n, G.sha256_bytes(files[n])
+            if path.exists():
+                got = G.sha256_file(path)
+                if got != sha or written.get(n, got) != got:
+                    reasons.append(f"{n} の sha256（{got}）が、同じ入力から計算し直した成果物（{sha}）・書いた記録と一致しない（破損）")
+                continue                                   # 同じバイト列が既にある：そのまま残す（書き直さない）
+            if reasons:
+                break
+            _publish_file(path, files[n], attempt)
+            _append(folder, {"event": "written", "attempt": attempt, "file": n, "sha256": sha, "bytes": len(files[n])})
+        if reasons:
+            _append(folder, {"event": "unrecoverable", "attempt": attempt, "reasons": reasons})
+            raise Unrecoverable("；".join(reasons) + "（手動の監査の判断に委ねる）")
+        _append(folder, {"event": "completed", "attempt": attempt, "resumed": resume,
+                         "artifacts": {n: G.sha256_bytes(files[n]) for n in names if n in files}})
+        return json.loads(files[REPORT])
+    except G.GuardError:
+        raise
+    except BaseException as e:
+        with contextlib.suppress(Exception):          # 失敗の記録が書けなくても、元の例外を投げ直す（記録には「開始」「書いた」が残る）
+            _append(folder, {"event": "failed", "attempt": attempt, "reason": repr(e), "present": _present(folder, names)})
+        raise
+
+
+def verify_artifacts(folder: Path, mode: str) -> dict:
+    """完了した解析の成果物・記録・入力の sha256 を照合する（何も書かない）。{problems, notes}。"""
+    problems, notes = [], []
+    if not (folder / LOG).exists():
+        return {"problems": ["解析の記録がない"], "notes": notes}
+    try:
+        events = read_log(folder)
+    except G.GuardError as e:
+        return {"problems": [str(e)], "notes": notes}
+    done = [e for e in events if e["event"] == "completed"]
+    if len(done) != 1 or events[-1] is not done[-1]:
+        problems.append("解析の記録が「完了」1 つで終わっていない")
+    if any(e["event"] == "unrecoverable" for e in events):
+        problems.append("復旧不能が記録されている")
+    if not (folder / REPORT).exists():
+        return {"problems": problems + ["report がない"], "notes": notes}
+    report = json.loads((folder / REPORT).read_text(encoding="utf-8"))
+    now = analysis_context(folder, mode)
+    inputs = report.get("inputs") or {}
+    for k in ("experiment", "kind", "mode", "runs_sha256", "run_started_sha256", "run_finished_sha256", "protocol_sha256"):
+        if inputs.get(k) != now[k]:
+            problems.append(f"report の入力 {k} が今のファイルと違う")
+    if inputs != events[0].get("context"):
+        problems.append("report の入力が、解析の記録の「開始」のものと違う")
+    if inputs.get("tool_sha256") != now["tool_sha256"]:
+        notes.append("道具の sha256 が今の道具と違う（後の commit で照合している。成果物の照合には影響しない）")
+    for n, a in (report.get("artifacts") or {}).items():
+        path = folder / n
+        if not path.exists():
+            problems.append(f"report が参照する {n} がない")
+        elif G.sha256_file(path) != a.get("sha256") or path.stat().st_size != a.get("bytes"):
+            problems.append(f"{n} の sha256・バイト数が report の記録と違う（破損・差し替え）")
+    names = set(_artifact_names(mode)) if (report.get("artifacts") or mode == "check") else {REPORT}
+    for n, sha in (done[-1].get("artifacts") or {}).items() if done else []:
+        if not (folder / n).exists() or G.sha256_file(folder / n) != sha:
+            problems.append(f"{n} が、解析の記録の「完了」の sha256 と違う")
+    if done and set(done[-1].get("artifacts") or {}) != names:
+        problems.append("解析の記録の「完了」の成果物の一覧が想定と違う")
+    return {"problems": problems, "notes": notes}
 
 
 def main() -> None:
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     mode = "check" if "--check" in sys.argv else "formal"
+    resume = "--resume" in sys.argv
     folder = Path(args[0]) if args else OWN_DIR
+    if "--verify" in sys.argv:
+        result = verify_artifacts(folder, mode)
+        for n in result["notes"]:
+            print(f"  （注）{n}")
+        print("照合：問題なし" if not result["problems"] else "照合：問題あり\n" + "\n".join(f"  - {p}" for p in result["problems"]))
+        raise SystemExit(0 if not result["problems"] else 1)
     try:
-        dest = report_destination(folder, mode)     # 解析の前に、書いてよい場所かを確かめる（だめなら何も読まず・書かずに止まる）
+        report_destination(folder, mode, resume)    # 解析の前に、書いてよい場所かを確かめる（だめなら何も読まず・書かずに止まる）
     except G.GuardError as e:
         raise SystemExit(f"report を書かない：{e}") from e
     ALIGN.check(PROTOCOL)
-    report = analyze_folder(folder, mode)
+    try:
+        report = publish(folder, mode, resume)
+    except G.GuardError as e:
+        raise SystemExit(f"report を書かない：{e}") from e
     print(f"valid: {report['valid']}")
     for p in report["problems"][:50]:
         print(f"  - {p}")
     bad = {s: v["failed_checks"] for s, v in report.get("individuals", {}).items() if not v["valid"]}
     for s, f in list(bad.items())[:20]:
         print(f"  - seed {s}: {sorted(f)}")
-    if mode == "formal" and "per_seed" in report:
-        series = difference_series(read(folder / G.RUNS))
-        G.atomic_write(dest.with_name(SERIES), gzip.compress(json.dumps(series).encode("utf-8"), mtime=0))
-    G.atomic_write(dest, json.dumps(report, ensure_ascii=False, indent=2).encode("utf-8"))
     if mode == "check":
         print("【道具の通しの確認。観測の量は計算していない】")
     else:
-        print("観測の量は report.json に書いた（ここには表示しない）")
-    print(f"saved {dest}")
+        print("観測の量は report.json・differences_series.json.gz に書いた（ここには表示しない）")
+    print(f"saved {folder / REPORT}（解析の記録 {LOG}）")
 
 
 if __name__ == "__main__":

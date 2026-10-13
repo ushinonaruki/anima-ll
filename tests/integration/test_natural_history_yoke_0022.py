@@ -20,6 +20,7 @@
 """
 
 import copy
+import gzip
 import importlib.util
 import json
 import math
@@ -582,9 +583,12 @@ def test_formal_main_writes_the_series_next_to_the_report_only_in_its_own_folder
     monkeypatch.setattr(A, "difference_series", lambda data: {"dummy": True})
     monkeypatch.setattr("sys.argv", ["analyze.py"])
     A.main()
-    assert sorted(p.name for p in own.iterdir()) == sorted([A.REPORT, A.SERIES])
-    import gzip as _gzip
-    assert json.loads(_gzip.decompress((own / A.SERIES).read_bytes())) == {"dummy": True}
+    assert sorted(p.name for p in own.iterdir()) == sorted([A.REPORT, A.SERIES, A.LOG])
+    assert json.loads(gzip.decompress((own / A.SERIES).read_bytes())) == {"dummy": True}
+    report = json.loads((own / A.REPORT).read_text(encoding="utf-8"))
+    assert report["artifacts"] == {A.SERIES: {"sha256": G.sha256_file(own / A.SERIES), "bytes": (own / A.SERIES).stat().st_size}}
+    assert [e["event"] for e in A.read_log(own)] == ["started", "written", "written", "completed"]
+    assert A.verify_artifacts(own, "formal") == {"problems": [], "notes": []}
     monkeypatch.setattr("sys.argv", ["analyze.py"])
     with pytest.raises(SystemExit, match="上書きしない"):
         A.main()
@@ -1189,7 +1193,7 @@ def test_analysis_never_writes_into_other_experiment_folders(A, tmp_path, monkey
 
 def test_analysis_never_overwrites_an_existing_report_or_series(A, tmp_path, monkeypatch) -> None:
     _, own, _ = _fake_data_root(tmp_path, monkeypatch, A)
-    for name in (A.REPORT, A.SERIES):
+    for name in (A.REPORT, A.SERIES, A.LOG, A.REPORT + ".tmp-1", A.SERIES + ".tmp-3"):
         (own / name).write_bytes(b'{"already": "analyzed"}\n')
         before = _contents(own)
         monkeypatch.setattr("sys.argv", ["analyze.py"])
@@ -1197,6 +1201,13 @@ def test_analysis_never_overwrites_an_existing_report_or_series(A, tmp_path, mon
             A.main()
         assert _contents(own) == before
         (own / name).unlink()
+    (own / A.REPORT).write_bytes(b'{"already": "analyzed"}\n')               # 解析の記録のない成果物：再開もしない
+    before = _contents(own)
+    monkeypatch.setattr(A.ALIGN, "check", lambda protocol: None)
+    monkeypatch.setattr("sys.argv", ["analyze.py", "--resume"])
+    with pytest.raises(SystemExit, match="再開できる解析の記録がない"):
+        A.main()
+    assert _contents(own) == before
     scratch = tmp_path / "scratch"
     scratch.mkdir()
     (scratch / "report.json").write_bytes(b"old\n")
@@ -1215,7 +1226,9 @@ def test_check_analysis_writes_only_to_a_scratch_folder(A, tmp_path, monkeypatch
     report = json.loads((scratch / "report.json").read_text(encoding="utf-8"))
     assert report["mode"] == "check" and not report["valid"]                 # 結果のファイルがないので invalid
     assert not ({"summary", "per_seed"} & set(report))
-    assert not (scratch / A.SERIES).exists()
+    assert not (scratch / A.SERIES).exists() and report["artifacts"] == {}
+    assert [e["event"] for e in A.read_log(scratch)] == ["started", "written", "completed"]
+    assert A.verify_artifacts(scratch, "check") == {"problems": [], "notes": []}
 
 
 def test_real_other_experiment_paths_are_refused_by_path_alone(A) -> None:
@@ -1228,3 +1241,219 @@ def test_real_other_experiment_paths_are_refused_by_path_alone(A) -> None:
     for mode in ("formal", "check"):
         with pytest.raises(A.G.GuardError):
             A.report_destination(A.REPO / "data" / "experiments", mode)
+
+
+
+# ---- 成果物の公開の故障注入（#92 のレビュー 5505249564）---------------------------------------------------------
+# 本番の解析の書き出しの経路だけを確かめる。観測の量は計算しない（解析の関数を、固定のダミーの出力に差し替える）。
+# raw も実データではなく、ダミーのバイト列（sha256 の照合の対象としてだけ使う）。
+
+FAKE_SERIES = gzip.compress(b'{"fake": "series, not data"}', mtime=0)
+
+
+def _fake_formal(A, tmp_path, monkeypatch, series: bytes = FAKE_SERIES):
+    _, own, _ = _fake_data_root(tmp_path, monkeypatch, A)
+    (own / G.RUNS).write_bytes(b"raw stand-in (not real data)")
+    monkeypatch.setattr(A.ALIGN, "check", lambda protocol: None)
+    monkeypatch.setattr(A, "build_outputs", lambda folder, mode: (
+        {"experiment": A.EXPERIMENT, "mode": mode, "valid": False, "problems": [], "individuals": {}, "per_seed": {}},
+        {A.SERIES: series}))
+    return own
+
+
+def _main(A, monkeypatch, *argv) -> None:
+    monkeypatch.setattr("sys.argv", ["analyze.py", *argv])
+    A.main()
+
+
+def _events(A, folder) -> list[str]:
+    return [e["event"] for e in A.read_log(folder)]
+
+
+def _fail_on(A, monkeypatch, name: str, leave_tmp: bool = False):
+    """name の成果物の公開で故障させる（leave_tmp なら、書きかけの一時ファイルを残してから）。元の関数を返す。"""
+    real = A._publish_file
+
+    def fake(path, data, attempt):
+        if path.name == name:
+            if leave_tmp:
+                path.with_name(f"{path.name}.tmp-{attempt}").write_bytes(data[:7])
+            raise OSError("injected failure")
+        return real(path, data, attempt)
+
+    monkeypatch.setattr(A, "_publish_file", fake)
+    return real
+
+
+def test_interruption_after_series_before_report_is_completed_only_by_a_verified_resume(A, tmp_path, monkeypatch) -> None:
+    own = _fake_formal(A, tmp_path, monkeypatch)
+    real = _fail_on(A, monkeypatch, A.REPORT)
+    with pytest.raises(OSError, match="injected"):
+        _main(A, monkeypatch)
+    assert (own / A.SERIES).exists() and not (own / A.REPORT).exists()          # 部分的な公開が残る
+    assert _events(A, own) == ["started", "written", "failed"]
+    failed = A.read_log(own)[-1]
+    assert failed["present"] == {A.SERIES: G.sha256_bytes(FAKE_SERIES), A.REPORT: None}
+    series_stat = (own / A.SERIES).stat()
+    monkeypatch.setattr(A, "_publish_file", real)
+    with pytest.raises(SystemExit, match="上書きしない"):                            # 通常の再入場は拒否
+        _main(A, monkeypatch)
+    _main(A, monkeypatch, "--resume")                                            # 照合して完了
+    after = (own / A.SERIES).stat()
+    assert (own / A.SERIES).read_bytes() == FAKE_SERIES and (after.st_ino, after.st_mtime_ns) == (series_stat.st_ino, series_stat.st_mtime_ns)
+    report = json.loads((own / A.REPORT).read_text(encoding="utf-8"))
+    assert report["artifacts"][A.SERIES] == {"sha256": G.sha256_bytes(FAKE_SERIES), "bytes": len(FAKE_SERIES)}
+    assert report["inputs"]["runs_sha256"] == G.sha256_file(own / G.RUNS)
+    assert _events(A, own) == ["started", "written", "failed", "resumed", "written", "completed"]
+    assert A.read_log(own)[-1]["resumed"] is True
+    assert A.verify_artifacts(own, "formal") == {"problems": [], "notes": []}
+    with pytest.raises(SystemExit, match="0"):
+        _main(A, monkeypatch, "--verify")
+    with pytest.raises(SystemExit, match="完了"):
+        _main(A, monkeypatch, "--resume")
+    with pytest.raises(SystemExit, match="上書きしない"):
+        _main(A, monkeypatch)
+
+
+@pytest.mark.parametrize("damage,needle", [
+    ("corrupt_series", "破損"),
+    ("change_raw", "入力"),
+    ("delete_series", "書いた記録があるのに、ない"),
+    ("replace_series_with_other_bytes", "破損"),
+])
+def test_resume_refuses_and_records_unrecoverable_states(A, tmp_path, monkeypatch, damage, needle) -> None:
+    """破損・入力の変化・成果物の消失は、再開しても完了させない。復旧不能を記録し、成果物を書き直さない。以後の再開も拒否。"""
+    own = _fake_formal(A, tmp_path, monkeypatch)
+    real = _fail_on(A, monkeypatch, A.REPORT)
+    with pytest.raises(OSError):
+        _main(A, monkeypatch)
+    monkeypatch.setattr(A, "_publish_file", real)
+    if damage == "corrupt_series":
+        (own / A.SERIES).write_bytes(FAKE_SERIES[:-3])
+    elif damage == "change_raw":
+        (own / G.RUNS).write_bytes(b"different raw")
+    elif damage == "delete_series":
+        (own / A.SERIES).unlink()
+    else:
+        (own / A.SERIES).write_bytes(gzip.compress(b'{"other": 1}', mtime=0))
+    before = _contents(own)
+    with pytest.raises(SystemExit, match=needle):
+        _main(A, monkeypatch, "--resume")
+    assert _events(A, own)[-1] == "unrecoverable"
+    assert not (own / A.REPORT).exists()
+    after = _contents(own)
+    assert {k: v for k, v in after.items() if k != A.LOG} == {k: v for k, v in before.items() if k != A.LOG}   # 成果物は変えない
+    with pytest.raises(SystemExit, match="復旧不能"):
+        _main(A, monkeypatch, "--resume")
+
+
+def test_a_stale_temporary_file_is_kept_and_recorded(A, tmp_path, monkeypatch) -> None:
+    """書きかけの一時ファイルは消さずに残し、再開の記録に載せる。再開は別の名前の一時ファイルで公開する。"""
+    own = _fake_formal(A, tmp_path, monkeypatch)
+    real = _fail_on(A, monkeypatch, A.REPORT, leave_tmp=True)
+    with pytest.raises(OSError):
+        _main(A, monkeypatch)
+    stale = own / f"{A.REPORT}.tmp-1"
+    assert stale.exists()
+    stale_bytes = stale.read_bytes()
+    monkeypatch.setattr(A, "_publish_file", real)
+    with pytest.raises(SystemExit, match="上書きしない"):
+        _main(A, monkeypatch)
+    _main(A, monkeypatch, "--resume")
+    assert stale.read_bytes() == stale_bytes                                    # 黙って消さない
+    resumed = next(e for e in A.read_log(own) if e["event"] == "resumed")
+    assert resumed["stale_tmp"] == [stale.name] and _events(A, own)[-1] == "completed"
+    assert A.verify_artifacts(own, "formal")["problems"] == []
+
+
+def test_interruption_before_any_artifact_and_after_an_unlogged_publication(A, tmp_path, monkeypatch) -> None:
+    """(1) 最初の成果物の前の故障 → 再開で両方を公開。(2) 公開の後、記録の前に止まった（本名のファイルはあるが「書いた」がない）
+    → 再開で、同じバイト列であることを確かめて、そのまま残す。"""
+    own = _fake_formal(A, tmp_path, monkeypatch)
+    real = _fail_on(A, monkeypatch, A.SERIES)
+    with pytest.raises(OSError):
+        _main(A, monkeypatch)
+    assert A.read_log(own)[-1]["present"] == {A.SERIES: None, A.REPORT: None}
+    monkeypatch.setattr(A, "_publish_file", real)
+    _main(A, monkeypatch, "--resume")
+    assert _events(A, own) == ["started", "failed", "resumed", "written", "written", "completed"]
+
+    own2 = tmp_path / "second"
+    own2.mkdir()
+    monkeypatch.setattr(A, "OWN_DIR", own2)
+    (own2 / G.RUNS).write_bytes(b"raw stand-in (not real data)")
+    real_append = A._append
+
+    def append(folder, event, create=False):
+        if event["event"] == "written" and event.get("file") == A.SERIES:
+            raise KeyboardInterrupt("stopped before the record")
+        return real_append(folder, event, create)
+
+    monkeypatch.setattr(A, "_append", append)
+    with pytest.raises(KeyboardInterrupt):
+        _main(A, monkeypatch, str(own2))
+    assert (own2 / A.SERIES).exists() and _events(A, own2) == ["started", "failed"]
+    monkeypatch.setattr(A, "_append", real_append)
+    _main(A, monkeypatch, str(own2), "--resume")
+    assert _events(A, own2) == ["started", "failed", "resumed", "written", "completed"]
+    assert A.verify_artifacts(own2, "formal")["problems"] == []
+
+
+def test_interruption_during_the_analysis_itself_leaves_no_artifact(A, tmp_path, monkeypatch) -> None:
+    own = _fake_formal(A, tmp_path, monkeypatch)
+    good = A.build_outputs
+    monkeypatch.setattr(A, "build_outputs", lambda folder, mode: (_ for _ in ()).throw(MemoryError("injected")))
+    with pytest.raises(MemoryError):
+        _main(A, monkeypatch)
+    assert sorted(p.name for p in own.iterdir()) == sorted([G.RUNS, A.LOG]) and _events(A, own) == ["started", "failed"]
+    monkeypatch.setattr(A, "build_outputs", good)
+    _main(A, monkeypatch, "--resume")
+    assert _events(A, own)[-1] == "completed"
+
+
+def test_verify_detects_damage_after_completion(A, tmp_path, monkeypatch) -> None:
+    own = _fake_formal(A, tmp_path, monkeypatch)
+    _main(A, monkeypatch)
+    assert A.verify_artifacts(own, "formal") == {"problems": [], "notes": []}
+    original = {n: (own / n).read_bytes() for n in (A.SERIES, A.REPORT, G.RUNS, A.LOG)}
+    for name, damaged in ((A.SERIES, FAKE_SERIES[:-1]), (A.REPORT, original[A.REPORT] + b" "),
+                          (G.RUNS, b"other raw"), (A.LOG, original[A.LOG] + b"not json\n")):
+        (own / name).write_bytes(damaged)
+        problems = A.verify_artifacts(own, "formal")["problems"]
+        assert problems, name
+        with pytest.raises(SystemExit, match="1"):
+            _main(A, monkeypatch, "--verify")
+        (own / name).write_bytes(original[name])
+    (own / A.SERIES).unlink()
+    assert any("ない" in p for p in A.verify_artifacts(own, "formal")["problems"])
+
+
+def test_a_damaged_log_stops_the_resume(A, tmp_path, monkeypatch) -> None:
+    own = _fake_formal(A, tmp_path, monkeypatch)
+    real = _fail_on(A, monkeypatch, A.REPORT)
+    with pytest.raises(OSError):
+        _main(A, monkeypatch)
+    monkeypatch.setattr(A, "_publish_file", real)
+    with open(own / A.LOG, "a", encoding="utf-8") as f:
+        f.write("{broken\n")
+    with pytest.raises(SystemExit, match="記録の破損"):
+        _main(A, monkeypatch, "--resume")
+    assert not (own / A.REPORT).exists()
+
+
+def test_rendering_is_deterministic_and_references_the_series_hash(A) -> None:
+    report = {"valid": True, "problems": [], "individuals": {}}
+    ctx = {"runs_sha256": "a" * 64}
+    one, two = A.render(report, {A.SERIES: FAKE_SERIES}, ctx), A.render(report, {A.SERIES: FAKE_SERIES}, ctx)
+    assert one == two and one[A.SERIES] == FAKE_SERIES
+    assert json.loads(one[A.REPORT])["artifacts"][A.SERIES]["sha256"] == G.sha256_bytes(FAKE_SERIES)
+    assert json.loads(A.render(report, {}, ctx)[A.REPORT])["artifacts"] == {}
+
+
+def test_publication_never_overwrites_through_the_link(A, tmp_path) -> None:
+    """公開は os.link で本名に置く：本名が既にあれば失敗し、既存のファイルは変わらない。"""
+    target = tmp_path / "x.json"
+    target.write_bytes(b"existing")
+    with pytest.raises(FileExistsError):
+        A._publish_file(target, b"new", 1)
+    assert target.read_bytes() == b"existing"
