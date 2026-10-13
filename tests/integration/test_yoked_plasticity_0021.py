@@ -8,6 +8,7 @@ Unit の activity・adaptation は 0）。窓は 0〜600 Pulse。
 - 例を選ぶための走査：14101〜14130 を、2 通りの合成の重みで 600 Pulse（t1・t2 の有無だけを見た）
 - 14101（t1 なし）・14103（t1 あり・t2 なし）・14112（t1・t2 あり）：契約テストの合成の例
 - 14199：実物の手順の通しの確認（操作の確認だけ。観測の量は表示しない）
+- 14112（#86 の修正）：監査の生記録の契約（毎 Pulse の照合、腕の振る舞いを変えないこと）にも使う
 """
 
 import copy
@@ -82,7 +83,8 @@ def _five(seed: int, a_control=A_CONTROL, a_intervention=A_INTERVENTION, n: int 
     arms = {"C": (C, Cl), "I": (I, Il), "Y": (Y, Yl), "twin": (tw, twl), "Y0": (Y0, Y0l)}
     fork = {k: W.snapshot(app) for k, (app, _) in arms.items()}
     yokes = {k: W.make_yoked(arms[k][0]) for k in W.YOKED}
-    res = W.run_arms(arms, yokes, 0, n, 60)
+    audits = {k: W.make_audited(arms[k][0]) for k in ("C", "I", "Y")}
+    res = W.run_arms(arms, yokes, 0, n, 60, audits)
     ends = {k: W.snapshot(app) for k, (app, _) in arms.items()}
     return {"seed": seed, "roles": {"units": u}, "arms": res, "fork": fork, "endpoints": ends}
 
@@ -694,3 +696,133 @@ def test_pool_map_never_runs_more_than_two_processes_at_once(R, monkeypatch, tmp
         running += d
         peak = max(peak, running)
     assert peak <= 2
+
+
+# ---- #86 のレビュー P1-1：解析の出力先の隔離（既存の report はバイト単位で変えない）------------------------------
+
+def _fake_data_root(tmp_path, monkeypatch, A):
+    """data/experiments の見立て（一時フォルダ）。0020 の実データには触らない。"""
+    root = tmp_path / "repo" / "data" / "experiments"
+    own = root / Path(PROTOCOL["execution"]["output_dir"]).name
+    other = root / "0020"
+    for d in (own, other):
+        d.mkdir(parents=True)
+    monkeypatch.setattr(A, "DATA_ROOT", root)
+    monkeypatch.setattr(A, "OWN_DIR", own)
+    return root, own, other
+
+
+def _contents(folder: Path) -> dict:
+    return {p.name: p.read_bytes() for p in sorted(folder.iterdir())}
+
+
+def test_analysis_never_writes_into_other_experiment_folders(A, tmp_path, monkeypatch) -> None:
+    root, own, other = _fake_data_root(tmp_path, monkeypatch, A)
+    (other / "report.json").write_bytes(b'{"experiment": "0020", "original": true}\n')
+    (other / "runs.json.gz").write_bytes(b"not gzip")
+    before = _contents(other)
+    for argv in (["analyze.py", str(other)], ["analyze.py", str(other), "--check"],
+                 ["analyze.py", str(root)], ["analyze.py", str(root), "--check"]):
+        monkeypatch.setattr("sys.argv", argv)
+        with pytest.raises(SystemExit, match="report を書かない"):
+            A.main()
+        assert _contents(other) == before                      # 既存の report.json もほかのファイルもバイト単位で同じ
+    assert sorted(p.name for p in own.iterdir()) == []
+
+
+def test_analysis_never_overwrites_an_existing_report(A, tmp_path, monkeypatch) -> None:
+    root, own, _ = _fake_data_root(tmp_path, monkeypatch, A)
+    (own / "report.json").write_bytes(b'{"already": "analyzed"}\n')
+    before = _contents(own)
+    monkeypatch.setattr("sys.argv", ["analyze.py"])
+    with pytest.raises(SystemExit, match="上書きしない"):
+        A.main()
+    assert _contents(own) == before
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    (scratch / "report.json").write_bytes(b"old\n")
+    monkeypatch.setattr("sys.argv", ["analyze.py", str(scratch), "--check"])
+    with pytest.raises(SystemExit, match="上書きしない"):
+        A.main()
+    assert (scratch / "report.json").read_bytes() == b"old\n"
+
+
+def test_check_analysis_writes_only_to_a_scratch_folder(A, tmp_path, monkeypatch) -> None:
+    _fake_data_root(tmp_path, monkeypatch, A)
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    monkeypatch.setattr("sys.argv", ["analyze.py", str(scratch), "--check"])
+    A.main()
+    report = json.loads((scratch / "report.json").read_text(encoding="utf-8"))
+    assert report["mode"] == "check" and not report["valid"]                 # 結果のファイルがないので invalid
+    assert not ({"summary", "per_seed"} & set(report))
+
+
+def test_real_other_experiment_paths_are_refused_by_path_alone(A) -> None:
+    """実際の data/experiments/0020（と data/experiments そのもの）は、パスだけで拒否する（中身を読まない・書かない）。"""
+    real_other = A.REPO / "data" / "experiments" / "0020"
+    for mode in ("formal", "check"):
+        with pytest.raises(A.G.GuardError):
+            A.report_destination(real_other, mode)
+        with pytest.raises(A.G.GuardError):
+            A.report_destination(A.REPO / "data" / "experiments", mode)
+
+
+# ---- #86 のレビュー P1-2：分岐の Pulse t の判定の直前の activity の監査の生記録 -------------------------------------
+
+def test_audit_matches_independent_reconstruction_at_every_pulse() -> None:
+    """監査の生記録（本物の力学のコードの値）が、t − 1 の状態・t − 2 の重み・t − 1 の発火からの独立な再構成と、
+    300 Pulse すべてで 1e-12 以内に一致し、判定も一致する（分岐の Pulse だけに頼らない）。"""
+    app, log, _ = _synthetic(T1_T2, A_CONTROL)
+    sink = W.make_audited(app)
+    reader = W._EventReader(log)
+    hist, last, checked = [W.snapshot(app)], [], 0
+    for t in range(1, 301):
+        W.advance_to(app, t)
+        now, _ = reader.new()
+        assert {r["pulse"] for r in sink.values()} == {t} and set(sink) == {u.unit_id for u in app.units.all()}
+        if len(hist) == 2:
+            rec = W.reconstruct_firing(hist[-1]["units"], {c: v["weight"] for c, v in hist[0]["connections"].items()},
+                                       last, 1.0)
+            for uid, r in rec.items():
+                assert abs(r["activity_pre"] - sink[uid]["activity_pre"]) < 1e-12
+                assert r["fires"] == sink[uid]["fired"] == (uid in {u for _, u in now})
+                assert not sink[uid]["probe_fired"]
+            checked += 1
+        hist, last = (hist + [W.snapshot(app)])[-2:], now
+    assert checked == 299 and log.activity()
+
+
+def test_audit_does_not_change_how_an_arm_runs() -> None:
+    plain, plain_log, _ = _synthetic(T1_T2, A_CONTROL)
+    audited, audited_log, _ = _synthetic(T1_T2, A_CONTROL)
+    W.make_audited(audited)
+    W.advance_to(plain, N)
+    W.advance_to(audited, N)
+    assert plain_log.activity() == audited_log.activity() and plain_log.activity()
+    assert W.snapshot(plain) == W.snapshot(audited)
+
+
+def test_divergence_activity_check_uses_the_raw_audit(A, cases) -> None:
+    run = cases[T1_T2]
+    u = run["roles"]["units"]
+    j = run["arms"]["t2"]["units"][0]
+    k = next(iter(run["arms"]["t1"]["audit"]["C"]))
+    for mutate, name in [
+        (lambda b: b["arms"]["t2"]["audit"]["I"][j].__setitem__("activity_pre", b["arms"]["t2"]["audit"]["I"][j]["activity_pre"] + 1e-9),
+         "divergence_activity_reconstruction"),
+        (lambda b: b["arms"]["t1"]["audit"]["C"][k].__setitem__("activity_pre", b["arms"]["t1"]["audit"]["C"][k]["activity_pre"] - 1e-9),
+         "divergence_activity_reconstruction"),
+        (lambda b: b["arms"]["t2"].pop("audit"), "divergence_activity_reconstruction"),
+        (lambda b: b["arms"]["t2"]["audit"]["Y"][u["A"]].__setitem__("activity_in", 0.123), "revalidate_from_raw"),
+        (lambda b: b["arms"]["t2"]["audit"]["Y"][u["A"]].__setitem__("pulse", 1), "revalidate_from_raw"),
+    ]:
+        assert name in _mutated(A, run, mutate), name
+    # t − 1 の照合は補助の監査（revalidate_from_raw）で、契約の確認の名前には入れない。
+    # t − 1 に発火した Unit は 0 に戻るので、t − 2 の値の改ざんは t − 1 に発火していない Unit で確かめる
+    t1 = run["arms"]["t1"]["pulse"]
+    quiet = next(x for x in run["arms"]["t1"]["audit"]["C"] if x not in A.spikes_at(run["arms"]["spikes"]["C"], t1 - 1))
+    got = _mutated(A, run, lambda b: b["arms"]["t1"]["before"]["t-2"]["C"]["units"][quiet].__setitem__(
+        "activity", b["arms"]["t1"]["before"]["t-2"]["C"]["units"][quiet]["activity"] + 1e-9))
+    assert any("補助の監査" in p for p in got.get("revalidate_from_raw", []))
+    assert "divergence_activity_reconstruction" not in got

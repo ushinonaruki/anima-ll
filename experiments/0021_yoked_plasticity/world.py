@@ -8,6 +8,9 @@
     （発火の出来事と痕跡の両方が C の列で進む）。重みの固定・伝達・Unit の状態は自分のまま。Runtime の本体は変えない
 - 記録（README §4）：全腕の W の全発火・感覚の出来事、60 Pulse ごとの全腕の接続の状態と Unit の状態、
     t1（C・I・Y）と t2（I・Y）の直前 2 Pulse の全状態と t − 1・t の発火、T の全腕の状態
+- 監査用の生記録（#86 のレビュー。README §6 の divergence_activity_reconstruction のため）：C・I・Y の Unit の力学の
+    オブジェクトだけを AuditedDynamics で包み（Runtime・Unit の本体は変えない）、各 Pulse の Unit の判定の直前の activity を
+    記録する。t1・t2 の Pulse のものを分岐の記録に残す
 - 再構成（analyze.py と契約テストが使う）：affine の係数、可塑性の再生（切り詰めの監査つき）、発火の判定の再構成
 
 複製・時間の進め方・来歴のログ・Receptor は 0012 の道具、刺激の列・再生の確認は 0015 の道具、
@@ -15,6 +18,7 @@
 可塑性の 1 Pulse の更新は本体の実装（plasticity.balanced_pair_window）をそのまま呼ぶ。
 """
 
+import dataclasses
 import importlib.util
 import math
 from collections.abc import Collection, Iterable, Mapping
@@ -174,6 +178,45 @@ def make_yoked(app: Application) -> YokedConnections:
     return yoke
 
 
+# ---- 判定の直前の activity の監査（#86 のレビュー）--------------------------------------------------------
+
+class AuditedDynamics:
+    """Unit の力学のオブジェクトの監査用の包み（実験の道具の中だけ。Runtime・Unit の本体は変えない）。
+
+    advance は本物の advance をそのまま呼んで、その結果を返す（Unit の振る舞いは変わらない。腕どうしの厳密一致の確認で確かめる）。
+    同時に、Unit が渡した実際の入力（状態・刺激・Δt）と、判定の直前の activity を記録する。判定の直前の activity は、
+    閾値だけを無限大にした同じ実装の写しに同じ入力を渡して得る（同じ式・同じ順序で計算された、発火による 0 へのリセットの前の値）。
+    """
+
+    def __init__(self, inner, sink: dict, unit_id: ComponentId, lifecycle) -> None:
+        self.inner, self._sink, self._unit_id, self._lifecycle = inner, sink, unit_id, lifecycle
+        self._probe = dataclasses.replace(inner, threshold=math.inf)
+
+    def advance(self, state, stimulus: float, delta_time: float):
+        probe_state, probe_fired = self._probe.advance(state, stimulus, delta_time)
+        new_state, firing = self.inner.advance(state, stimulus, delta_time)
+        self._sink[self._unit_id] = {
+            "pulse": self._lifecycle.pulse, "activity_in": state.activity, "adaptation_in": state.adaptation,
+            "stimulus": stimulus, "delta_time": delta_time, "activity_pre": probe_state.activity,
+            "probe_fired": probe_fired is not None, "fired": firing is not None,
+            "activity_out": new_state.activity, "adaptation_out": new_state.adaptation}
+        return new_state, firing
+
+    def describe(self):
+        return self.inner.describe()
+
+    def __getattr__(self, name):
+        return getattr(self.inner, name)
+
+
+def make_audited(app: Application) -> dict:
+    """腕の各 Unit の力学を AuditedDynamics で包み、その Pulse の監査の記録を入れる dict（Unit → 記録）を返す。"""
+    sink: dict = {}
+    for unit in app.units.all():
+        unit._dynamics = AuditedDynamics(unit._dynamics, sink, unit.unit_id, app.lifecycle)
+    return sink
+
+
 # ---- 5 つの腕を 1 Pulse ずつ並べて進める -------------------------------------------------------------
 
 class _EventReader:
@@ -200,22 +243,27 @@ def _divergence_record(t: int, units: list[str], arms: Iterable[str], hist: Mapp
 
 
 def run_arms(arms: Mapping[str, tuple[Application, ExperimentLog]], yokes: Mapping[str, YokedConnections],
-             start: PulseNumber, end: PulseNumber, every: int) -> dict:
+             start: PulseNumber, end: PulseNumber, every: int, audits: Mapping[str, dict]) -> dict:
     """5 つの腕を start の終わりから end まで、ARMS の順に 1 Pulse ずつ並べて進める。どの腕も start まで進んでいること。
 
     yokes：yoked の腕の名前 → 包み。各 Pulse で、SOURCE（C）を進めて得た発火の集合を、その Pulse の前に包みへ渡す。
+    audits：監査する腕（C・I・Y）の名前 → make_audited の dict。各 Pulse の後に読み、t1・t2 の Pulse のものを分岐の記録に残す。
 
     返す値（すべて生の記録）：
       spikes   {腕: [[Pulse, Unit]]}（start ＋ 1〜end）
       sensory  {腕: [[Pulse, Receptor]]}（start ＋ 1〜end。入力なしなら空）
       samples  {腕: {Pulse: {connections, units}}}（start と、start から every ごと、end）
-      t1       None か {pulse, units, before: {t−2, t−1: {腕: {units, connections}}}, spikes: {t−1, t: {腕: [...]}}}（C・I・Y）
+      t1       None か {pulse, units, before: {t−2, t−1: {腕: {units, connections}}}, spikes: {t−1, t: {腕: [...]}},
+                        audit: {腕: {Unit: 判定の直前の activity などの監査の記録（Pulse t）}}}（C・I・Y）
       t2       同じ形（I・Y）
     """
     if tuple(arms) != ARMS:
         raise ValueError(f"腕の並びが {ARMS} ではない（{tuple(arms)}）")
     if set(yokes) != set(YOKED):
         raise ValueError(f"yoke する腕が {YOKED} ではない（{tuple(yokes)}）")
+    watched = ("C", "I", "Y")
+    if set(audits) != set(watched):
+        raise ValueError(f"監査する腕が {watched} ではない（{tuple(audits)}）")
     for name, (app, _) in arms.items():
         if app.lifecycle.pulse != start:
             raise ValueError(f"{name} は Pulse {start} まで進んでいること（今 {app.lifecycle.pulse}）")
@@ -223,7 +271,6 @@ def run_arms(arms: Mapping[str, tuple[Application, ExperimentLog]], yokes: Mappi
     spikes: dict[str, list] = {name: [] for name in arms}
     sensory: dict[str, list] = {name: [] for name in arms}
     samples: dict[str, dict] = {name: {} for name in arms}
-    watched = ("C", "I", "Y")
     hist = {name: [snapshot(arms[name][0])] for name in watched}     # 直前 2 Pulse の終わりの状態
     last = {name: [] for name in watched}
     t1 = t2 = None
@@ -235,6 +282,7 @@ def run_arms(arms: Mapping[str, tuple[Application, ExperimentLog]], yokes: Mappi
     sample(start)
     for t in range(start + 1, end + 1):
         now: dict[str, list] = {}
+        audit_now: dict[str, dict] = {}
         fired_source: frozenset | None = None
         for name, (app, _) in arms.items():
             if name in yokes:
@@ -242,17 +290,25 @@ def run_arms(arms: Mapping[str, tuple[Application, ExperimentLog]], yokes: Mappi
             advance_to(app, t)
             if name in yokes and not yokes[name].consumed():
                 raise YokeError(f"{name}：Pulse {t} の C の発火が、可塑性の更新に使われなかった")
+            if name in audits:
+                got = audits[name]
+                if set(got) != {x.unit_id for x in app.units.all()} or any(r["pulse"] != t for r in got.values()):
+                    raise ValueError(f"{name}：Pulse {t} の監査の記録が全 Unit でそろっていない")
             act, sen = readers[name].new()
             now[name] = act
             spikes[name] += act
             sensory[name] += sen
             if name == SOURCE:
                 fired_source = frozenset(u for _, u in act)
+            if name in audits:
+                audit_now[name] = {u: dict(r) for u, r in audits[name].items()}
         sets = {n: {u for _, u in now[n]} for n in watched}
         if t1 is None and sets["C"] != sets["I"]:
             t1 = _divergence_record(t, sorted(sets["C"] ^ sets["I"]), ("C", "I", "Y"), hist, last, now)
+            t1["audit"] = {a: audit_now[a] for a in ("C", "I", "Y")}
         if t2 is None and sets["I"] != sets["Y"]:
             t2 = _divergence_record(t, sorted(sets["I"] ^ sets["Y"]), ("I", "Y"), hist, last, now)
+            t2["audit"] = {a: audit_now[a] for a in ("I", "Y")}
         for name in watched:
             hist[name] = (hist[name] + [snapshot(arms[name][0])])[-2:]
             last[name] = now[name]
@@ -374,7 +430,8 @@ def measure_seed(protocol: dict, seed: int) -> dict:
     arms = {"C": (C, C_log), "I": (I, I_log), "Y": (Y, Y_log), "twin": (twin, twin_log), "Y0": (Y0, Y0_log)}
     fork = {name: snapshot(app) for name, (app, _) in arms.items()}
     yokes = {name: make_yoked(arms[name][0]) for name in YOKED}
-    res = run_arms(arms, yokes, end, total, every)
+    audits = {name: make_audited(arms[name][0]) for name in ("C", "I", "Y")}   # 複製の後に包む（twin・Y0 は包まない）
+    res = run_arms(arms, yokes, end, total, every, audits)
     return {"seed": seed, "first_divergence_history": diverge,
             "roles": {"receptors": role_receptors(protocol, seed), "units": units},
             "conditions": out, "fork": fork, "arms": res,

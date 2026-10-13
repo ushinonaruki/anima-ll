@@ -7,15 +7,17 @@
    分岐の記録ではなく全発火の列から計算し直す。欠測は null、実際の 0 は 0（observations.missing_values）
 4. 要約は数え上げと分布の記述だけ。集団の holds／fails・0.8・方向の予想・区間は置かない
 
-分岐の Pulse の activity の再構成（numeric.divergence_activity_reconstruction）：t の判定の直前の activity は記録しない
-（README §4 の記録は t − 2・t − 1 の状態）。そこで同じ再構成の式を t − 1 で、t − 2 の状態・t − 3 の重み・t − 2 の発火から
-計算し、保存した t − 1 の activity と照合する（発火した Unit は 0 に戻っていること）。t の判定は t − 1 の状態から再構成して
-実際の発火と照合する（exact.divergence_decisions_reconstructed）。t − 3 ＝ t0 − 1 のときの重みは、介入の前の重みで、
-ordered の記録した発火から出生時の状態を本体の更新で進めて求める（腕によらず同じ）。
+分岐の Pulse の activity の再構成（numeric.divergence_activity_reconstruction、#86 のレビュー）：分岐の Pulse t の判定の直前の
+activity を、t − 1 の状態・t − 2 の重み・t − 1 の発火から独立に再構成し（world.reconstruct_firing）、監査の生記録
+（world.AuditedDynamics が記録した、Runtime が実際に Unit に渡した入力からの判定の直前の値）と 1e-12 で照合する。
+監査の記録そのもの（入力の状態・発火・刺激）は、保存した t − 1 の状態・全発火の列と照合する（revalidate_from_raw）。
+同じ式を t − 1 で、保存した t − 1 の状態と照合するのは補助の監査で、契約の確認とは呼ばない（revalidate_from_raw に入れる）。
+t − 3 ＝ t0 − 1 のときの重みは、介入の前の重みで、ordered の記録した発火から出生時の状態を本体の更新で進めて求める。
 
 使い方:
-  python experiments/0021_yoked_plasticity/analyze.py [出力先]             # 本番（既定の出力先は protocol の execution.output_dir）
-  python experiments/0021_yoked_plasticity/analyze.py <フォルダ> --check   # 道具の通しの確認（操作の確認だけ。観測の量は出さない）
+  python experiments/0021_yoked_plasticity/analyze.py                     # 本番（protocol の execution.output_dir を解析し、report はそこにだけ書く）
+  python experiments/0021_yoked_plasticity/analyze.py <フォルダ> --check   # 道具の通しの確認（操作の確認だけ。data/experiments の下には書かない）
+report は既にあれば上書きしない。書いてはいけない場所を指定したときは、解析の前に、何も読まず・書かずに止まる（report_destination）。
 """
 
 import gzip
@@ -35,6 +37,9 @@ PROTOCOL_PATH = HERE / "protocol.yaml"
 PROTOCOL = yaml.safe_load((REPO / PROTOCOL_PATH).read_text(encoding="utf-8"))
 EXPERIMENT, KIND = PROTOCOL["experiment"], PROTOCOL["kind"]
 DEFAULT_DIR = Path(PROTOCOL["execution"]["output_dir"])
+DATA_ROOT = REPO / "data" / "experiments"          # 本番・他の実験のデータの場所（通しの確認の report は書かない）
+OWN_DIR = REPO / DEFAULT_DIR                       # 本番の report を書いてよい唯一の場所
+REPORT = "report.json"
 MODES = ("formal", "check")
 
 
@@ -221,25 +226,41 @@ def check_divergence(run: dict, key: str, arms: tuple[str, ...], fd, before_star
                 expected = run["fork"][arm]["units"][uid]["fire_count"] + sum(1 for q, x in sp[arm] if x == uid and q <= p)
                 if st["fire_count"] != expected:
                     out["revalidate_from_raw"].append(f"{key} {arm}：分岐の直前（{k}）の {uid} の fire_count が全発火の列と合わない")
-        # t の判定：t − 1 の状態・t − 2 の重み・t − 1 の発火から
+        # t の判定と判定の直前の activity：t − 1 の状態・t − 2 の重み・t − 1 の発火から独立に再構成し、
+        # 判定は全発火の列の実際の発火と、activity は監査の生記録（実際の判定の直前の値）と照合する
         dec = W.reconstruct_firing(before["t-1"][arm]["units"], _weights(before["t-2"][arm]["connections"]),
                                    [[t - 1, x] for x in spikes_at(sp[arm], t - 1)], DT)
         if sorted(x for x, r in dec.items() if r["fires"]) != spikes_at(sp[arm], t):
             out["divergence_decisions_reconstructed"].append(f"{key} {arm}：Pulse {t} の発火の判定の再構成が実際の発火と合わない")
-        # t − 1 の activity：t − 2 の状態・t − 3 の重み・t − 2 の発火から再構成し、保存した t − 1 と照合する
+        audit = (rec.get("audit") or {}).get(arm)
+        if not isinstance(audit, dict) or set(audit) != set(dec):
+            out["divergence_activity_reconstruction"].append(f"{key} {arm}：Pulse {t} の判定の直前の activity の監査の記録がない・Unit がそろっていない")
+        else:
+            fired_t = set(spikes_at(sp[arm], t))
+            for uid, r in dec.items():
+                a = audit[uid]
+                if not abs(r["activity_pre"] - a["activity_pre"]) < TOL["divergence_activity_reconstruction"]:
+                    out["divergence_activity_reconstruction"].append(
+                        f"{key} {arm}：Pulse {t} の {uid} の判定の直前の activity の再構成（{r['activity_pre']}）が実際の値（{a['activity_pre']}）と合わない")
+                # 監査の記録そのものの整合（生記録の再検証）
+                st = before["t-1"][arm]["units"][uid]
+                if (a["pulse"] != t or a["activity_in"] != st["activity"] or a["adaptation_in"] != st["adaptation"]
+                        or a["delta_time"] != DT or a["fired"] != (uid in fired_t) or a["probe_fired"]
+                        or (a["fired"] and a["activity_out"] != 0.0)
+                        or (not a["fired"] and a["activity_out"] != a["activity_pre"])):
+                    out["revalidate_from_raw"].append(f"{key} {arm}：Pulse {t} の {uid} の監査の記録が、保存した状態・発火と整合しない")
+                if not abs(sum(r["drive"].values()) - a["stimulus"]) < TOL["divergence_activity_reconstruction"]:
+                    out["revalidate_from_raw"].append(f"{key} {arm}：Pulse {t} の {uid} の刺激の再構成が監査の記録と合わない")
+        # 補助の監査（契約の確認ではない）：同じ再構成の式を t − 1 でも、保存した t − 1 の状態と照合する
         w3 = (dict(before_start) if t - 3 == start - 1
               else {c: rep[c]["at"][t - 3]["weight"] for c in rep})
         prev = W.reconstruct_firing(before["t-2"][arm]["units"], w3, [[t - 2, x] for x in spikes_at(sp[arm], t - 2)], DT)
         fired_tm1 = set(spikes_at(sp[arm], t - 1))
         for uid, r in prev.items():
             got = before["t-1"][arm]["units"][uid]["activity"]
-            if r["fires"] != (uid in fired_tm1):
-                out["divergence_decisions_reconstructed"].append(f"{key} {arm}：Pulse {t - 1} の {uid} の発火の判定の再構成が実際と合わない")
-            elif uid in fired_tm1 and got != 0.0:
-                out["divergence_activity_reconstruction"].append(f"{key} {arm}：Pulse {t - 1} に発火した {uid} の activity が 0 に戻っていない")
-            elif uid not in fired_tm1 and not abs(r["activity_pre"] - got) < TOL["divergence_activity_reconstruction"]:
-                out["divergence_activity_reconstruction"].append(
-                    f"{key} {arm}：Pulse {t - 1} の {uid} の activity の再構成（{r['activity_pre']}）が保存した値（{got}）と合わない")
+            if (r["fires"] != (uid in fired_tm1) or (uid in fired_tm1 and got != 0.0)
+                    or (uid not in fired_tm1 and not abs(r["activity_pre"] - got) < TOL["divergence_activity_reconstruction"])):
+                out["revalidate_from_raw"].append(f"{key} {arm}：補助の監査：Pulse {t - 1} の {uid} の再構成が保存した t − 1 の状態と合わない")
     return out
 
 
@@ -268,21 +289,20 @@ def _diff_series(run: dict, a: str, b: str, lo: int, hi: int, start: int = END, 
 
 
 def t2_contributions(run: dict, fd1, fd2, start: int = END, end: int = TOTAL) -> dict | None:
-    """t2 の差の接続ごとの寄与（j ∈ U2）と、t2 の activity の差の再構成（ã^I − ã^Y）。t2 がなければ None。"""
+    """t2 の差の接続ごとの寄与（j ∈ U2）と、t2 の判定の直前の activity の実際の差（ã^I − ã^Y。監査の生記録）。t2 がなければ None。"""
     if fd2 is None or fd1 is None:
         return None
     (t1, _), (t2, u2) = fd1, fd2
     rec = run["arms"]["t2"]
     diff = _diff_series(run, "I", "Y", t1, t2 - 2, start, end)
-    act = {arm: W.reconstruct_firing(rec["before"]["t-1"][arm]["units"], _weights(rec["before"]["t-2"][arm]["connections"]),
-                                     [[t2 - 1, x] for x in spikes_at(run["arms"]["spikes"][arm], t2 - 1)], DT)
-           for arm in ("I", "Y")}
+    audit = rec.get("audit") or {}
     out = {}
     for j in u2:
         decay = run["fork"]["I"]["units"][j]["dynamics"]["decay_per_second"] ** DT
         k = contributions(j, t2, t1 + 2, run["arms"]["spikes"]["I"], diff, decay, start)
         out[j] = {"K": k, "sum": sum(k.values()),
-                  "activity_difference": act["I"][j]["activity_pre"] - act["Y"][j]["activity_pre"]}
+                  "activity_difference": (audit["I"][j]["activity_pre"] - audit["Y"][j]["activity_pre"]   # 実際の値（監査の生記録）
+                                          if j in audit.get("I", {}) and j in audit.get("Y", {}) else None)}
     return out
 
 
@@ -463,7 +483,9 @@ def check_arms(run: dict, out: dict[str, list[str]], start: int, end: int, befor
     # t2 の分解の恒等式
     if fd2 is not None and fd1 is not None and run["arms"]["t2"] is not None and not out["revalidate_from_raw"]:
         for j, c in (t2_contributions(run, fd1, fd2, start, end) or {}).items():
-            if not abs(c["sum"] - c["activity_difference"]) < TOL["t2_decomposition_identity"]:
+            if c["activity_difference"] is None:
+                out["t2_decomposition_identity"].append(f"{j}：t2 の判定の直前の activity の監査の記録がない")
+            elif not abs(c["sum"] - c["activity_difference"]) < TOL["t2_decomposition_identity"]:
                 out["t2_decomposition_identity"].append(f"{j}：Σ K（{c['sum']}）≠ ã^I − ã^Y（{c['activity_difference']}）")
 
 
@@ -585,6 +607,7 @@ def analyze(data: dict, mode: str, records: dict | None, before_start: Mapping[s
 
 
 def analyze_folder(folder: Path, mode: str) -> dict:
+    """解析だけ（読むだけで、どこにも書かない）。"""
     records = G.read_records(folder)
     if not (folder / G.RUNS).exists():
         return {"experiment": EXPERIMENT, "kind": KIND, "mode": mode, "valid": False,
@@ -592,24 +615,50 @@ def analyze_folder(folder: Path, mode: str) -> dict:
     return analyze(read(folder / G.RUNS), mode, records)
 
 
+def report_destination(folder: Path, mode: str) -> Path:
+    """report を書いてよい場所（#86 のレビュー：解析でも出力先を隔離する）。だめなら GuardError。
+
+    - 本番（formal）：この実験の出力先（protocol の execution.output_dir）だけ。他の実験のフォルダ（0020 を含む）には書かない
+    - 通しの確認（check）：data/experiments の下（本番・他の実験のデータの場所）には書かない
+    - どちらも、既に report があれば上書きしない（解析は 1 回だけ。既存の report はバイト単位で変えない）
+    """
+    f, root, own = folder.resolve(), DATA_ROOT.resolve(), OWN_DIR.resolve()
+    if mode == "formal":
+        if f != own:
+            raise G.GuardError(f"本番の解析の report は {DEFAULT_DIR} にだけ書く（{folder} には書かない）")
+    elif mode == "check":
+        if f == root or root in f.parents:
+            raise G.GuardError(f"通しの確認の解析の report は data/experiments の下（{folder}）に書かない")
+    else:
+        raise G.GuardError(f"未知の mode（{mode}）")
+    dest = f / REPORT
+    if dest.exists() or dest.with_name(REPORT + ".tmp").exists():
+        raise G.GuardError(f"{dest} が既にある（上書きしない。解析は 1 回だけ）")
+    return dest
+
+
 def main() -> None:
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     mode = "check" if "--check" in sys.argv else "formal"
-    folder = Path(args[0]) if args else DEFAULT_DIR
+    folder = Path(args[0]) if args else OWN_DIR
+    try:
+        dest = report_destination(folder, mode)     # 解析の前に、書いてよい場所かを確かめる（だめなら何も読まず・書かずに止まる）
+    except G.GuardError as e:
+        raise SystemExit(f"report を書かない：{e}") from e
     ALIGN.check(PROTOCOL)
     report = analyze_folder(folder, mode)
-    (folder / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"valid: {report['valid']}")
     for p in report["problems"][:50]:
         print(f"  - {p}")
     bad = {s: v["failed_checks"] for s, v in report.get("individuals", {}).items() if not v["valid"]}
     for s, f in list(bad.items())[:20]:
         print(f"  - seed {s}: {sorted(f)}")
+    G.atomic_write(dest, json.dumps(report, ensure_ascii=False, indent=2).encode("utf-8"))
     if mode == "check":
         print("【道具の通しの確認。観測の量は計算していない】")
     elif "summary" in report:
         print("summary:", json.dumps(report["summary"], ensure_ascii=False))
-    print(f"saved {folder / 'report.json'}")
+    print(f"saved {dest}")
 
 
 if __name__ == "__main__":
