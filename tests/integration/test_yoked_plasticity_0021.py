@@ -594,7 +594,10 @@ def test_execute_detects_head_moving_during_the_run(repo, R) -> None:
 
 
 def test_main_refuses_unsafe_invocations(R, monkeypatch, tmp_path) -> None:
-    """本番は --measurement-commit が必須で出力先は固定。--check は本番・0020 の seed、data/experiments の下を使えない。"""
+    """本番は --measurement-commit が必須で出力先は固定。--check は本番・0020 の seed、data/experiments の下を使えない。
+    拒否は、出力先に何も作らない（本番の実行の後でも誤検知しないよう、前後で比べる）。"""
+    marker = ROOT / PROTOCOL["execution"]["output_dir"] / G.START
+    existed = marker.exists()
     for argv, needle in [
         ([], "--measurement-commit"),
         (["--measurement-commit", "0" * 40, "--out", str(tmp_path)], "固定"),
@@ -607,7 +610,7 @@ def test_main_refuses_unsafe_invocations(R, monkeypatch, tmp_path) -> None:
         monkeypatch.setattr("sys.argv", ["run.py", *argv])
         with pytest.raises(SystemExit, match=needle):
             R.main()
-    assert not (ROOT / PROTOCOL["execution"]["output_dir"] / G.START).exists()
+    assert marker.exists() == existed
 
 
 def test_pool_map_uses_the_fixed_worker_cap_regardless_of_cpu_count(R, monkeypatch) -> None:
