@@ -1,4 +1,8 @@
-# 実験 0023 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT のレビュー待ち・未確定。道具の実装の前に固定する）
+# 実験 0023 の実行条件と記録項目（事前登録の案 v0.2。ChatGPT のレビュー待ち・未確定。道具の実装の前に固定する）
+#
+# v0.2：#103 のレビュー（5554478208）を反映。個体間の独立性は統計モデル上の前提（judgment.independence_assumption）、
+# 操作の確認が 1 個体でも失敗したら実験全体を invalid にして判定しない（judgment.on_any_invalid）、seed 単位の一度限りの実行の決まり（execution.per_seed）、
+# 比較に使う全状態を値のまま保存する（records）。K・水準・主の量・条件は v0.1 から変えていない。
 #
 # この案の段階では、実装・契約テスト・smoke・本番の測定・seed の実行はしない（README の Status・§14）。
 # 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を開示し、
@@ -83,7 +87,7 @@ quantities:
       mirror: ["L(M)", "L(M) outside shuffles (same form)", "L(O) - L(M)"]
       aux_outside_counts: [R1_prime, R1, R3]                 # §5.1 と同じ形で O が外にあるか
     across_individuals:
-      clopper_pearson_95_of_h_over_20: true                  # D6。判定に使わない
+      clopper_pearson_95_of_h_over_20: true                  # D6。判定に使わない。通常の二項モデル（独立・同じ確率）の前提に依る参考値
   not_used: [effect_size_threshold, population_fraction_claims, ratios, normalizations, combined_scores,
              post_hoc_windows, post_hoc_probe_ranges]
 
@@ -92,14 +96,18 @@ judgment:
   holds_if: "h >= 5"                    # P(Bin(20, 0.1) >= 5) = 0.043 <= alpha
   alpha: 0.05                           # 新しく選んだ値（README §5.3）
   null_hypothesis: "for every individual, L(O) is exchangeable with L(S_1..S_19)"   # 帰無仮説の置き方。O について確かめた性質ではない
+  independence_assumption: "birth states and shuffle RNG streams are treated as independent across individuals (statistical model assumption; not implied by distinct seeds)"
+  holds_means: reject_null_at_alpha_under_assumptions   # 交換可能性の破れの数学的証明ではない
   per_individual_null_probability_at_most: 0.1   # 2 / (K + 1)。同じ値があれば以下
   frozen_individuals: count_as_not_outside       # 20 個の L が等しい個体は「外にない」。除外しない（A7）
-  invalid_individuals: report_all_not_counted_as_outside
+  on_any_invalid: experiment_invalid_no_judgment   # 20 個体のどれかで必須の確認が失敗したら、h・外にあるか・L・補助の量を計算も表示もしない。invalid を「外にない」に数えない
 
-records:
-  per_body: [birth_state, label_sequence, connections_12000, units_12000, connections_end, units_end, spikes_1_to_end]
-  per_probe_A_copy: [spikes_t0_to_window_end, state_digest_t0_minus_1]
-  checks: [empty_side_copies_first_and_last_probe, O_twin_without_probes]
+records:                                # 全状態 ＝ 3 Unit の activity・順応、6 本の重み、接続ごとの 2 つの痕跡、次の Pulse に届く駆動（丸めずに値のまま）
+  full_state_values_not_digests: true   # 要約・ハッシュだけでは生の記録から一致を再検証できないので、比較に使う状態は値そのものを保存
+  per_body: [birth_state, label_sequence, spikes_1_to_end, full_state_12000, full_state_each_pulse_11999_to_end]
+  per_probe_A_copy: [full_state_end_t0_minus_1_after_clone, full_state_end_t0, full_state_end_t0_plus_1, spikes_t0_to_window_end, full_state_window_end]
+  empty_side_copies: {probes: [first, last], keep: [spikes_to_window_end, full_state_each_pulse]}
+  O_twin_without_probes: {keep: [spikes_1_to_end, full_state_12000, full_state_end]}
 
 checks:                                 # README §7。操作だけを確かめる（D1）
   exact:
@@ -117,7 +125,7 @@ checks:                                 # README §7。操作だけを確かめ�
     replay_history_12000: 1.0e-12
     pair_sum: 1.0e-12
   revalidate_from_raw: true
-  invalid_individuals: report_all
+  invalid_individuals: report_all       # 生の記録と、どの確認が成り立たなかったかを全件保持・報告（判定はしない：judgment.on_any_invalid）
 
 execution:                              # 0020〜0022 の一度限りの実行の契約を継承（README §9）
   experiment_id: "0023"
@@ -126,10 +134,17 @@ execution:                              # 0020〜0022 の一度限りの実行�
   measurement_commit: required
   start_record: run_started.json
   finish_record: run_finished.json
-  per_seed_units: allowed               # seed を単位に実行を分けてよい。各 seed はちょうど一度だけ実行し、seed ごとの開始・終了の記録を残す
+  per_seed:                             # seed を単位に実行を分けてよい（README §9）
+    allowed: true
+    start_record: {exclusive_create: true, fields: [seed, measurement_commit, protocol_sha256, started_at]}
+    finish_record: {fields: [seed, status, finished_at, raw_file_sha256, raw_file_bytes]}
+    refuse_if_start_record_exists: true   # 終了の記録の有無にかかわらず、開始済みの seed は再実行しない
+    aggregate_only_after: all_20_seeds_have_start_and_finish_with_matching_raw_hash   # 集計（判定の量の計算）は一度だけ
+    no_partial_judgment_quantities: true
+    no_replacement_seeds: true          # 失敗した seed を新しい seed で穴埋めして本番に混ぜない
   rerun: refuse                         # 同じ seed の再実行は拒否
   end_commit_check: true
-  on_failure: disclose_and_use_new_seed_range
+  on_failure: disclose_whole_experiment_invalid_or_incomplete_and_new_preregistration_with_new_seed_range
   max_workers: 2
   results_must_match_seeds: true
   no_earlier_experiment_references: true
