@@ -1,0 +1,136 @@
+# 実験 0023 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT のレビュー待ち・未確定。道具の実装の前に固定する）
+#
+# この案の段階では、実装・契約テスト・smoke・本番の測定・seed の実行はしない（README の Status・§14）。
+# 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を開示し、
+# 新しい版・新しい seed の範囲で行う。
+#
+# 種別：事前登録した検証。主の判定は 1 つ（README §5）。補助はすべて記録で、主の不成立を救わない（README §6）。
+# なぜこの条件なのかは README.md に書く。値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。
+# 世界は 0014〜0022 と同じ。新しい値は shuffles.count（19）と judgment.alpha（0.05）だけ（README §5.3）。
+
+experiment: "0023"
+kind: preregistered_test
+seeds: {first: 16001, last: 16020}            # 本番。20 個体を全件記録・全件報告する。以後どの実験にも使わない
+smoke_seeds: {first: 16101, last: 16106}      # 操作の確認だけ。判定の量は計算・表示・保存しない（D4）
+synthetic_seeds: {first: 16201, last: 16299}  # 合成の契約テスト専用
+
+brain:
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml   # 0014〜0022 と同じ
+  dynamics_from: config/neuroarchitecture/minimal-v3.yaml
+  sensory_units: [s1, s2, s3]
+  receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+  refractory_pulses: 0
+
+timeline:                               # Pulse（1 Pulse ＝ 1 秒）
+  pulse_interval_seconds: 1.0
+  trials: {first: 1, every: 60, count: 200}
+  experience_end: "trials.first - 1 + trials.count * trials.every"   # 12000
+  probes: {first: "experience_end + 1", count: "adaptation_tau / pulse_interval_seconds", every: 1}   # 12001〜12300、300 回（0014 と同じ）
+  window_pulses: "adaptation_tau / pulse_interval_seconds"            # T_w ＝ 300
+  body_runs_to: "probes.first + probes.count - 1 + 1 + window_pulses" # 12601（最後の試しの窓の終わり）
+
+stimulus:
+  b_offset: 2
+  c_offset: 30
+  counts: {A: 200, B: 200, C: 200}
+  role_assignment: "(seed - 1) mod 6"
+  role_orders:                          # 0014〜0022 と同じ
+    - [receptor.x1, receptor.x2, receptor.x3]
+    - [receptor.x1, receptor.x3, receptor.x2]
+    - [receptor.x2, receptor.x1, receptor.x3]
+    - [receptor.x2, receptor.x3, receptor.x1]
+    - [receptor.x3, receptor.x1, receptor.x2]
+    - [receptor.x3, receptor.x2, receptor.x1]
+
+conditions:                             # 同じ seed（同じ出生時の状態）から 21 の本体
+  O: {schedule: ordered}                # A at 1+60k, B at +2, C at +30
+  M: {schedule: mirrored, role: auxiliary}   # A at 1+60k, C at +2, B at +30
+  shuffles:
+    count: 19                           # K（新しく選んだ値。README §5.3）
+    schedule: shuffled_labels_over_ordered_times   # O の 600 個の刺激の時刻を保ち、札だけを並べ替える
+    rng: "0023-shuffle-{i}:{seed}"      # i ＝ 1..19（C4）
+  input_after_experience: none
+
+probe:                                  # README §3。状態への介入（ℐ）はしない
+  base: body_end_of_t0_minus_1          # 本体の t0 − 1 の処理の終わりの複製
+  A_copy: {input_at_t0: receptor_of_role_A, runs_to: "t0 + 1 + window_pulses", plasticity: on}
+  null_side: body_itself                # 入力なしの複製の代わりに本体の軌道を使う（§7 の empty_side_identity で確かめる）
+  window: "t0 + 2 .. t0 + 1 + window_pulses"
+  first_fire_censor_value: "t0 + 2 + window_pulses"   # 窓の中で発火しなければこの値（打ち切り）
+
+quantities:
+  primary:
+    per_probe:
+      ell_B: "n_B_null - n_B_A"
+      ell_C: "n_C_null - n_C_A"
+    per_body:
+      L: "mean_over_probes(ell_B - ell_C)"
+    per_individual:
+      outside: "L(O) > max_i L(S_i) or L(O) < min_i L(S_i)"   # 厳密な不等号。等号は外にない
+    across_individuals:
+      h: "count(outside)"
+  auxiliary:                            # 記録。判定に使わない
+    per_body:
+      L_B: "mean_over_probes(ell_B)"
+      L_C: "mean_over_probes(ell_C)"
+      R1_prime: "mean_over_probes((B_A(t0+2) - B_null(t0+2)) - (C_A(t0+2) - C_null(t0+2)))"
+      R1: "mean_over_probes(B_A(t0+2) - C_A(t0+2))"            # 0014 の as_is と同じ量
+      R3: "mean_over_probes((N_B_A - N_B_null) - (N_C_A - N_C_null))"   # N は窓の中の発火の数
+      censor_counts: [B_A, B_null, C_A, C_null]
+    per_individual:
+      rank_of_L_O_among_20: true
+      direction_counts: ["L(O) > max_i L(S_i)", "L(O) < min_i L(S_i)"]
+      mirror: ["L(M)", "L(M) outside shuffles (same form)", "L(O) - L(M)"]
+      aux_outside_counts: [R1_prime, R1, R3]                 # §5.1 と同じ形で O が外にあるか
+    across_individuals:
+      clopper_pearson_95_of_h_over_20: true                  # D6。判定に使わない
+  not_used: [effect_size_threshold, population_fraction_claims, ratios, normalizations, combined_scores,
+             post_hoc_windows, post_hoc_probe_ranges]
+
+judgment:
+  statistic: h
+  holds_if: "h >= 5"                    # P(Bin(20, 0.1) >= 5) = 0.043 <= alpha
+  alpha: 0.05                           # 新しく選んだ値（README §5.3）
+  null_hypothesis: "for every individual, L(O) is exchangeable with L(S_1..S_19)"   # 帰無仮説の置き方。O について確かめた性質ではない
+  per_individual_null_probability_at_most: 0.1   # 2 / (K + 1)。同じ値があれば以下
+  frozen_individuals: count_as_not_outside       # 20 個の L が等しい個体は「外にない」。除外しない（A7）
+  invalid_individuals: report_all_not_counted_as_outside
+
+records:
+  per_body: [birth_state, label_sequence, connections_12000, units_12000, connections_end, units_end, spikes_1_to_end]
+  per_probe_A_copy: [spikes_t0_to_window_end, state_digest_t0_minus_1]
+  checks: [empty_side_copies_first_and_last_probe, O_twin_without_probes]
+
+checks:                                 # README §7。操作だけを確かめる（D1）
+  exact:
+    - stimulus_labels                   # 各条件で A・B・C が 200 ずつ、時刻の集合が O と同じ、M は O の B・C の入れ替え、乱数の流れの名前
+    - input_free_after_experience
+    - identical_before_label_divergence # 同じ seed の 21 本体
+    - probe_clone_equals_body_t0_minus_1
+    - identical_through_t0_plus_1       # A の複製と本体で、t0 + 1 の終わりまで B・C の状態と発火、t0 の終わりの重み・痕跡が一致
+    - proposition_3                     # B_A(t0+2) >= B_null(t0+2)、C も同じ（すべての試し）
+    - empty_side_identity               # 最初と最後の試しの入力なしの複製 ＝ 本体（窓の終わりまで）
+    - O_twin_identity                   # 試しの複製を作らない O の双子 ＝ O の本体（12601 まで）
+    - censor_arithmetic_recomputed
+    - no_clipping
+  numeric:
+    replay_history_12000: 1.0e-12
+    pair_sum: 1.0e-12
+  revalidate_from_raw: true
+  invalid_individuals: report_all
+
+execution:                              # 0020〜0022 の一度限りの実行の契約を継承（README §9）
+  experiment_id: "0023"
+  output_dir: data/experiments/0023
+  protocol_path: experiments/0023_natural_order_readout/protocol.yaml
+  measurement_commit: required
+  start_record: run_started.json
+  finish_record: run_finished.json
+  per_seed_units: allowed               # seed を単位に実行を分けてよい。各 seed はちょうど一度だけ実行し、seed ごとの開始・終了の記録を残す
+  rerun: refuse                         # 同じ seed の再実行は拒否
+  end_commit_check: true
+  on_failure: disclose_and_use_new_seed_range
+  max_workers: 2
+  results_must_match_seeds: true
+  no_earlier_experiment_references: true
+  estimated_runtime: "about 2 hours for 20 individuals (from 0022 throughput; excludes cloning overhead)"
