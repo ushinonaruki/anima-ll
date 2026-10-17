@@ -721,8 +721,10 @@ def publish(folder: Path, mode: str, resume: bool = False, plan=None, seeds: lis
     """解析して report を一度だけ書く。返す値：report の中身。
     記録が未完了・解析の道具が測定の commit のままでないなら、解析の記録も report も書かずに止まる。"""
     report_destination(folder, mode, resume)
+    want = seeds if mode == "synthetic" else expected_seeds(mode)
+    preconditions(folder, mode, want, repo)          # 読むだけ（だめなら run.lock も作らずに止まる）
     with G.session_lock(folder):                     # 実行中なら解析しない
-        preconditions(folder, mode, seeds if mode == "synthetic" else expected_seeds(mode), repo)
+        preconditions(folder, mode, want, repo)      # 鍵を取ったあとで確かめ直す
         context = analysis_context(folder, mode)
         if resume:
             events = [json.loads(x) for x in (folder / LOG).read_text(encoding="utf-8").splitlines()]

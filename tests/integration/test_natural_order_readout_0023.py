@@ -829,7 +829,7 @@ def test_incomplete_records_are_not_analyzed_and_nothing_is_written(full_folder,
         A.analyze(out, "synthetic", SMALL, SYN, repo=full_folder[0])
     with pytest.raises(ERR, match="未完了"):
         A.publish(out, "synthetic", plan=SMALL, seeds=SYN, repo=full_folder[0])
-    assert not (out / A.REPORT).exists() and not (out / A.LOG).exists()
+    assert not any((out / n).exists() for n in (A.REPORT, A.LOG, G.LOCK))
 
 
 def _rewrite_raw(out: Path, seed: int, f) -> None:
@@ -1010,7 +1010,7 @@ def test_analysis_refuses_unless_head_is_the_clean_measurement_commit(full_folde
             A.analyze(out, "synthetic", SMALL, SYN, repo=repo)
         with pytest.raises(ERR, match=msg):
             A.publish(out, "synthetic", plan=SMALL, seeds=SYN, repo=repo)
-        assert not (out / A.REPORT).exists() and not (out / A.LOG).exists(), name
+        assert not any((out / n).exists() for n in (A.REPORT, A.LOG, G.LOCK)), name
 
 
 def test_analysis_refuses_when_the_measurement_commit_is_not_unique(full_folder, tmp_path, monkeypatch) -> None:
@@ -1021,7 +1021,7 @@ def test_analysis_refuses_when_the_measurement_commit_is_not_unique(full_folder,
     assert A.verify_records(out, "synthetic", SYN)["measurement_commit"] is None
     with pytest.raises(ERR, match="1 つに定まらない"):
         A.publish(out, "synthetic", plan=SMALL, seeds=SYN, repo=full_folder[0])
-    assert not (out / A.REPORT).exists() and not (out / A.LOG).exists()
+    assert not any((out / n).exists() for n in (A.REPORT, A.LOG, G.LOCK))
 
 
 def test_analysis_stops_before_quantities_if_head_moves_during_the_analysis(full_folder, tmp_path, monkeypatch) -> None:
