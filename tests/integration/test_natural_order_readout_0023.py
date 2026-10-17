@@ -9,6 +9,7 @@
 - 16201〜16220：SMALL の Plan で実物の runtime を通した 20 個体（確認の再検証・改ざんの検出・合成の集計の通し）
 - 16221〜16240：一度限りの実行の契約（dummy の計算。runtime を使わない）
 - 16241〜16250：並列数の契約（実際のプロセス。dummy の計算）
+- 16299：可塑性の再生の照合に使う乱数の流れの名前だけ（runtime の個体は作らない）
 """
 
 import copy
@@ -107,27 +108,35 @@ def test_protocol_and_tools_are_aligned() -> None:
     ALIGN.check(PROTOCOL)
 
 
+def _git_show(rev: str, path: str) -> bytes:
+    try:
+        return subprocess.run(["git", "-C", str(ROOT), "show", f"{rev}:{path}"], capture_output=True, check=True).stdout
+    except (OSError, subprocess.SubprocessError):
+        pytest.skip("git の履歴がない環境")
+
+
 def test_preregistration_files_are_unchanged_since_the_merge() -> None:
-    """README・protocol.yaml は事前登録の確定（PR #103 のマージ）からバイト単位で変わっていない。"""
-    for name in ("README.md", "protocol.yaml"):
-        try:
-            fixed = subprocess.run(["git", "-C", str(ROOT), "show", f"{PREREGISTRATION_MERGE}:experiments/{EXP.name}/{name}"],
-                                   capture_output=True, check=True).stdout
-        except (OSError, subprocess.SubprocessError):
-            pytest.skip("git の履歴がない環境")
-        assert (EXP / name).read_bytes() == fixed, name
+    """protocol.yaml は事前登録の確定（PR #103 のマージ）からバイト単位で変わっていない。README は確定した §0〜§14 が
+    そのまま先頭に残っている（結果は後ろの節に追記する：README §14 の 4）。"""
+    rel = f"experiments/{EXP.name}"
+    assert (EXP / "protocol.yaml").read_bytes() == _git_show(PREREGISTRATION_MERGE, f"{rel}/protocol.yaml")
+    assert (EXP / "README.md").read_bytes().startswith(_git_show(PREREGISTRATION_MERGE, f"{rel}/README.md"))
 
 
 def test_runtime_core_and_other_experiments_are_unchanged_from_main() -> None:
+    """0023 の道具を変える branch では、本体（src/）・設計（config/）・ほかの実験を同時に変えない（main との差分）。
+    0023 の道具を変えない branch（後の PR）では確かめない（この PR の範囲の確認なので、後の作業を止めない）。"""
     try:
         base = subprocess.run(["git", "-C", str(ROOT), "merge-base", "HEAD", "origin/main"], capture_output=True,
                               text=True, check=True).stdout.strip()
-        diff = subprocess.run(["git", "-C", str(ROOT), "diff", "--name-only", base, "--", "src", "config", "experiments",
-                               "docs", "tests"], capture_output=True, text=True, check=True).stdout.split()
+        diff = subprocess.run(["git", "-C", str(ROOT), "diff", "--name-only", base, "--", "src", "config", "experiments"],
+                              capture_output=True, text=True, check=True).stdout.split()
     except (OSError, subprocess.SubprocessError):
         pytest.skip("git の履歴がない環境")
-    allowed = {f"experiments/{EXP.name}/{n}" for n in TOOLS} | {"tests/integration/test_natural_order_readout_0023.py"}
-    assert set(diff) <= allowed, diff
+    tools = {f"experiments/{EXP.name}/{n}" for n in TOOLS}
+    if not set(diff) & tools:
+        pytest.skip("この branch は 0023 の道具を変えていない")
+    assert set(diff) <= tools, sorted(set(diff) - tools)
 
 
 FORBIDDEN = [r'"00(0\d|1\d|2[0-2])"', r"'00(0\d|1\d|2[0-2])'", r"data/experiments/00(0\d|1\d|2[0-2])",
@@ -941,3 +950,23 @@ def test_resume_only_with_identical_inputs(full_folder, tmp_path) -> None:
     with pytest.raises(ERR, match="開始のとき"):
         A.publish(out2, "synthetic", resume=True, plan=SMALL, seeds=SYN)
     assert not (out2 / A.REPORT).exists()
+
+
+def test_an_all_censored_individual_is_frozen_and_not_outside() -> None:
+    """D3：窓の中でどの Unit も発火しない（打ち切りだけの）個体でも、主の式が値を返し、凍結として「外にない」に数える。"""
+    plan = W.make_plan(PROTOCOL, 3, 3, 10)
+    rows = [(t0 + 2 + plan.window,) * 4 + (0,) * 8 for t0 in plan.probes]
+    q = A.quantities_for_seed({b: rows for b in W.BODIES}, plan)
+    assert all(v["L"]["exact"] == "0/1" for v in q["bodies"].values())
+    assert q["bodies"]["O"]["censor_counts"] == {"B_A": 3, "B_null": 3, "C_A": 3, "C_null": 3}
+    ind = q["individual"]
+    assert ind["frozen"] and not ind["outside"] and not any(ind["aux_outside"].values())
+
+
+def test_formal_and_smoke_use_only_the_protocol_plan_and_seeds(tmp_path) -> None:
+    for args in (("formal", SMALL, SYN), ("smoke", SMALL, None), ("synthetic", None, None), ("synthetic", SMALL, [16001]),
+                 ("other", SMALL, SYN)):
+        with pytest.raises(ERR):
+            A.analyze(tmp_path, *args)
+    with pytest.raises(ERR, match="未完了"):                                 # 何もない出力先は未完了（集計しない）
+        A.analyze(tmp_path, "formal")
