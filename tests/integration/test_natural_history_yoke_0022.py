@@ -942,7 +942,9 @@ def test_tools_read_identity_from_this_protocol() -> None:
 
 
 def test_runtime_core_files_are_unchanged_from_main() -> None:
-    """本体（src/）・設計図・0012〜0021 の実験の道具を、この PR で変えていない（main との差分）。"""
+    """本体（src/）・設計図・0012〜0021 の実験の道具を、この PR で変えていない（main との差分）。
+    0022 の道具を変える branch でだけ確かめる（PR #92 の範囲の確認なので、0022 の道具を変えない後の branch の作業を止めない。
+    0023・0024 の契約テストと同じ形）。"""
     try:
         base = subprocess.run(["git", "-C", str(ROOT), "merge-base", "HEAD", "origin/main"], capture_output=True,
                               text=True, check=True).stdout.strip()
@@ -950,6 +952,8 @@ def test_runtime_core_files_are_unchanged_from_main() -> None:
                               capture_output=True, text=True, check=True).stdout.split()
     except (OSError, subprocess.SubprocessError):
         pytest.skip("git の履歴がない環境")
+    if not set(diff) & {f"experiments/{EXP.name}/{n}" for n in TOOLS}:
+        pytest.skip("この branch は 0022 の道具を変えていない")
     assert all(p.startswith("experiments/0022_natural_history_yoke/") for p in diff), diff
     assert not any(p.endswith(("README.md", "protocol.yaml")) or "pre_registration_toy" in p for p in diff), diff
 
