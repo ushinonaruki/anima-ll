@@ -1,4 +1,7 @@
-# 実験 0024 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT のレビュー待ち・未確定。道具の実装の前に固定する）
+# 実験 0024 の実行条件と記録項目（事前登録の案 v0.2。ChatGPT のレビュー待ち・未確定。道具の実装の前に固定する）
+#
+# v0.2：#107 のレビュー（5556914856）を反映。帰無仮説のもとでの確率を上限として書いた。全状態の connections の欄は省かず空の辞書と決めた。
+# V1 の設計図が 0012 と同じなのは YAML の設定値・配線（注釈は違う）。継承した判定のパラメータと、新しく決めた識別子（seed・乱数の流れの名前）を分けた。
 #
 # 学習なしの対照 E1（docs/mf3-natural-difference-carriers-design.md §4・§6 の E1、#106）。
 # 0023 と同じ問い・同じ手順・同じ判定を、可塑性を出生時から止めた設計図の変種 V1 で行う。
@@ -10,7 +13,8 @@
 # 新しい版・新しい seed の範囲で行う。
 #
 # 種別：事前登録した検証。主の判定は 1 つ（README §5）。補助はすべて記録で、主の不成立を救わない（README §6）。
-# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。新しく選んだ値はない（すべて 0023 と同じ）。
+# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。判定・手順の値で新しく選んだものはない（すべて 0023 から継承）。
+# seed の範囲と乱数の流れの名前は、0024 のために新しく決めた識別子で、判定のパラメータではない。
 
 experiment: "0024"
 kind: preregistered_test
@@ -21,7 +25,7 @@ synthetic_seeds: {first: 17201, last: 17299}  # 合成の契約テスト専用
 brain:
   manifest: experiments/0024_learning_free_order_readout/neuroarchitecture-v1.yaml   # V1（README §1.1）
   derived_from: experiments/0012_passive_world/neuroarchitecture.yaml               # 0014〜0023 の設計図（C0）
-  variant: "remove plastic: true from the six s-s projections; everything else identical"
+  variant: "remove plastic: true from the six s-s projections; all other YAML settings and wiring identical (header comments differ)"
   dynamics_from: config/neuroarchitecture/minimal-v3.yaml
   sensory_units: [s1, s2, s3]
   receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
@@ -100,7 +104,7 @@ quantities:
 
 judgment:                               # 0023 と同じ
   statistic: h
-  holds_if: "h >= 5"                    # P(Bin(20, 0.1) >= 5) = 0.043 <= alpha
+  holds_if: "h >= 5"                    # P(h >= 5) <= P(Bin(20, 0.1) >= 5) = 0.04317 <= alpha（右辺は二項の上側確率。h の帰無のもとの確率はそれ以下）
   alpha: 0.05
   null_hypothesis: "for every individual, L(O) is exchangeable with L(S_1..S_19)"   # 帰無仮説の置き方。O について確かめた性質ではない
   independence_assumption: "birth states and shuffle RNG streams are treated as independent across individuals (statistical model assumption; not implied by distinct seeds)"
@@ -111,7 +115,9 @@ judgment:                               # 0023 と同じ
   scope: V1_only                        # 判定は V1 という設計についてだけ。C0（0023）の差の原因・担い手については何も判定しない（README §12）
 
 records:                                # 全状態 ＝ 3 Unit の activity・順応（と不応期の残り・発火の回数）、次の Pulse に届く駆動（重みつき）、Delta の数。
-                                        # V1 には可塑的な接続がないので、接続の状態（重み・痕跡）の欄はない（README §8）
+                                        # 欄は 0023 と同じ（pulse・units・connections・drives・deltas）。V1 では connections を省かず、中身は常に空の辞書（README §8）
+  full_state_fields: [pulse, units, connections, drives, deltas]
+  connections_field_in_V1: empty_mapping_kept   # 欄は残し、値は {}
   full_state_values_not_digests: true
   per_body: [birth_state, label_sequence, spikes_1_to_end, full_state_12000, full_state_each_pulse_11999_to_end]
   per_probe_A_copy: [full_state_end_t0_minus_1_after_clone, full_state_end_t0, full_state_end_t0_plus_1, spikes_t0_to_window_end, full_state_window_end]
@@ -129,7 +135,7 @@ checks:                                 # README §7。操作だけを確かめ�
     - empty_side_identity
     - O_twin_identity
     - censor_arithmetic_recomputed
-    - no_plastic_connection_state       # V1：どの本体・複製の全状態にも、可塑的な接続の状態（重み・痕跡）がない
+    - no_plastic_connection_state       # V1：どの本体・複製の全状態でも、connections の欄があり、かつ空の辞書
     - fixed_transmission_weights        # V1：記録したすべての Unit → Unit の駆動の重みが 0.005 ちょうど（Receptor → s は 1.0）
   numeric: {}                           # 0023 の replay_history_12000・pair_sum は可塑性がないので置かない
   revalidate_from_raw: true
