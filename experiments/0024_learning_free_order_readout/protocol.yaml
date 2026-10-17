@@ -1,0 +1,161 @@
+# 実験 0024 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT のレビュー待ち・未確定。道具の実装の前に固定する）
+#
+# 学習なしの対照 E1（docs/mf3-natural-difference-carriers-design.md §4・§6 の E1、#106）。
+# 0023 と同じ問い・同じ手順・同じ判定を、可塑性を出生時から止めた設計図の変種 V1 で行う。
+# 0023 から変えるのは、設計図（brain.manifest）・seed・乱数の流れの名前・可塑性に依る確認と記録の項目だけ（README §1）。
+# 新しく加えるのは補助の記録 silence_counts だけ（README §6。0023 の結果を見て加えた：README §11）。
+#
+# この案の段階では、実装・契約テスト・smoke・本番の測定・seed の実行はしない（README の Status・§14）。
+# 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を開示し、
+# 新しい版・新しい seed の範囲で行う。
+#
+# 種別：事前登録した検証。主の判定は 1 つ（README §5）。補助はすべて記録で、主の不成立を救わない（README §6）。
+# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。新しく選んだ値はない（すべて 0023 と同じ）。
+
+experiment: "0024"
+kind: preregistered_test
+seeds: {first: 17001, last: 17020}            # 本番。20 個体を全件記録・全件報告する。以後どの実験にも使わない
+smoke_seeds: {first: 17101, last: 17106}      # 操作の確認だけ。判定の量は計算・表示・保存しない。現象に関する数値（発火の数など）も見ない
+synthetic_seeds: {first: 17201, last: 17299}  # 合成の契約テスト専用
+
+brain:
+  manifest: experiments/0024_learning_free_order_readout/neuroarchitecture-v1.yaml   # V1（README §1.1）
+  derived_from: experiments/0012_passive_world/neuroarchitecture.yaml               # 0014〜0023 の設計図（C0）
+  variant: "remove plastic: true from the six s-s projections; everything else identical"
+  dynamics_from: config/neuroarchitecture/minimal-v3.yaml
+  sensory_units: [s1, s2, s3]
+  receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+  refractory_pulses: 0
+  fixed_weights: {s_to_s: 0.005}                 # 6 本とも一生この値（＝ w_max／2）。Receptor → s は 1.0（0023 と同じ）
+  plastic_connections: none
+
+timeline:                               # 0023 と同じ。Pulse（1 Pulse ＝ 1 秒）
+  pulse_interval_seconds: 1.0
+  trials: {first: 1, every: 60, count: 200}
+  experience_end: "trials.first - 1 + trials.count * trials.every"   # 12000
+  probes: {first: "experience_end + 1", count: "adaptation_tau / pulse_interval_seconds", every: 1}   # 12001〜12300、300 回
+  window_pulses: "adaptation_tau / pulse_interval_seconds"            # T_w ＝ 300
+  body_runs_to: "probes.first + probes.count - 1 + 1 + window_pulses" # 12601
+
+stimulus:                               # 0023 と同じ
+  b_offset: 2
+  c_offset: 30
+  counts: {A: 200, B: 200, C: 200}
+  role_assignment: "(seed - 1) mod 6"
+  role_orders:
+    - [receptor.x1, receptor.x2, receptor.x3]
+    - [receptor.x1, receptor.x3, receptor.x2]
+    - [receptor.x2, receptor.x1, receptor.x3]
+    - [receptor.x2, receptor.x3, receptor.x1]
+    - [receptor.x3, receptor.x1, receptor.x2]
+    - [receptor.x3, receptor.x2, receptor.x1]
+
+conditions:                             # 0023 と同じ（乱数の流れの名前だけ 0024 のもの）
+  O: {schedule: ordered}                # A at 1+60k, B at +2, C at +30
+  M: {schedule: mirrored, role: auxiliary}   # A at 1+60k, C at +2, B at +30
+  shuffles:
+    count: 19
+    schedule: shuffled_labels_over_ordered_times   # O の 600 個の刺激の時刻を保ち、札だけを並べ替える（0023 と同じ作り方）
+    rng: "0024-shuffle-{i}:{seed}"      # i ＝ 1..19（C4）
+  input_after_experience: none
+
+probe:                                  # 0023 と同じ手順。V1 なので複製の中にも可塑性はない
+  base: body_end_of_t0_minus_1
+  A_copy: {input_at_t0: receptor_of_role_A, runs_to: "t0 + 1 + window_pulses", plasticity: none_in_V1}
+  null_side: body_itself
+  window: "t0 + 2 .. t0 + 1 + window_pulses"
+  first_fire_censor_value: "t0 + 2 + window_pulses"
+
+quantities:
+  primary:                              # 0023 と同じ
+    per_probe:
+      ell_B: "n_B_null - n_B_A"
+      ell_C: "n_C_null - n_C_A"
+    per_body:
+      L: "mean_over_probes(ell_B - ell_C)"
+    per_individual:
+      outside: "L(O) > max_i L(S_i) or L(O) < min_i L(S_i)"   # 厳密な不等号。等号は外にない
+    across_individuals:
+      h: "count(outside)"
+  auxiliary:                            # 記録。判定に使わない
+    per_body:
+      L_B: "mean_over_probes(ell_B)"
+      L_C: "mean_over_probes(ell_C)"
+      R1_prime: "mean_over_probes((B_A(t0+2) - B_null(t0+2)) - (C_A(t0+2) - C_null(t0+2)))"
+      R1: "mean_over_probes(B_A(t0+2) - C_A(t0+2))"
+      R3: "mean_over_probes((N_B_A - N_B_null) - (N_C_A - N_C_null))"
+      censor_counts: [B_A, B_null, C_A, C_null]
+    per_individual:
+      rank_of_L_O_among_20: true
+      direction_counts: ["L(O) > max_i L(S_i)", "L(O) < min_i L(S_i)"]
+      mirror: ["L(M)", "L(M) outside shuffles (same form)", "L(O) - L(M)"]
+      aux_outside_counts: [R1_prime, R1, R3]
+      silence_counts:                   # 新しい補助（README §6・§11）。両方の側で 300 回とも窓の中で発火しない本体の数
+        B: "count over 21 bodies of (censor_counts.B_A == 300 and censor_counts.B_null == 300)"
+        C: "count over 21 bodies of (censor_counts.C_A == 300 and censor_counts.C_null == 300)"
+    across_individuals:
+      clopper_pearson_95_of_h_over_20: true   # 判定に使わない。独立・同じ確率の二項モデルの前提に依る参考値
+  not_used: [effect_size_threshold, population_fraction_claims, ratios, normalizations, combined_scores,
+             post_hoc_windows, post_hoc_probe_ranges, comparison_with_0023_h, individual_eligibility_filters]
+
+judgment:                               # 0023 と同じ
+  statistic: h
+  holds_if: "h >= 5"                    # P(Bin(20, 0.1) >= 5) = 0.043 <= alpha
+  alpha: 0.05
+  null_hypothesis: "for every individual, L(O) is exchangeable with L(S_1..S_19)"   # 帰無仮説の置き方。O について確かめた性質ではない
+  independence_assumption: "birth states and shuffle RNG streams are treated as independent across individuals (statistical model assumption; not implied by distinct seeds)"
+  holds_means: reject_null_at_alpha_under_assumptions   # 交換可能性の破れの数学的証明ではない
+  per_individual_null_probability_at_most: 0.1   # 2 / (K + 1)。同じ値があれば以下
+  frozen_individuals: count_as_not_outside       # 20 個の L が等しい個体は「外にない」。除外しない（A7、README §6）
+  on_any_invalid: experiment_invalid_no_judgment   # 20 個体のどれかで必須の確認が失敗したら、h・外にあるか・L・補助の量を計算も表示もしない
+  scope: V1_only                        # 判定は V1 という設計についてだけ。C0（0023）の差の原因・担い手については何も判定しない（README §12）
+
+records:                                # 全状態 ＝ 3 Unit の activity・順応（と不応期の残り・発火の回数）、次の Pulse に届く駆動（重みつき）、Delta の数。
+                                        # V1 には可塑的な接続がないので、接続の状態（重み・痕跡）の欄はない（README §8）
+  full_state_values_not_digests: true
+  per_body: [birth_state, label_sequence, spikes_1_to_end, full_state_12000, full_state_each_pulse_11999_to_end]
+  per_probe_A_copy: [full_state_end_t0_minus_1_after_clone, full_state_end_t0, full_state_end_t0_plus_1, spikes_t0_to_window_end, full_state_window_end]
+  empty_side_copies: {probes: [first, last], keep: [spikes_to_window_end, full_state_each_pulse]}
+  O_twin_without_probes: {keep: [spikes_1_to_end, full_state_12000, full_state_end]}
+
+checks:                                 # README §7。操作だけを確かめる（D1）
+  exact:
+    - stimulus_labels
+    - input_free_after_experience
+    - identical_before_label_divergence
+    - probe_clone_equals_body_t0_minus_1
+    - identical_through_t0_plus_1       # B・C の Unit の状態と発火が t0 ＋ 1 まで一致、t0 の終わりの駆動の違いは A の入力の駆動 1 つだけ
+    - proposition_3
+    - empty_side_identity
+    - O_twin_identity
+    - censor_arithmetic_recomputed
+    - no_plastic_connection_state       # V1：どの本体・複製の全状態にも、可塑的な接続の状態（重み・痕跡）がない
+    - fixed_transmission_weights        # V1：記録したすべての Unit → Unit の駆動の重みが 0.005 ちょうど（Receptor → s は 1.0）
+  numeric: {}                           # 0023 の replay_history_12000・pair_sum は可塑性がないので置かない
+  revalidate_from_raw: true
+  invalid_individuals: report_all
+  not_applicable_in_V1: [replay_history_12000, pair_sum, no_clipping]   # 0023 にあった可塑性の確認
+
+execution:                              # 0023 の seed 単位の一度限りの実行の契約を継承（README §9）
+  experiment_id: "0024"
+  output_dir: data/experiments/0024
+  protocol_path: experiments/0024_learning_free_order_readout/protocol.yaml
+  measurement_commit: required
+  analysis_commit_must_equal_measurement_commit: true   # 0023 の #104 v0.2 と同じ（解析の道具の HEAD ＝ 測定の commit・作業ツリーがきれい）
+  start_record: run_started.json
+  finish_record: run_finished.json
+  per_seed:
+    allowed: true
+    start_record: {exclusive_create: true, fields: [seed, measurement_commit, protocol_sha256, started_at]}
+    finish_record: {fields: [seed, status, finished_at, raw_file_sha256, raw_file_bytes]}
+    refuse_if_start_record_exists: true
+    aggregate_only_after: all_20_seeds_have_start_and_finish_with_matching_raw_hash
+    no_partial_judgment_quantities: true
+    no_replacement_seeds: true
+  rerun: refuse
+  end_commit_check: true
+  on_failure: disclose_whole_experiment_invalid_or_incomplete_and_new_preregistration_with_new_seed_range
+  max_workers: 2
+  results_must_match_seeds: true
+  no_earlier_experiment_references: true   # 0023 の道具を読み込まない（設計図の derived_from は alignment の照合だけに使う）
+  estimated_runtime: "about 30 minutes for 20 individuals (0023: 170 s per seed with 2 workers; V1 has no plasticity updates)"
