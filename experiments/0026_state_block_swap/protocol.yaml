@@ -1,4 +1,7 @@
-# 実験 0026 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT のレビュー待ち・未確定。道具の実装の前に固定する）
+# 実験 0026 の実行条件と記録項目（事前登録の案 v0.2。ChatGPT の再レビュー待ち・未確定。道具の実装の前に固定する）
+#
+# v0.2：#114 のレビュー（5557890756）を反映。主張の水準を、固定した背景（W1 の残りの塊と T）のもとでのドナーのあいだの条件付きの効果（C-I）と
+# その介入の参照との比較に限った（judgment.scope）。C-II（自然な差の再現・消去）・C-III は判定しない。介入・塊・ドナー・主の判定・seed は v0.1 と同じ。
 #
 # 状態の塊の入れ替え E3（ℐ-1。docs/mf3-natural-difference-carriers-design.md §3・§6 の E3、#106）。C0。
 # 経験・試し・読み出し L は 0023・0025 と同じ。参照は 0025 と同じ「試行の中の並べ替え」W。
@@ -135,7 +138,8 @@ judgment:                               # README §5
   frozen_individuals: count_as_not_outside       # 20 個の L が等しい家族は「外にない」。除外しない
   no_swap_time: count_as_not_outside             # intervention.swap_time.if_none
   on_any_invalid: experiment_invalid_no_judgment
-  scope: C0_conditional_effect_of_block_swap_into_W1_at_T   # C-II の条件付きの効果まで。自然な差の原因（C-III）は判定しない
+  scope: C0_C_I_effect_of_donor_block_given_fixed_W1_background_at_T_relative_to_donor_reference   # C-I とその介入の参照との比較まで
+  not_judged: [C_II_reproduction_and_elimination_of_natural_difference, C_III_cause_of_natural_difference]   # 自然な O が外にあること・戻すと外れが消えることは成立条件に入っていない
 
 records:
   full_state_fields: [pulse, units, connections, drives, deltas]
