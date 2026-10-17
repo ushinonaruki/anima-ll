@@ -1,0 +1,204 @@
+# 実験 0026 の実行条件と記録項目（事前登録の案 v0.2。ChatGPT の再レビュー待ち・未確定。道具の実装の前に固定する）
+#
+# v0.2：#114 のレビュー（5557890756）を反映。主張の水準を、固定した背景（W1 の残りの塊と T）のもとでのドナーのあいだの条件付きの効果（C-I）と
+# その介入の参照との比較に限った（judgment.scope）。C-II（自然な差の再現・消去）・C-III は判定しない。介入・塊・ドナー・主の判定・seed は v0.1 と同じ。
+#
+# 状態の塊の入れ替え E3（ℐ-1。docs/mf3-natural-difference-carriers-design.md §3・§6 の E3、#106）。C0。
+# 経験・試し・読み出し L は 0023・0025 と同じ。参照は 0025 と同じ「試行の中の並べ替え」W。
+# 経験の終わりの共通の時刻 T に、受け手 W1 の状態の一方の塊（重み、または Unit の状態）をドナーのものに替え、その後の L を比べる。
+# 主の判定は 2 つ（重みの塊・Unit の塊。README §5）。家族全体の水準 0.05 を Bonferroni で 2 つに分け、それぞれ h ≥ 6。
+#
+# この案の段階では、実装・契約テスト・smoke・本番の測定・seed の実行はしない（README の Status・§14）。
+# 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を開示し、
+# 新しい版・新しい seed の範囲で行う。
+#
+# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。新しく選んだ判定の値は、Bonferroni の分け方による閾値 6 と、
+# W の数 20（受け手 1 ＋ 参照のドナー 19 で K ＝ 19 を保つため）だけ（README §5.3）。
+
+experiment: "0026"
+kind: preregistered_test
+seeds: {first: 19001, last: 19020}            # 本番。20 個体を全件記録・全件報告する。以後どの実験にも使わない
+smoke_seeds: {first: 19101, last: 19106}      # 操作の確認だけ。判定の量は計算・表示・保存しない。現象に関する数値（発火の数など）も見ない
+synthetic_seeds: {first: 19201, last: 19299}  # 合成の契約テスト専用
+
+brain:                                  # 0023・0025 と同じ（C0）
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml
+  dynamics_from: config/neuroarchitecture/minimal-v3.yaml
+  sensory_units: [s1, s2, s3]
+  receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+  refractory_pulses: 0
+
+timeline:                               # 0023・0025 と同じ
+  pulse_interval_seconds: 1.0
+  trials: {first: 1, every: 60, count: 200}
+  experience_end: "trials.first - 1 + trials.count * trials.every"   # 12000
+  probes: {first: "experience_end + 1", count: "adaptation_tau / pulse_interval_seconds", every: 1}   # 12001〜12300、300 回
+  window_pulses: "adaptation_tau / pulse_interval_seconds"            # T_w ＝ 300
+  body_runs_to: "probes.first + probes.count - 1 + 1 + window_pulses" # 12601
+
+stimulus:                               # 0023・0025 と同じ
+  b_offset: 2
+  c_offset: 30
+  counts: {A: 200, B: 200, C: 200}
+  role_assignment: "(seed - 1) mod 6"
+  role_orders:
+    - [receptor.x1, receptor.x2, receptor.x3]
+    - [receptor.x1, receptor.x3, receptor.x2]
+    - [receptor.x2, receptor.x1, receptor.x3]
+    - [receptor.x2, receptor.x3, receptor.x1]
+    - [receptor.x3, receptor.x1, receptor.x2]
+    - [receptor.x3, receptor.x2, receptor.x1]
+
+conditions:                             # 同じ seed（同じ出生時の状態）から、自然な本体 21（O と W1〜W20）
+  O: {schedule: ordered}
+  within_trial_shuffles:                # 0025 と同じ作り方。数だけ 20（W1 は受け手、W2〜W20 は参照のドナー）
+    count: 20
+    schedule: shuffled_labels_within_each_trial
+    rng: "0026-within-trial-{i}:{seed}" # i ＝ 1..20（C4）
+    procedure: "for each i, one random.Random(rng) stream; for k = 0 .. trials.count - 1 in order, shuffle the list [A, B, C] once with that stream and assign it to (t_k, t_k + b_offset, t_k + c_offset)"
+  input_after_experience: none
+
+intervention:                           # README §2・§3。ℐ-1（1 ステップの状態の写像）。自然な経験の履歴は作らない
+  kind: state_block_swap
+  swap_time:
+    rule: "T = max{ t in [last_stimulus + 1, experience_end] : no Unit fired at Pulse t in any of the 21 natural bodies }"
+    last_stimulus: "trials.first + (trials.count - 1) * trials.every + c_offset"   # 11971。T の窓は 11972〜12000
+    state: end_of_pulse_T               # T の処理の終わりの状態（置かれた駆動はない。Receptor の出来事も T の窓にはない）
+    if_none: individual_not_outside_for_both_tests_and_reported   # 窓の中に T がない個体は、両方の判定で「外にない」に数え、記録する（除外しない）
+  recipient: W1
+  donors: [O, W2, W3, W4, W5, W6, W7, W8, W9, W10, W11, W12, W13, W14, W15, W16, W17, W18, W19, W20]
+  blocks:
+    weights:                            # 6 本の重み（接続の状態の weight）。痕跡は受け手のまま
+      replace: [connections.weight]
+    units:                              # 3 Unit の activity・adaptation・refractory_remaining と、Unit ごとの痕跡 X_i（接続の欄の pre_trace・post_trace のすべて）
+      replace: [units.activity, units.adaptation, units.refractory_remaining, connections.pre_trace, connections.post_trace]
+      keep: [units.fire_count]          # 観察用の数で力学に使わない。受け手のまま
+  swapped_bodies: "for each block in blocks, for each donor in donors: clone recipient at end of T, replace the block by the donor's values at end of T, run T + 1 .. body_runs_to with the same probes"
+  control_bodies:                       # 操作の確認だけ（README §7）。試しの複製は作らない
+    full_swap: "clone W1 at end of T, replace both blocks by O's values; run to body_runs_to"     # O の自然な軌道と一致するはず
+    null_swap: "clone W1 at end of T, replace both blocks by W1's own values; run to body_runs_to" # W1 の自然な軌道と一致するはず
+  invariants_checked_on_swapped_state:  # 設計の整理 §3.2 の I1〜I4（I5・I6 は T の規則により当てはまる場面がない）
+    I1_pair_sum_tolerance: 1.0e-12
+    I2_trace_per_unit: exact
+    I3_activity_positive: exact
+    I4_no_drives_at_T: exact
+
+probe:                                  # 0023・0025 と同じ手順（自然な本体・入れ替えた本体のどちらにも）
+  base: body_end_of_t0_minus_1
+  A_copy: {input_at_t0: receptor_of_role_A, runs_to: "t0 + 1 + window_pulses", plasticity: true}
+  null_side: body_itself
+  window: "t0 + 2 .. t0 + 1 + window_pulses"
+  first_fire_censor_value: "t0 + 2 + window_pulses"
+
+quantities:
+  primary:
+    per_probe:
+      ell_B: "n_B_null - n_B_A"
+      ell_C: "n_C_null - n_C_A"
+    per_body:
+      L: "mean_over_probes(ell_B - ell_C)"
+    per_individual:                     # Y(c <- d) ＝ 受け手 W1 の T の状態の塊 c をドナー d のものに替えた本体
+      outside_weights: "L(Y(weights <- O)) > max_k L(Y(weights <- W_k)) or L(Y(weights <- O)) < min_k L(Y(weights <- W_k)), k = 2..20"
+      outside_units: "L(Y(units <- O)) > max_k L(Y(units <- W_k)) or L(Y(units <- O)) < min_k L(Y(units <- W_k)), k = 2..20"
+    across_individuals:
+      h_weights: "count(outside_weights)"
+      h_units: "count(outside_units)"
+  auxiliary:                            # 記録。判定に使わない
+    per_body:
+      L_B: "mean_over_probes(ell_B)"
+      L_C: "mean_over_probes(ell_C)"
+      censor_counts: [B_A, B_null, C_A, C_null]
+    per_individual:
+      swap_time: true
+      rank_of_donor_O_among_20: [weights, units]
+      direction_counts: [weights, units]
+      natural_outside: "L(O) > max_i L(W_i) or L(O) < min_i L(W_i), i = 1..20 (natural bodies; record only)"
+      silence_counts:                   # 0024・0025 と同じ定義を、自然な 21 本体・重みの家族 20 本体・Unit の家族 20 本体のそれぞれで
+        B: "count of bodies with (censor_counts.B_A == 300 and censor_counts.B_null == 300)"
+        C: "count of bodies with (censor_counts.C_A == 300 and censor_counts.C_null == 300)"
+    across_individuals:
+      clopper_pearson_95_of_h_over_20: [weights, units]
+      no_swap_time_individuals: true
+      natural_outside_count: true       # 判定を置かない
+  not_used: [effect_size_threshold, population_fraction_claims, ratios, normalizations, combined_scores,
+             post_hoc_windows, post_hoc_probe_ranges, contribution_shares, comparison_between_h_weights_and_h_units,
+             comparison_with_earlier_experiments_h, individual_eligibility_filters, selection_by_natural_outside]
+
+judgment:                               # README §5
+  statistics: [h_weights, h_units]      # 2 つの主の判定（家族）。どちらも全個体
+  holds_if: "h >= 6"                    # それぞれ。P(h >= 6) <= P(Bin(20, 0.1) >= 6) = 0.01125 <= 0.025（右辺は二項の上側確率。h の帰無のもとの確率はそれ以下）
+  alpha_family: 0.05
+  alpha_each: 0.025                     # Bonferroni（2 つ）
+  null_hypothesis:
+    weights: "for every individual, as a donor of the weights block into W1 at T, O is exchangeable with W2..W20"
+    units: "for every individual, as a donor of the units block into W1 at T, O is exchangeable with W2..W20"
+  independence_assumption: "birth states and within-trial shuffle RNG streams are treated as independent across individuals (statistical model assumption; not implied by distinct seeds)"
+  holds_means: reject_null_at_alpha_each_under_assumptions   # 交換可能性の破れの数学的証明ではない
+  per_individual_null_probability_at_most: 0.1   # 2 / (19 + 1)。同じ値があれば以下
+  frozen_individuals: count_as_not_outside       # 20 個の L が等しい家族は「外にない」。除外しない
+  no_swap_time: count_as_not_outside             # intervention.swap_time.if_none
+  on_any_invalid: experiment_invalid_no_judgment
+  scope: C0_C_I_effect_of_donor_block_given_fixed_W1_background_at_T_relative_to_donor_reference   # C-I とその介入の参照との比較まで
+  not_judged: [C_II_reproduction_and_elimination_of_natural_difference, C_III_cause_of_natural_difference]   # 自然な O が外にあること・戻すと外れが消えることは成立条件に入っていない
+
+records:
+  full_state_fields: [pulse, units, connections, drives, deltas]
+  full_state_values_not_digests: true
+  natural_bodies:                       # O・W1〜W20。0025 と同じ項目に、T の終わりの全状態を加える
+    per_body: [birth_state, label_sequence, spikes_1_to_end, full_state_12000, full_state_each_pulse_11999_to_end, full_state_end_of_T]
+    per_probe_A_copy: [full_state_end_t0_minus_1_after_clone, full_state_end_t0, full_state_end_t0_plus_1, spikes_t0_to_window_end, full_state_window_end]
+    empty_side_copies: {probes: [first, last], keep: [spikes_to_window_end, full_state_each_pulse]}
+    O_twin_without_probes: {keep: [spikes_1_to_end, full_state_12000, full_state_end]}
+  swapped_bodies:                       # 40 本体（2 つの塊 × 20 のドナー）。記録の大きさを抑えるため、確認に要るものだけ
+    per_body: [swap_record, full_state_end_of_T_after_swap, spikes_T_plus_1_to_end, full_state_at_selected_pulses]
+    selected_pulses: ["experience_end", "probes.first", "probes.first + 1", "probes.last - 1", "probes.last", "probes.last + 1", "body_runs_to"]
+    per_probe: [spikes_t0_to_window_end]
+    per_probe_A_copy_states_for: [first, last]   # 最初と最後の試しだけ、A の複製の 4 時点の全状態
+  control_bodies: {keep: [full_state_end_of_T_after_swap, spikes_T_plus_1_to_end, full_state_12000, full_state_end]}
+
+checks:                                 # README §7。操作だけを確かめる（D1）
+  exact:
+    - stimulus_labels                   # 0025 と同じ（試行の中の釣り合いを含む）。自然な 21 本体
+    - input_free_after_experience       # 自然な本体・入れ替えた本体・確認の本体
+    - identical_before_label_divergence
+    - probe_clone_equals_body_t0_minus_1    # 自然な本体はすべての試し、入れ替えた本体は最初と最後の試し
+    - identical_through_t0_plus_1           # 同上
+    - proposition_3                         # すべての本体・すべての試し（発火の列から）
+    - empty_side_identity                   # 自然な本体
+    - O_twin_identity
+    - swap_time_rule                    # T が規則どおり（窓の中で、どの自然な本体でも T に発火がなく、それより後の窓の Pulse には発火がある）
+    - swap_composition                  # 入れ替えた状態 ＝ W1 の T の状態の塊を、ドナーの T の値にちょうど替えたもの（fire_count は W1 のまま）
+    - swap_invariants                   # 入れ替えた状態が I1〜I4 を満たす（I1 は numeric の許容）
+    - full_swap_reproduces_donor        # 両方の塊を O のものにした本体が、T より後の発火・12000 と終わりの力学の欄で O の自然な本体と一致
+    - null_swap_identity                # 両方の塊を W1 自身のものにした本体が、W1 の自然な本体と一致
+    - censor_arithmetic_recomputed
+    - no_clipping                       # 入れ替えた本体は T の入れ替えた状態から再生
+  numeric:
+    replay_history_12000: 1.0e-12       # 自然な本体は出生から、入れ替えた本体は T の入れ替えた状態から
+    pair_sum: 1.0e-12                   # 12000・12601（自然な本体・入れ替えた本体）と、T の入れ替えた状態（I1）
+  revalidate_from_raw: true
+  invalid_individuals: report_all
+
+execution:                              # 0023〜0025 の seed 単位の一度限りの実行の契約を継承（README §9）
+  experiment_id: "0026"
+  output_dir: data/experiments/0026
+  protocol_path: experiments/0026_state_block_swap/protocol.yaml
+  measurement_commit: required
+  analysis_commit_must_equal_measurement_commit: true
+  start_record: run_started.json
+  finish_record: run_finished.json
+  per_seed:
+    allowed: true
+    start_record: {exclusive_create: true, fields: [seed, measurement_commit, protocol_sha256, started_at]}
+    finish_record: {fields: [seed, status, finished_at, raw_file_sha256, raw_file_bytes]}
+    refuse_if_start_record_exists: true
+    aggregate_only_after: all_20_seeds_have_start_and_finish_with_matching_raw_hash
+    no_partial_judgment_quantities: true
+    no_replacement_seeds: true
+  rerun: refuse
+  end_commit_check: true
+  on_failure: disclose_whole_experiment_invalid_or_incomplete_and_new_preregistration_with_new_seed_range
+  max_workers: 2
+  results_must_match_seeds: true
+  no_earlier_experiment_references: true   # 0023〜0025 の道具を読み込まない
+  estimated_runtime: "about 75 minutes for 20 individuals (0025: about 147 s per seed for 21 natural bodies with 2 workers; 40 swapped bodies of about 7 s each)"
