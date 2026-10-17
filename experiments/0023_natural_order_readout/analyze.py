@@ -1,5 +1,7 @@
 """実験 0023 の記録の解析（確定した事前登録 v0.2 に従う）。正本は protocol.yaml・README。
 
+0. 解析する道具の commit（このリポジトリの HEAD）が、保存した測定の commit と同じで、作業ツリーがきれいなことを確かめる。
+   違えば、何も読まず・書かず、判定の量を計算・表示せずに止まる（判定の量を計算する直前と、解析の終わりにも確かめ直す）
 1. 実行の記録（seed ごとの開始・終了の記録、raw の SHA-256・バイト数。guard.py）を確かめる。
    - 未完了（まだ始めていない seed がある。失敗・中断・破損はない）：**解析しない**（何も読まず・書かずに止まる。
      途中の seed だけで判定の量を計算・表示しない）
@@ -13,7 +15,7 @@
    h・補助の量）を計算・表示・保存しない（操作の確認だけ）
 4. report は一度だけ書く（既にあれば上書きしない。解析の記録 analysis_log.jsonl に開始・完了と入力の SHA-256 を残す）
 
-使い方:
+使い方（リポジトリ直下で、測定の commit を checkout したきれいな作業ツリーで）:
   python experiments/0023_natural_order_readout/analyze.py                         # 本番（protocol の execution.output_dir）
   python experiments/0023_natural_order_readout/analyze.py <フォルダ> --smoke        # smoke（操作の確認だけ。data/experiments の下には書かない）
   （中断の後だけ）--resume：入力の SHA-256 が開始のときと同じで、report がまだないときだけ、計算し直して完了する
@@ -160,6 +162,13 @@ def verify_records(out: Path, mode: str, seeds: list[int]) -> dict:
             problems.append(f"seed {s} が {st}" + (f"（{'; '.join(why)}）" if why else ""))
     missing = [s for s in seeds if statuses.get(s, "absent") == "absent"]
     commits, shas = set(), set()
+    for s in sorted(statuses):                        # 開始の記録があるすべての seed（completed 以外も）の測定の commit
+        try:
+            st = G.read_seed(out, s)["start"]
+        except (OSError, ValueError):
+            st = None
+        if isinstance(st, dict):
+            commits.add(st.get("measurement_commit"))
     for s in seeds:
         if statuses.get(s) != "completed":
             continue
@@ -169,16 +178,36 @@ def verify_records(out: Path, mode: str, seeds: list[int]) -> dict:
             problems.append(f"seed {s} の開始・終了の記録の experiment・kind・mode が {EXPERIMENT}・{KIND}・{mode} ではない")
         if not G.SHA_RE.match(str(st.get("measurement_commit"))) or fin.get("measurement_commit_end") != st.get("measurement_commit"):
             problems.append(f"seed {s} の測定の commit が 40 桁でないか、開始と終了で違う")
-        commits.add(st.get("measurement_commit"))
         shas.add(st.get("protocol_sha256"))
     if len(commits) > 1:
         problems.append(f"seed によって測定の commit が違う（{sorted(map(str, commits))}）")
     if shas and shas != {G.sha256_file(REPO / PROTOCOL_PATH)}:
         problems.append("開始の記録の protocol.yaml の SHA-256 が今のものと違う")
     state = "failed" if problems else ("incomplete" if missing else "complete")
+    commit = next(iter(commits)) if len(commits) == 1 else None
     return {"state": state, "problems": problems, "missing": missing,
             "statuses": {str(s): statuses.get(s, "absent") for s in sorted(set(seeds) | set(statuses))},
-            "measurement_commit": next(iter(commits)) if len(commits) == 1 else None}
+            "measurement_commit": commit if G.SHA_RE.match(str(commit)) else None}
+
+
+def verify_analysis_commit(repo: Path, commit: str | None) -> str:
+    """解析する道具の commit（このファイルがあるリポジトリの HEAD）が、保存した測定の commit と同じで、作業ツリーが
+    その commit と一致すること（変更・未追跡のファイルがない）。だめなら GuardError：判定の量を計算・表示せず、何も書かずに止まる。
+    測定の後に解析の道具を変えた commit・未 commit の変更で判定しないため（PR #104 のレビュー 5555161545）。"""
+    if commit is None:
+        raise G.GuardError("測定の commit が 1 つに定まらない（開始の記録がないか、seed によって違うか、40 桁でない）。解析しない")
+    try:
+        return G.verify_clean_commit(repo, commit)
+    except G.GuardError as e:
+        raise G.GuardError(f"解析の道具が測定の commit {commit} のままではない。解析しない：{e}") from e
+
+
+def preconditions(out: Path, mode: str, seeds: list[int], repo: Path) -> tuple[dict, str]:
+    """解析の前提（何も読まず・書かずに止まる側の確認）：記録が未完了でないこと、HEAD ＝ 測定の commit、作業ツリーがきれいなこと。"""
+    records = verify_records(out, mode, seeds)
+    if records["state"] == "incomplete":
+        raise G.GuardError(f"未完了（まだ始めていない seed：{records['missing']}）。20 個体の完了の前には集計しない")
+    return records, verify_analysis_commit(repo, records["measurement_commit"])
 
 
 # ---- 操作の確認（README §7）--------------------------------------------------------------------------------
@@ -588,10 +617,12 @@ def quantities_for_seed(table: Mapping[str, list[tuple]], plan) -> dict:
 
 # ---- 解析の本体 --------------------------------------------------------------------------------------------
 
-def analyze(out: Path, mode: str, plan=None, seeds: list[int] | None = None) -> dict:
+def analyze(out: Path, mode: str, plan=None, seeds: list[int] | None = None, repo: Path = REPO) -> dict:
     """読むだけ（どこにも書かない）。mode：formal・smoke・synthetic（synthetic は契約テストだけ。plan・seeds を渡す）。
 
-    記録が未完了（未着手の seed だけがある）なら GuardError（解析しない）。"""
+    記録が未完了（未着手の seed だけがある）、または解析する道具の HEAD が測定の commit と違う・作業ツリーがきれいでないなら
+    GuardError（解析しない）。HEAD・作業ツリーは、判定の量を計算する直前と、解析の終わりにも確かめ直す。
+    repo は契約テストで使い捨てのリポジトリを渡すためにある（本番・smoke は既定のこのリポジトリ）。"""
     if mode not in MODES:
         raise G.GuardError(f"未知の mode（{mode}）")
     if mode == "synthetic":
@@ -601,11 +632,9 @@ def analyze(out: Path, mode: str, plan=None, seeds: list[int] | None = None) -> 
         if plan is not None or seeds is not None:
             raise G.GuardError("本番・smoke は protocol の Plan と seed の範囲だけを使う")
         plan, seeds = W.plan_from(PROTOCOL), expected_seeds(mode)
-    records = verify_records(out, mode, seeds)
-    if records["state"] == "incomplete":
-        raise G.GuardError(f"未完了（まだ始めていない seed：{records['missing']}）。20 個体の完了の前には集計しない")
+    records, head = preconditions(out, mode, seeds, repo)
     base = {"experiment": EXPERIMENT, "kind": KIND, "mode": mode, "seeds": seeds, "plan": plan.as_dict(),
-            "records": records}
+            "records": records, "analysis_commit": head}
     checks, invalid = {}, []
     for s in seeds:
         if records["statuses"].get(str(s)) != "completed":
@@ -627,6 +656,7 @@ def analyze(out: Path, mode: str, plan=None, seeds: list[int] | None = None) -> 
             if problems:
                 invalid.append(s)
             del data
+    verify_analysis_commit(repo, records["measurement_commit"])     # 確認の途中で道具が変わっていない
     valid = records["state"] == "complete" and not invalid and censor == "evaluated"
     report = base | {"valid": valid, "invalid_seeds": sorted(set(invalid)), "censor_arithmetic": censor,
                      "checks": {s: {k: v for k, v in c.items() if v} for s, c in checks.items()},
@@ -640,8 +670,10 @@ def analyze(out: Path, mode: str, plan=None, seeds: list[int] | None = None) -> 
         tables.clear()
         return report | {"judgment": None, "note": "smoke（操作の確認だけ）。判定の量は計算・表示・保存していない"}
     per_seed = {s: quantities_for_seed(tables[s], plan) for s in tables}
-    return report | {"judgment": judgment(per_seed), "per_seed": per_seed,
-                     "note": "事前登録した検証。主の判定は h だけ。補助は記録で、主の不成立を救わない"}
+    result = report | {"judgment": judgment(per_seed), "per_seed": per_seed,
+                       "note": "事前登録した検証。主の判定は h だけ。補助は記録で、主の不成立を救わない"}
+    verify_analysis_commit(repo, records["measurement_commit"])     # 終わりに確かめ直す（変わっていれば捨てて止まる）
+    return result
 
 
 # ---- report の公開（一度だけ）---------------------------------------------------------------------------------
@@ -684,10 +716,13 @@ def _append(folder: Path, event: dict, create: bool = False) -> None:
         os.fsync(f.fileno())
 
 
-def publish(folder: Path, mode: str, resume: bool = False, plan=None, seeds: list[int] | None = None) -> dict:
-    """解析して report を一度だけ書く。返す値：report の中身。"""
+def publish(folder: Path, mode: str, resume: bool = False, plan=None, seeds: list[int] | None = None,
+            repo: Path = REPO) -> dict:
+    """解析して report を一度だけ書く。返す値：report の中身。
+    記録が未完了・解析の道具が測定の commit のままでないなら、解析の記録も report も書かずに止まる。"""
     report_destination(folder, mode, resume)
     with G.session_lock(folder):                     # 実行中なら解析しない
+        preconditions(folder, mode, seeds if mode == "synthetic" else expected_seeds(mode), repo)
         context = analysis_context(folder, mode)
         if resume:
             events = [json.loads(x) for x in (folder / LOG).read_text(encoding="utf-8").splitlines()]
@@ -697,12 +732,9 @@ def publish(folder: Path, mode: str, resume: bool = False, plan=None, seeds: lis
                 raise G.GuardError("入力の SHA-256 が開始のときと違う（再開しない。手動の監査の判断に委ねる）")
             _append(folder, {"event": "resumed"})
         else:
-            records = verify_records(folder, mode, seeds if mode == "synthetic" else expected_seeds(mode))
-            if records["state"] == "incomplete":            # 未完了なら何も書かずに止まる
-                raise G.GuardError(f"未完了（まだ始めていない seed：{records['missing']}）。集計しない")
             _append(folder, {"event": "started", "context": context}, create=True)
         try:
-            report = analyze(folder, mode, plan, seeds) | {"inputs": context}
+            report = analyze(folder, mode, plan, seeds, repo) | {"inputs": context}
             data = json.dumps(report, ensure_ascii=False, indent=2).encode("utf-8")
             G.write_once(folder / REPORT, data)
             _append(folder, {"event": "completed", "report_sha256": G.sha256_bytes(data)})
@@ -722,7 +754,7 @@ def main() -> None:
         report = publish(folder, mode, "--resume" in sys.argv)
     except G.GuardError as e:
         raise SystemExit(f"report を書かない：{e}") from e
-    print(f"記録：{report['records']['state']}　valid：{report['valid']}")
+    print(f"記録：{report['records']['state']}　valid：{report['valid']}　測定・解析の commit：{report['analysis_commit']}")
     for p in report["records"]["problems"][:30]:
         print(f"  - {p}")
     for s, c in report["checks"].items():

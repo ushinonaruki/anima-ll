@@ -809,14 +809,15 @@ def _forbidden_keys(report: dict) -> set:
 
 def test_complete_valid_records_give_one_judgment(full_folder, tmp_path) -> None:
     out = _copy(full_folder, tmp_path)
-    report = A.publish(out, "synthetic", plan=SMALL, seeds=SYN)
+    report = A.publish(out, "synthetic", plan=SMALL, seeds=SYN, repo=full_folder[0])
     assert report["records"]["state"] == "complete" and report["valid"] and report["invalid_seeds"] == []
+    assert report["analysis_commit"] == report["records"]["measurement_commit"] == _git(full_folder[0], "rev-parse", "HEAD")
     j = report["judgment"]
     assert j["n"] == 20 and j["holds"] == (j["h"] >= 5) and len(report["per_seed"]) == 20
     assert all(set(v["bodies"]) == set(W.BODIES) for v in report["per_seed"].values())
     assert json.loads((out / A.REPORT).read_text())["judgment"] == j
     with pytest.raises(ERR, match="既にある"):                     # 集計は一度だけ
-        A.publish(out, "synthetic", plan=SMALL, seeds=SYN)
+        A.publish(out, "synthetic", plan=SMALL, seeds=SYN, repo=full_folder[0])
     events = [json.loads(x)["event"] for x in (out / A.LOG).read_text().splitlines()]
     assert events == ["started", "completed"]
 
@@ -825,9 +826,9 @@ def test_incomplete_records_are_not_analyzed_and_nothing_is_written(full_folder,
     out = _copy(full_folder, tmp_path)
     shutil.rmtree(G.seed_dir(out, SYN[-1]))                                  # 19 個体だけ
     with pytest.raises(ERR, match="未完了"):
-        A.analyze(out, "synthetic", SMALL, SYN)
+        A.analyze(out, "synthetic", SMALL, SYN, repo=full_folder[0])
     with pytest.raises(ERR, match="未完了"):
-        A.publish(out, "synthetic", plan=SMALL, seeds=SYN)
+        A.publish(out, "synthetic", plan=SMALL, seeds=SYN, repo=full_folder[0])
     assert not (out / A.REPORT).exists() and not (out / A.LOG).exists()
 
 
@@ -849,7 +850,7 @@ def test_one_invalid_individual_makes_the_experiment_invalid_without_quantities(
     def tamper(run):
         run["bodies"]["S11"]["probes"][2]["states"]["t0-1"]["units"]["s1"][0] += 1e-15
     _rewrite_raw(out, bad, tamper)
-    report = A.publish(out, "synthetic", plan=SMALL, seeds=SYN)
+    report = A.publish(out, "synthetic", plan=SMALL, seeds=SYN, repo=full_folder[0])
     assert report["records"]["state"] == "complete" and not report["valid"]
     assert report["invalid_seeds"] == [bad] and report["judgment"] is None
     assert set(report["checks"][str(bad)]) == {"probe_clone_equals_body_t0_minus_1"}
@@ -877,7 +878,7 @@ def test_record_problems_block_the_judgment(full_folder, tmp_path) -> None:
     shutil.copytree(G.seed_dir(out, SYN[0]), G.seed_dir(out, GUARD_SEEDS[0]))
     cases["extra"] = out
     for name, out in cases.items():
-        report = A.publish(out, "synthetic", plan=SMALL, seeds=SYN)
+        report = A.publish(out, "synthetic", plan=SMALL, seeds=SYN, repo=full_folder[0])
         assert report["records"]["state"] == "failed", name
         assert not report["valid"] and report["judgment"] is None and _forbidden_keys(report) == set(), name
 
@@ -888,7 +889,7 @@ def test_analysis_refuses_mismatched_raw_and_records(full_folder, tmp_path) -> N
     def other_plan(run):
         run["plan"]["window"] = 16
     _rewrite_raw(out, SYN[2], other_plan)
-    report = A.analyze(out, "synthetic", SMALL, SYN)
+    report = A.analyze(out, "synthetic", SMALL, SYN, repo=full_folder[0])
     assert report["invalid_seeds"] == [SYN[2]] and "revalidate_from_raw" in report["checks"][str(SYN[2])]
     assert report["judgment"] is None
 
@@ -915,7 +916,7 @@ def test_smoke_analysis_never_computes_quantities(full_folder, tmp_path, monkeyp
         monkeypatch.setattr(A, name, boom)
     monkeypatch.setattr(A, "expected_seeds", lambda mode: list(SYN))
     monkeypatch.setattr(A.W, "plan_from", lambda protocol: SMALL)
-    report = A.analyze(out, "smoke")
+    report = A.analyze(out, "smoke", repo=full_folder[0])
     assert report["valid"] and report["judgment"] is None and report["censor_arithmetic"] == "evaluated"
     assert _forbidden_keys(report) == set()
 
@@ -940,15 +941,15 @@ def test_resume_only_with_identical_inputs(full_folder, tmp_path) -> None:
     out = _copy(full_folder, tmp_path)
     A._append(out, {"event": "started", "context": A.analysis_context(out, "synthetic")}, create=True)
     with pytest.raises(ERR, match="既にある"):                     # 再開の指定なしでは止まる
-        A.publish(out, "synthetic", plan=SMALL, seeds=SYN)
-    report = A.publish(out, "synthetic", resume=True, plan=SMALL, seeds=SYN)
+        A.publish(out, "synthetic", plan=SMALL, seeds=SYN, repo=full_folder[0])
+    report = A.publish(out, "synthetic", resume=True, plan=SMALL, seeds=SYN, repo=full_folder[0])
     assert report["valid"]
     out2 = _copy(full_folder, tmp_path / "b")
     A._append(out2, {"event": "started", "context": A.analysis_context(out2, "synthetic")}, create=True)
     p = G.seed_dir(out2, SYN[0]) / G.START
     p.write_text(p.read_text() + " ")
     with pytest.raises(ERR, match="開始のとき"):
-        A.publish(out2, "synthetic", resume=True, plan=SMALL, seeds=SYN)
+        A.publish(out2, "synthetic", resume=True, plan=SMALL, seeds=SYN, repo=full_folder[0])
     assert not (out2 / A.REPORT).exists()
 
 
@@ -970,3 +971,73 @@ def test_formal_and_smoke_use_only_the_protocol_plan_and_seeds(tmp_path) -> None
             A.analyze(tmp_path, *args)
     with pytest.raises(ERR, match="未完了"):                                 # 何もない出力先は未完了（集計しない）
         A.analyze(tmp_path, "formal")
+
+
+
+# ---- 7. 解析の道具の commit ＝ 測定の commit（PR #104 のレビュー 5555161545）---------------------------------------------
+
+def _repo_copy(full_folder, where: Path) -> Path:
+    """測定に使ったリポジトリの写し（full_folder のリポジトリそのものは変えない）。"""
+    r = where / "repo"
+    shutil.copytree(full_folder[0], r)
+    return r
+
+
+def test_analysis_refuses_unless_head_is_the_clean_measurement_commit(full_folder, tmp_path, monkeypatch) -> None:
+    """解析の道具の HEAD が測定の commit と違う（後の commit）、追跡しているファイルに未 commit の変更がある、未追跡のファイルがある
+    ときは、生の記録を読まず、判定の量を計算・表示せず、解析の記録も report も書かずに止まる。"""
+    cases = {}
+    r = _repo_copy(full_folder, tmp_path / "later")
+    (r / "analyze_changed.py").write_text("x = 1\n", encoding="utf-8")
+    _git(r, "add", "-A")
+    _git(r, "commit", "-q", "-m", "測定の後に解析の道具を変えた")
+    cases["later"] = (r, "指定した commit")
+    r = _repo_copy(full_folder, tmp_path / "modified")
+    p = r / R.PROTOCOL_PATH
+    p.write_bytes(p.read_bytes() + b"\n")
+    cases["modified"] = (r, "作業ツリー")
+    r = _repo_copy(full_folder, tmp_path / "untracked")
+    (r / "untracked.py").write_text("x = 1\n", encoding="utf-8")
+    cases["untracked"] = (r, "作業ツリー")
+
+    def boom(*a, **k):
+        raise AssertionError("解析の道具が測定の commit のままでないのに、記録を読んだ・判定の量を計算した")
+    for name in ("read_raw", "check_seed", "probe_table", "body_quantities", "quantities_for_seed", "individual", "judgment"):
+        monkeypatch.setattr(A, name, boom)
+    for name, (repo, msg) in cases.items():
+        out = _copy(full_folder, tmp_path / name)
+        with pytest.raises(ERR, match=msg):
+            A.analyze(out, "synthetic", SMALL, SYN, repo=repo)
+        with pytest.raises(ERR, match=msg):
+            A.publish(out, "synthetic", plan=SMALL, seeds=SYN, repo=repo)
+        assert not (out / A.REPORT).exists() and not (out / A.LOG).exists(), name
+
+
+def test_analysis_refuses_when_the_measurement_commit_is_not_unique(full_folder, tmp_path, monkeypatch) -> None:
+    out = _copy(full_folder, tmp_path)
+    p = G.seed_dir(out, SYN[9]) / G.START
+    p.write_text(json.dumps(json.loads(p.read_text()) | {"measurement_commit": "f" * 40}))
+    monkeypatch.setattr(A, "read_raw", lambda *a, **k: (_ for _ in ()).throw(AssertionError("記録を読んだ")))
+    assert A.verify_records(out, "synthetic", SYN)["measurement_commit"] is None
+    with pytest.raises(ERR, match="1 つに定まらない"):
+        A.publish(out, "synthetic", plan=SMALL, seeds=SYN, repo=full_folder[0])
+    assert not (out / A.REPORT).exists() and not (out / A.LOG).exists()
+
+
+def test_analysis_stops_before_quantities_if_head_moves_during_the_analysis(full_folder, tmp_path, monkeypatch) -> None:
+    repo = _repo_copy(full_folder, tmp_path)
+    out = _copy(full_folder, tmp_path / "o")
+    real_check, computed = A.check_seed, []
+
+    def moving(*a, **k):
+        if not (repo / "late.py").exists():
+            (repo / "late.py").write_text("x = 1\n", encoding="utf-8")
+            _git(repo, "add", "-A")
+            _git(repo, "commit", "-q", "-m", "解析の途中で道具を変えた")
+        return real_check(*a, **k)
+    monkeypatch.setattr(A, "check_seed", moving)
+    monkeypatch.setattr(A, "quantities_for_seed", lambda *a, **k: computed.append(1))
+    with pytest.raises(ERR, match="指定した commit"):
+        A.publish(out, "synthetic", plan=SMALL, seeds=SYN, repo=repo)
+    assert computed == [] and not (out / A.REPORT).exists()
+    assert [json.loads(x)["event"] for x in (out / A.LOG).read_text().splitlines()] == ["started", "failed"]
