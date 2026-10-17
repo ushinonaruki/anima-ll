@@ -1,0 +1,64 @@
+# 実験 0024 の学習なしの対照 V1 の設計図（事前登録の一部。docs/mf3-natural-difference-carriers-design.md §4.1 の V1）
+#
+# 【位置づけ】実験 0024（README.md）の足場。AnIma-ll の脳の新しい版でも、正式な設計図の変更でもない。
+#   - experiments/0012_passive_world/neuroarchitecture.yaml（0014〜0023 の設計図）と、次の 1 点だけが違う：
+#     s1〜s3 のあいだの 6 本に `plastic: true` を書かない（可塑性の対象にしない）。重みは出生時の 0.005 ＝ w_max／2 のまま一生変わらない
+#   - それ以外（力学の値、Receptor → s の 1 対 1、6 本の配線と重み、plasticity の節）は、YAML の設定値と配線として 0012 の設計図と同じ
+#     （この冒頭の注釈だけが違う）。
+#     plasticity の節は残すが、対象の接続がないので働かない（規則は定義されるが、更新される接続がない）
+#   - 同じであることは、0024 の alignment.py が実行・解析の前に機械的に確かめる（道具の段階で書く）
+#
+# 以下は 0012 の設計図の本文（version: 3 から後）から、6 本の `plastic: true` だけを除いたもの。本文の中の 0012 の注釈はそのまま残すので、
+# 注釈のうち「可塑性の対象」「初期の重み」と書いた箇所は、この設計図では「重みは一生 0.005 のまま、可塑性の対象ではない」と読む
+
+version: 3               # 力学の解釈は minimal-v3 と同じ（c2 の活動の伝達）。版の番号は来歴のログに残るだけ
+delta_ttl_pulses: 10     # minimal-v3 と同じ。この設計図では Delta は生じない
+
+interfaces:
+  resources: []
+  receptors: [receptor.x1, receptor.x2, receptor.x3]
+  effectors: []
+
+defaults:
+  dynamics:              # minimal-v3 の defaults.dynamics と完全に同じ（値の意味・根拠は minimal-v3 を見る）
+    kind: simple_activity
+    decay: 0.85
+    threshold: 0.5
+    refractory_pulses: 0
+    intrinsic_drive: 0.08
+    jitter: 0.1
+    initial_activity_max_ratio: 0.5
+    adaptation_increment: 0.01
+    adaptation_tau: 300
+
+units:
+  - id: s1
+    output: relay
+  - id: s2
+    output: relay
+  - id: s3
+    output: relay
+
+# 可塑性 v1.1（docs/plasticity-v1-proposal.md ＋ docs/plasticity-v1.1-scale.md）。値は protocol.yaml の brain.plasticity と同じ
+plasticity:
+  rule: balanced_pair_window
+  trace: additive
+  bounds: soft
+  trace_tau: activity_time_constant   # −1/ln(decay) ≒ 6.15 秒
+  w_min: 0.0
+  w_max: adaptation_increment         # α ＝ 0.01（v0.3。v0.2 では threshold ＝ 0.5）
+  amplitude_ratio: 0.01               # A ／ w_max
+
+# receptor.x1 ─(1.0)→ s1
+# receptor.x2 ─(1.0)→ s2      s1・s2・s3 のあいだの 6 本：初期の重み 0.005、可塑性の対象
+# receptor.x3 ─(1.0)→ s3
+projections:
+  - { from: receptor.x1.main, to: s1, weight: 1.0 }
+  - { from: receptor.x2.main, to: s2, weight: 1.0 }
+  - { from: receptor.x3.main, to: s3, weight: 1.0 }
+  - { from: s1.main, to: s2, weight: 0.005 }
+  - { from: s1.main, to: s3, weight: 0.005 }
+  - { from: s2.main, to: s1, weight: 0.005 }
+  - { from: s2.main, to: s3, weight: 0.005 }
+  - { from: s3.main, to: s1, weight: 0.005 }
+  - { from: s3.main, to: s2, weight: 0.005 }
