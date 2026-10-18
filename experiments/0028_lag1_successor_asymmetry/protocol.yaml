@@ -1,16 +1,18 @@
-# 実験 0028 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT のレビュー待ち・未確定。道具の実装の前に固定する）
+# 実験 0028 の実行条件と記録項目（事前登録の案 v0.2。ChatGPT のレビュー待ち・未確定。道具の実装の前に固定する）
 #
 # L3 の候補 C-a・C-b（docs/c0-l3-correspondence-and-necessity.md §3.3。#122）。C0 と、学習なしの対照 V1。
 # 0025 と同じ世界・経験 O・鏡 M・試行の中の並べ替え W_1〜W_19 の後、外からの入力も試しもない区間（13501〜25500）の
-# 自発の発火で、時間差 1 の発火の組の数の非対称の差 D ＝ Δ_AB − Δ_AC を比べる（README §0〜§4）。
-# 向きは理論から固定する：O は W より大きく、M は W より小さい（README §3.3）。
+# 自発の発火で、時間差 1 の発火の組の数の非対称 Δ_AB（C-a）と、B と C の対比 D ＝ Δ_AB − Δ_AC（C-b）を比べる（README §0〜§4）。
+# 向きは理論から固定する：O の Δ_AB は W より大きい。O の D は W より大きく、M の D は W より小さい（README §3.3）。
+# D の差で相殺されるのは、二つの Δ に加法的に全く同じ量が加わる場合だけで、発火の数の違いを一般には打ち消さない（README §3.2）。
+# v0.2：ChatGPT のレビュー（#123、5562331048）を反映。C-a（J_Ca）を主の判定に戻し、家族の水準の割り当てを直した。
 #
 # この案の段階では、実装・契約テスト・smoke・本番の測定・seed の実行はしない（README の Status・§14）。
 # 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を開示し、
 # 新しい版・新しい seed の範囲で行う。
 #
-# 種別：事前登録した検証。主の判定は、C0 の家族に 3 つ、V1 の家族に 3 つ（README §4）。補助はすべて記録で、主の不成立を救わない（README §5）。
-# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。新しく選んだ数値は、主の区間の長さと、家族の中の水準の分け方だけ（README §4.5）。
+# 種別：事前登録した検証。主の判定は、C0 の家族に 4 つ、V1 の家族に 4 つ（README §4）。家族ごとに水準 0.05。実験全体（8 判定）で 0.05 とは主張しない（単純な上界 0.10）。補助はすべて記録で、主の不成立を救わない（README §5）。
+# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。新しく選んだ数値は、主の区間の長さと、家族の中の水準の割り当てだけ（README §4.5）。
 # seed の範囲と乱数の流れの名前は、0028 のために新しく決めた識別子で、判定のパラメータではない。
 
 experiment: "0028"
@@ -85,10 +87,12 @@ quantities:
   primary:
     window: count_window_main
     per_individual_and_design:
+      O_Delta_AB_above: "Delta_AB(O) > max_i Delta_AB(W_i)"     # C-a。厳密な不等号
       O_above: "D(O) > max_i D(W_i)"                              # 厳密な不等号
       M_below: "D(M) < min_i D(W_i)"                              # 厳密な不等号
       O_and_M_split: "O_above and M_below"
     across_individuals_per_design:
+      h_Ca: "count(O_Delta_AB_above)"
       h_O: "count(O_above)"
       h_M: "count(M_below)"
       h_OM: "count(O_and_M_split)"
@@ -96,15 +100,15 @@ quantities:
     per_body: [six_N_counts_per_window, Delta_AB, Delta_AC, Delta_BC, spike_counts_per_unit_per_window, silent_units_main_window]
     per_body_C0_only: [weights_at_12000, weights_at_13500, weights_at_25500]
     per_individual_and_design:
-      C_a_form: ["Delta_AB(O) > max_i Delta_AB(W_i)", "Delta_AC(M) > max_i Delta_AC(W_i)"]
-      opposite_direction: ["D(O) < min_i D(W_i)", "D(M) > max_i D(W_i)"]
-      ranks: [rank_of_D_O_among_W, rank_of_D_M_among_W]
-      early_window_same_three_events: true          # 早い区間の D で O_above・M_below・O_and_M_split（判定なし）
+      C_a_form_for_M: "Delta_AC(M) > max_i Delta_AC(W_i)"       # M についての C-a の形。判定しない
+      opposite_direction: ["Delta_AB(O) < min_i Delta_AB(W_i)", "D(O) < min_i D(W_i)", "D(M) > max_i D(W_i)"]
+      ranks: [rank_of_Delta_AB_O_among_W, rank_of_D_O_among_W, rank_of_D_M_among_W]
+      early_window_same_four_events: true           # 早い区間の Δ_AB・D で O_Delta_AB_above・O_above・M_below・O_and_M_split（判定なし）
       C0_weight_ranks: "ranks of w(A->B), w(A->C), w(B->C) of O and M among W at 12000, 13500, 25500 (descriptive only)"
       frozen_per_judgment: true
     across_individuals_per_design:
       counts_of_each_auxiliary_event: true
-      clopper_pearson_95_of_h_over_20: [h_O, h_M, h_OM]   # 判定に使わない。独立・同じ確率の二項モデルの前提に依る参考値
+      clopper_pearson_95_of_h_over_20: [h_Ca, h_O, h_M, h_OM]   # 判定に使わない。独立・同じ確率の二項モデルの前提に依る参考値
   not_used: [effect_size_threshold, population_fraction_claims, ratios, normalizations, rates, weighted_lag_sums,
              combined_scores, post_hoc_windows, post_hoc_lags, two_sided_tests, comparison_between_designs,
              comparison_with_earlier_experiments, individual_eligibility_filters, selection_by_auxiliary_events,
@@ -114,11 +118,19 @@ judgment:                               # README §4
   families:
     C0: {design: C0, alpha: 0.05}
     V1: {design: V1, alpha: 0.05}       # 別の問い（学習しない設計でも同じ向きの外れが現れるか）。二つの家族を組み合わせた主張はしない
+  experiment_wide_error_rate_claimed: none   # 実験全体（8 判定）で 0.05 とは主張しない。単純な和の上界は 0.10
   per_family:
-    alpha_split: "0.05 / 3 for each of J_O, J_M, J_OM (Bonferroni; valid under dependence)"
+    alpha_split: {J_Ca: 0.016, J_O: 0.016, J_M: 0.016, J_OM: 0.002}   # 重みつきの Bonferroni（合計 0.05）。判定のあいだの従属に依らない
+    J_Ca:
+      statistic: h_Ca
+      holds_if: "h_Ca >= 4"            # P(h >= 4) <= P(Bin(20, 1/20) >= 4) = 0.015902 <= 0.016。h >= 3 では 0.0755
+      null_hypothesis: "for every individual, Delta_AB(O) is exchangeable with Delta_AB(W_1..W_19)"
+      per_individual_null_probability_at_most: 0.05
+      direction: O_Delta_AB_above_only
+      corresponds_to: C-a
     J_O:
       statistic: h_O
-      holds_if: "h_O >= 4"              # P(h >= 4) <= P(Bin(20, 1/20) >= 4) = 0.01590 <= 0.0167。h >= 3 では 0.0755
+      holds_if: "h_O >= 4"              # P(h >= 4) <= P(Bin(20, 1/20) >= 4) = 0.015902 <= 0.016。h >= 3 では 0.0755
       null_hypothesis: "for every individual, D(O) is exchangeable with D(W_1..W_19)"
       per_individual_null_probability_at_most: 0.05   # 1 / (K + 1)
       direction: O_above_only           # 一方向。逆の向きの外れは「外にない」と同じに扱う
@@ -130,9 +142,9 @@ judgment:                               # README §4
       direction: M_below_only
     J_OM:
       statistic: h_OM
-      holds_if: "h_OM >= 2"             # P(h >= 2) <= P(Bin(20, 1/420) >= 2) = 0.00105 <= 0.0167。h >= 1 では 0.0466
+      holds_if: "h_OM >= 2"             # P(h >= 2) <= P(Bin(20, 1/420) >= 2) = 0.00105 <= 0.002。h >= 1 では 0.0466
       null_hypothesis: "for every individual, D(O), D(M), D(W_1..W_19) (21 values) are exchangeable"
-      per_individual_null_probability_at_most: "1/420"   # 1 / (21 * 20)
+      per_individual_null_probability_at_most: "1/420"   # 1 / (21 * 20)。H0_O と H0_M のそれぞれより強い帰無仮説で、両者だけからは導けない
       direction: O_above_and_M_below
   independence_assumption: "birth states and within-trial shuffle RNG streams are treated as independent across individuals (statistical model assumption; not implied by distinct seeds)"
   holds_means: reject_null_at_alpha_under_assumptions   # 交換可能性の破れの数学的証明ではない
@@ -141,7 +153,7 @@ judgment:                               # README §4
   on_any_invalid: experiment_invalid_no_judgment        # 20 個体のどれかで必須の確認が失敗したら、どの家族の判定の量も計算・表示しない
   scope: C0_and_V1_spontaneous_lag1_asymmetry_D_in_input_free_window_13501_25500_relative_to_within_trial_shuffle_reference_direction_fixed_by_theory
   content_claimed: "only whether the element that followed A at lag 2 (B in O, C in M) is reflected; not three-element order, not intervals"
-  not_judged: [memory_formation, meaning, weight_carried_content, quantity_only_difference_excluded, three_element_order,
+  not_judged: [memory_formation, meaning, weight_carried_content, quantity_only_difference_excluded, firing_count_robustness_of_D, C_a_for_M, three_element_order,
                intervals, learning_contribution_from_comparing_families, mechanism]
 
 records:                                # 全状態 ＝ 3 Unit の activity・順応（と不応期の残り・発火の回数）、接続ごとの重みと 2 つの痕跡、
