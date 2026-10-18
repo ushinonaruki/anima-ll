@@ -1,0 +1,185 @@
+# 実験 0027 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT のレビュー待ち・未確定。道具の実装の前に固定する）
+#
+# 試しの時刻を遅らせる E4（docs/mf3-natural-difference-carriers-design.md §5.3 (c)・§6 の E4、Q6。#106）。C0。
+# 0025 と同じ設計図・経験・参照（試行の中の並べ替え W_1〜W_19）・試し・読み出し・判定で、主の試しの区間だけを
+# 経験の終わりから D ＝ 5τ_a ＝ 1500 Pulse 遅らせる（README §1〜§3）。待つあいだ、外からの入力はなく、自発の活動と可塑性は続く。
+# 同じ個体で、早い時点（0025 の主と同じ区間）の試しを補助として記録する（判定なし。README §5.3・§6）。
+#
+# この案の段階では、実装・契約テスト・smoke・本番の測定・seed の実行はしない（README の Status・§14）。
+# 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を開示し、
+# 新しい版・新しい seed の範囲で行う。
+#
+# 種別：事前登録した検証。主の判定は 1 つ（README §5）。補助はすべて記録で、主の不成立を救わない（README §6）。
+# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。新しく選んだ数値は、D の倍数 5 だけ（README §3.4・§5.3）。
+# seed の範囲と乱数の流れの名前は、0027 のために新しく決めた識別子で、判定のパラメータではない。
+
+experiment: "0027"
+kind: preregistered_test
+seeds: {first: 20001, last: 20020}            # 本番。20 個体を全件記録・全件報告する。以後どの実験にも使わない
+smoke_seeds: {first: 20101, last: 20106}      # 操作の確認だけ。判定の量は計算・表示・保存しない。現象に関する数値（発火の数など）も見ない
+synthetic_seeds: {first: 20201, last: 20299}  # 合成の契約テスト専用
+
+brain:                                  # 0023・0025・0026 と同じ（C0）
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml
+  dynamics_from: config/neuroarchitecture/minimal-v3.yaml
+  sensory_units: [s1, s2, s3]
+  receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+  refractory_pulses: 0
+
+timeline:                               # Pulse（1 Pulse ＝ 1 秒）
+  pulse_interval_seconds: 1.0
+  trials: {first: 1, every: 60, count: 200}
+  experience_end: "trials.first - 1 + trials.count * trials.every"                      # 12000
+  delay: "5 * adaptation_tau / pulse_interval_seconds"                                  # D ＝ 1500（README §3。倍数 5 だけが新しく選んだ値）
+  probes_early:                         # 補助（判定なし）。0025 の主と同じ区間
+    first: "experience_end + 1"                                                         # 12001
+    count: "adaptation_tau / pulse_interval_seconds"                                    # 300
+    every: 1
+    role: auxiliary
+  probes_late:                          # 主
+    first: "experience_end + delay + 1"                                                 # 13501
+    count: "adaptation_tau / pulse_interval_seconds"                                    # 300（13501〜13800）
+    every: 1
+    role: primary
+  window_pulses: "adaptation_tau / pulse_interval_seconds"                              # T_w ＝ 300
+  body_runs_to: "probes_late.first + probes_late.count - 1 + 1 + window_pulses"         # 14101
+
+stimulus:                               # 0025 と同じ
+  b_offset: 2
+  c_offset: 30
+  counts: {A: 200, B: 200, C: 200}
+  role_assignment: "(seed - 1) mod 6"
+  role_orders:
+    - [receptor.x1, receptor.x2, receptor.x3]
+    - [receptor.x1, receptor.x3, receptor.x2]
+    - [receptor.x2, receptor.x1, receptor.x3]
+    - [receptor.x2, receptor.x3, receptor.x1]
+    - [receptor.x3, receptor.x1, receptor.x2]
+    - [receptor.x3, receptor.x2, receptor.x1]
+
+conditions:                             # 同じ seed（同じ出生時の状態）から 20 の本体。M は置かない
+  O: {schedule: ordered}                # 試行 k の 3 つの枠（t_k、t_k ＋ b_offset、t_k ＋ c_offset）に A・B・C。t_k ＝ 1 ＋ 60k
+  within_trial_shuffles:                # 主の参照分布 W_1〜W_19（0025 と同じ作り方）
+    count: 19                           # K（0025 から継承）
+    schedule: shuffled_labels_within_each_trial
+    rng: "0027-within-trial-{i}:{seed}" # i ＝ 1..19（C4）
+    procedure: "for each i, one random.Random(rng) stream; for k = 0 .. trials.count - 1 in order, shuffle the list [A, B, C] once with that stream and assign it to (t_k, t_k + b_offset, t_k + c_offset)"
+  input_after_experience: none          # 12001 以後、どの本体にも外からの入力はない（可塑性あり）
+
+probe:                                  # 0025 と同じ手順を、二つの試しの区間のどちらにも使う。状態への介入（ℐ）はしない
+  windows: [probes_early, probes_late]
+  base: body_end_of_t0_minus_1
+  A_copy: {input_at_t0: receptor_of_role_A, runs_to: "t0 + 1 + window_pulses", plasticity: true}
+  null_side: body_itself
+  window: "t0 + 2 .. t0 + 1 + window_pulses"
+  first_fire_censor_value: "t0 + 2 + window_pulses"
+  early_probes_do_not_change_body: true # 命題 0（README §2.3）。複製は本体と何も共有せず、本体には入力を入れない。O の双子で確かめる
+
+quantities:
+  primary:                              # 0025 と同じ量を、遅い時点の区間で
+    per_probe:
+      ell_B: "n_B_null - n_B_A"
+      ell_C: "n_C_null - n_C_A"
+    per_body:
+      L_late: "mean_over_probes_late(ell_B - ell_C)"
+    per_individual:
+      outside_late: "L_late(O) > max_i L_late(W_i) or L_late(O) < min_i L_late(W_i)"   # 厳密な不等号。等号は外にない
+    across_individuals:
+      h_late: "count(outside_late)"
+  auxiliary:                            # 記録。判定に使わない
+    per_body:
+      L_early: "mean_over_probes_early(ell_B - ell_C)"
+      L_B: {early: "mean_over_probes_early(ell_B)", late: "mean_over_probes_late(ell_B)"}
+      L_C: {early: "mean_over_probes_early(ell_C)", late: "mean_over_probes_late(ell_C)"}
+      censor_counts: {early: [B_A, B_null, C_A, C_null], late: [B_A, B_null, C_A, C_null]}
+    per_individual:
+      outside_early: "L_early(O) > max_i L_early(W_i) or L_early(O) < min_i L_early(W_i)"   # 記録だけ（判定を置かない）
+      rank_of_L_O_among_20: [early, late]
+      direction_counts: [early, late]
+      silence_counts:                   # 0024・0025 と同じ定義を区間ごとに。両方の側で 300 回とも窓の中で発火しない本体の数（20 本体のうち）
+        early:
+          B: "count over 20 bodies of (censor_counts.early.B_A == 300 and censor_counts.early.B_null == 300)"
+          C: "count over 20 bodies of (censor_counts.early.C_A == 300 and censor_counts.early.C_null == 300)"
+        late:
+          B: "count over 20 bodies of (censor_counts.late.B_A == 300 and censor_counts.late.B_null == 300)"
+          C: "count over 20 bodies of (censor_counts.late.C_A == 300 and censor_counts.late.C_null == 300)"
+    across_individuals:
+      h_early: "count(outside_early)"   # 記録だけ（0025 の判定の再現ではない。判定を置かない）
+      early_late_table: "counts of individuals by (outside_early, outside_late)"   # 4 通りの数。検定を置かない
+      clopper_pearson_95_of_h_over_20: [late, early]   # 判定に使わない。独立・同じ確率の二項モデルの前提に依る参考値
+  not_used: [effect_size_threshold, population_fraction_claims, ratios, normalizations, combined_scores,
+             post_hoc_windows, post_hoc_probe_ranges, post_hoc_delays, comparison_between_h_early_and_h_late, decay_tests,
+             comparison_with_earlier_experiments_h, individual_eligibility_filters, selection_by_outside_early,
+             mirror_condition, between_trial_shuffle_reference]
+
+judgment:                               # README §5
+  statistic: h_late
+  holds_if: "h >= 5"                    # P(h >= 5) <= P(Bin(20, 0.1) >= 5) = 0.04317 <= alpha（右辺は二項の上側確率。h の帰無のもとの確率はそれ以下）
+  alpha: 0.05
+  null_hypothesis: "for every individual, L_late(O) is exchangeable with L_late(W_1..W_19)"   # 帰無仮説の置き方。O について確かめた性質ではない
+  independence_assumption: "birth states and within-trial shuffle RNG streams are treated as independent across individuals (statistical model assumption; not implied by distinct seeds)"
+  holds_means: reject_null_at_alpha_under_assumptions   # 交換可能性の破れの数学的証明ではない
+  per_individual_null_probability_at_most: 0.1   # 2 / (K + 1)。同じ値があれば以下
+  frozen_individuals: count_as_not_outside       # 20 個の L_late が等しい個体は「外にない」。除外しない（A7）
+  on_any_invalid: experiment_invalid_no_judgment   # 20 個体のどれかで必須の確認が失敗したら、判定の量を計算も表示もしない
+  scope: C0_relative_to_within_trial_shuffle_reference_at_late_probe_window_after_5_tau_a
+  not_judged: [mechanism_of_persistence, decay_between_probe_windows, memory_formation]
+
+records:                                # 全状態 ＝ 3 Unit の activity・順応（と不応期の残り・発火の回数）、6 本の重み、
+                                        # 接続ごとの 2 つの痕跡、次の Pulse に届く駆動、Delta の数（丸めずに値のまま）
+  full_state_fields: [pulse, units, connections, drives, deltas]
+  full_state_values_not_digests: true
+  per_body: [birth_state, label_sequence, spikes_1_to_end, full_state_12000, full_state_each_pulse_early_range,
+             full_state_each_pulse_late_range]
+  early_range: "experience_end - 1 .. probes_early.first + probes_early.count - 1 + 1 + window_pulses"   # 11999〜12601
+  late_range: "probes_late.first - 1 .. body_runs_to"                                                  # 13500〜14101
+  per_probe_A_copy_late: [full_state_end_t0_minus_1_after_clone, full_state_end_t0, full_state_end_t0_plus_1,
+                          spikes_t0_to_window_end, full_state_window_end]
+  per_probe_A_copy_early: {all_probes: [spikes_t0_to_window_end],
+                           first_and_last: [full_state_end_t0_minus_1_after_clone, full_state_end_t0,
+                                            full_state_end_t0_plus_1, full_state_window_end]}
+  empty_side_copies: {windows: [probes_early, probes_late], probes: [first, last], keep: [spikes_to_window_end, full_state_each_pulse]}
+  O_twin_without_probes: {keep: [spikes_1_to_end, full_state_12000, full_state_late_first_minus_1, full_state_end]}
+
+checks:                                 # README §7。操作だけを確かめる（D1）
+  exact:
+    - stimulus_labels                   # 0025 と同じ（試行の中の釣り合いを含む）
+    - input_free_after_experience
+    - identical_before_label_divergence
+    - probe_clone_equals_body_t0_minus_1    # 遅い時点はすべての試し、早い時点は最初と最後の試し
+    - identical_through_t0_plus_1           # 同上
+    - proposition_3                         # 両方の区間のすべての試し（発火の列から）
+    - empty_side_identity                   # 両方の区間の最初と最後の試し
+    - O_twin_identity                       # 1〜14101 の全発火と、12000・13500・14101 の全状態（命題 0）
+    - censor_arithmetic_recomputed          # 両方の区間
+    - no_clipping
+  numeric:
+    replay_history_12000: 1.0e-12
+    replay_history_late_start: 1.0e-12      # 13500（遅い時点の最初の複製の元）
+    pair_sum: 1.0e-12                       # 12000・13500・14101
+  revalidate_from_raw: true
+  invalid_individuals: report_all
+
+execution:                              # 0023〜0026 の seed 単位の一度限りの実行の契約を継承（README §9）
+  experiment_id: "0027"
+  output_dir: data/experiments/0027
+  protocol_path: experiments/0027_delayed_order_readout/protocol.yaml
+  measurement_commit: required
+  analysis_commit_must_equal_measurement_commit: true
+  start_record: run_started.json
+  finish_record: run_finished.json
+  per_seed:
+    allowed: true
+    start_record: {exclusive_create: true, fields: [seed, measurement_commit, protocol_sha256, started_at]}
+    finish_record: {fields: [seed, status, finished_at, raw_file_sha256, raw_file_bytes]}
+    refuse_if_start_record_exists: true
+    aggregate_only_after: all_20_seeds_have_start_and_finish_with_matching_raw_hash
+    no_partial_judgment_quantities: true
+    no_replacement_seeds: true
+  rerun: refuse
+  end_commit_check: true
+  on_failure: disclose_whole_experiment_invalid_or_incomplete_and_new_preregistration_with_new_seed_range
+  max_workers: 2
+  results_must_match_seeds: true
+  no_earlier_experiment_references: true   # 0023〜0026 の道具を読み込まない
+  estimated_runtime: "about 70 minutes for 20 individuals with 2 workers on the environment used for 0026 (about 400 s per seed; about twice the probe copies of 0025 per body)"
