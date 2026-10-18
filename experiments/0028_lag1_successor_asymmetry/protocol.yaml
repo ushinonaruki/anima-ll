@@ -1,0 +1,192 @@
+# 実験 0028 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT のレビュー待ち・未確定。道具の実装の前に固定する）
+#
+# L3 の候補 C-a・C-b（docs/c0-l3-correspondence-and-necessity.md §3.3。#122）。C0 と、学習なしの対照 V1。
+# 0025 と同じ世界・経験 O・鏡 M・試行の中の並べ替え W_1〜W_19 の後、外からの入力も試しもない区間（13501〜25500）の
+# 自発の発火で、時間差 1 の発火の組の数の非対称の差 D ＝ Δ_AB − Δ_AC を比べる（README §0〜§4）。
+# 向きは理論から固定する：O は W より大きく、M は W より小さい（README §3.3）。
+#
+# この案の段階では、実装・契約テスト・smoke・本番の測定・seed の実行はしない（README の Status・§14）。
+# 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を開示し、
+# 新しい版・新しい seed の範囲で行う。
+#
+# 種別：事前登録した検証。主の判定は、C0 の家族に 3 つ、V1 の家族に 3 つ（README §4）。補助はすべて記録で、主の不成立を救わない（README §5）。
+# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。新しく選んだ数値は、主の区間の長さと、家族の中の水準の分け方だけ（README §4.5）。
+# seed の範囲と乱数の流れの名前は、0028 のために新しく決めた識別子で、判定のパラメータではない。
+
+experiment: "0028"
+kind: preregistered_test
+seeds: {first: 21001, last: 21020}            # 本番。20 個体を全件記録・全件報告する。以後どの実験にも使わない
+smoke_seeds: {first: 21101, last: 21106}      # 操作の確認だけ。判定の量は計算・表示・保存しない。現象に関する数値（発火の数・組の数など）も見ない
+synthetic_seeds: {first: 21201, last: 21299}  # 合成の契約テスト専用
+
+brains:                                 # 同じ出生時の状態から、二つの設計で同じ 21 の札の列を走らせる（README §1.1・§2.1）
+  C0:
+    manifest: experiments/0012_passive_world/neuroarchitecture.yaml
+    plastic_connections: six_s_to_s
+  V1:
+    manifest: experiments/0028_lag1_successor_asymmetry/neuroarchitecture-v1.yaml
+    derived_from: experiments/0012_passive_world/neuroarchitecture.yaml
+    variant: "remove plastic: true from the six s-s projections; all other YAML settings and wiring identical (header comments differ). Body identical to experiments/0024_learning_free_order_readout/neuroarchitecture-v1.yaml"
+    fixed_weights: {s_to_s: 0.005}      # 6 本とも一生この値（＝ w_max／2）。Receptor → s は 1.0
+    plastic_connections: none
+  common:
+    dynamics_from: config/neuroarchitecture/minimal-v3.yaml
+    sensory_units: [s1, s2, s3]
+    receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+    refractory_pulses: 0
+
+timeline:                               # Pulse（1 Pulse ＝ 1 秒）
+  pulse_interval_seconds: 1.0
+  trials: {first: 1, every: 60, count: 200}
+  experience_end: "trials.first - 1 + trials.count * trials.every"                      # 12000
+  delay: "5 * adaptation_tau / pulse_interval_seconds"                                  # 1500（0027 と同じ。新しく選んだ値ではない）
+  count_window_main:                    # 主
+    first: "experience_end + delay + 1"                                                 # 13501
+    length: "trials.count * trials.every"                                               # 12000（経験の長さと同じ。README §3.4。新しく選んだ値）
+    last: "count_window_main.first + count_window_main.length - 1"                      # 25500
+    role: primary
+  count_window_early:                   # 補助（判定なし）
+    first: "experience_end + 1"                                                         # 12001
+    last: "experience_end + delay"                                                      # 13500
+    role: auxiliary
+  body_runs_to: "count_window_main.last"                                                # 25500
+
+stimulus:                               # 0025・0027 と同じ
+  b_offset: 2
+  c_offset: 30
+  counts: {A: 200, B: 200, C: 200}
+  role_assignment: "(seed - 1) mod 6"
+  role_orders:
+    - [receptor.x1, receptor.x2, receptor.x3]
+    - [receptor.x1, receptor.x3, receptor.x2]
+    - [receptor.x2, receptor.x1, receptor.x3]
+    - [receptor.x2, receptor.x3, receptor.x1]
+    - [receptor.x3, receptor.x1, receptor.x2]
+    - [receptor.x3, receptor.x2, receptor.x1]
+
+conditions:                             # 同じ seed（同じ出生時の状態）から、設計ごとに 21 の本体（計 42）
+  O: {schedule: ordered}                # 試行 k の 3 つの枠（t_k、t_k ＋ b_offset、t_k ＋ c_offset）に A・B・C。t_k ＝ 1 ＋ 60k
+  M: {schedule: mirrored}               # 同じ枠に A・C・B
+  within_trial_shuffles:                # 参照 W_1〜W_19（0025・0027 と同じ作り方）
+    count: 19                           # K
+    schedule: shuffled_labels_within_each_trial
+    rng: "0028-within-trial-{i}:{seed}" # i ＝ 1..19（C4）
+    procedure: "for each i, one random.Random(rng) stream; for k = 0 .. trials.count - 1 in order, shuffle the list [A, B, C] once with that stream and assign it to (t_k, t_k + b_offset, t_k + c_offset)"
+  designs: [C0, V1]                     # V1 の各本体は、C0 の同じ名前の本体と同じ札の列（同じ乱数の流れから作った同じ列）
+  input_after_experience: none          # 12001 以後、どの本体にも外からの入力はない
+  probes: none                          # 試しの複製は作らない
+
+quantities:
+  per_body:                             # 区間 [S, E] ごと（主・早い）。A・B・C は役
+    N: "N_{X->Y} = #{ t : S <= t <= E - 1, s_X(t) = 1, s_Y(t + 1) = 1 } for ordered pairs X != Y"   # 二つの発火がどちらも区間の中
+    Delta_AB: "N_{A->B} - N_{B->A}"
+    Delta_AC: "N_{A->C} - N_{C->A}"
+    D: "Delta_AB - Delta_AC"
+  primary:
+    window: count_window_main
+    per_individual_and_design:
+      O_above: "D(O) > max_i D(W_i)"                              # 厳密な不等号
+      M_below: "D(M) < min_i D(W_i)"                              # 厳密な不等号
+      O_and_M_split: "O_above and M_below"
+    across_individuals_per_design:
+      h_O: "count(O_above)"
+      h_M: "count(M_below)"
+      h_OM: "count(O_and_M_split)"
+  auxiliary:                            # 記録。判定に使わない
+    per_body: [six_N_counts_per_window, Delta_AB, Delta_AC, Delta_BC, spike_counts_per_unit_per_window, silent_units_main_window]
+    per_body_C0_only: [weights_at_12000, weights_at_13500, weights_at_25500]
+    per_individual_and_design:
+      C_a_form: ["Delta_AB(O) > max_i Delta_AB(W_i)", "Delta_AC(M) > max_i Delta_AC(W_i)"]
+      opposite_direction: ["D(O) < min_i D(W_i)", "D(M) > max_i D(W_i)"]
+      ranks: [rank_of_D_O_among_W, rank_of_D_M_among_W]
+      early_window_same_three_events: true          # 早い区間の D で O_above・M_below・O_and_M_split（判定なし）
+      C0_weight_ranks: "ranks of w(A->B), w(A->C), w(B->C) of O and M among W at 12000, 13500, 25500 (descriptive only)"
+      frozen_per_judgment: true
+    across_individuals_per_design:
+      counts_of_each_auxiliary_event: true
+      clopper_pearson_95_of_h_over_20: [h_O, h_M, h_OM]   # 判定に使わない。独立・同じ確率の二項モデルの前提に依る参考値
+  not_used: [effect_size_threshold, population_fraction_claims, ratios, normalizations, rates, weighted_lag_sums,
+             combined_scores, post_hoc_windows, post_hoc_lags, two_sided_tests, comparison_between_designs,
+             comparison_with_earlier_experiments, individual_eligibility_filters, selection_by_auxiliary_events,
+             probe_readouts, between_trial_shuffle_reference]
+
+judgment:                               # README §4
+  families:
+    C0: {design: C0, alpha: 0.05}
+    V1: {design: V1, alpha: 0.05}       # 別の問い（学習しない設計でも同じ向きの外れが現れるか）。二つの家族を組み合わせた主張はしない
+  per_family:
+    alpha_split: "0.05 / 3 for each of J_O, J_M, J_OM (Bonferroni; valid under dependence)"
+    J_O:
+      statistic: h_O
+      holds_if: "h_O >= 4"              # P(h >= 4) <= P(Bin(20, 1/20) >= 4) = 0.01590 <= 0.0167。h >= 3 では 0.0755
+      null_hypothesis: "for every individual, D(O) is exchangeable with D(W_1..W_19)"
+      per_individual_null_probability_at_most: 0.05   # 1 / (K + 1)
+      direction: O_above_only           # 一方向。逆の向きの外れは「外にない」と同じに扱う
+    J_M:
+      statistic: h_M
+      holds_if: "h_M >= 4"
+      null_hypothesis: "for every individual, D(M) is exchangeable with D(W_1..W_19)"
+      per_individual_null_probability_at_most: 0.05
+      direction: M_below_only
+    J_OM:
+      statistic: h_OM
+      holds_if: "h_OM >= 2"             # P(h >= 2) <= P(Bin(20, 1/420) >= 2) = 0.00105 <= 0.0167。h >= 1 では 0.0466
+      null_hypothesis: "for every individual, D(O), D(M), D(W_1..W_19) (21 values) are exchangeable"
+      per_individual_null_probability_at_most: "1/420"   # 1 / (21 * 20)
+      direction: O_above_and_M_below
+  independence_assumption: "birth states and within-trial shuffle RNG streams are treated as independent across individuals (statistical model assumption; not implied by distinct seeds)"
+  holds_means: reject_null_at_alpha_under_assumptions   # 交換可能性の破れの数学的証明ではない
+  ties: strict_inequality_counts_ties_as_not_outside
+  frozen_individuals: count_as_not_outside              # 判定に使う値がすべて等しい個体。除外しない（A7）
+  on_any_invalid: experiment_invalid_no_judgment        # 20 個体のどれかで必須の確認が失敗したら、どの家族の判定の量も計算・表示しない
+  scope: C0_and_V1_spontaneous_lag1_asymmetry_D_in_input_free_window_13501_25500_relative_to_within_trial_shuffle_reference_direction_fixed_by_theory
+  content_claimed: "only whether the element that followed A at lag 2 (B in O, C in M) is reflected; not three-element order, not intervals"
+  not_judged: [memory_formation, meaning, weight_carried_content, quantity_only_difference_excluded, three_element_order,
+               intervals, learning_contribution_from_comparing_families, mechanism]
+
+records:                                # 全状態 ＝ 3 Unit の activity・順応（と不応期の残り・発火の回数）、接続ごとの重みと 2 つの痕跡、
+                                        # 次の Pulse に届く駆動、Delta の数（丸めずに値のまま）。V1 では connections は常に空
+  full_state_fields: [pulse, units, connections, drives, deltas]
+  full_state_values_not_digests: true
+  per_body: [design, birth_state, label_sequence, spikes_1_to_end, full_state_12000, full_state_13500, full_state_25500]
+
+checks:                                 # README §7。操作だけを確かめる（D1）
+  exact:
+    - stimulus_labels                   # O・M・W の札、試行の中の釣り合い、時刻の集合、V1 の札の列が C0 の同じ名前の本体と同じ
+    - identical_birth_state_all_42_bodies
+    - input_free_after_experience
+    - identical_before_label_divergence_within_each_design
+    - C0_no_clipping
+    - V1_connections_empty_all_recorded_states
+    - V1_s_to_s_drive_weights_all_0_005
+    - receptor_drive_weights_all_1_0
+    - lag1_counts_two_ways              # Pulse を順に見る数え方と、発火の時刻の集合を 1 ずらした交わりの数え方。両方の区間
+  numeric:
+    C0_replay_weights_and_traces: {at: [12000, 13500, 25500], tolerance: 1.0e-12}
+    C0_pair_sum: {at: [12000, 13500, 25500], tolerance: 1.0e-12}
+  revalidate_from_raw: true
+  invalid_individuals: report_all
+
+execution:                              # 0023〜0027 の seed 単位の一度限りの実行の契約を継承（README §9）
+  experiment_id: "0028"
+  output_dir: data/experiments/0028
+  protocol_path: experiments/0028_lag1_successor_asymmetry/protocol.yaml
+  measurement_commit: required
+  analysis_commit_must_equal_measurement_commit: true
+  start_record: run_started.json
+  finish_record: run_finished.json
+  per_seed:
+    allowed: true
+    start_record: {exclusive_create: true, fields: [seed, measurement_commit, protocol_sha256, started_at]}
+    finish_record: {fields: [seed, status, finished_at, raw_file_sha256, raw_file_bytes]}
+    refuse_if_start_record_exists: true
+    aggregate_only_after: all_20_seeds_have_start_and_finish_with_matching_raw_hash
+    no_partial_judgment_quantities: true
+    no_replacement_seeds: true
+  rerun: refuse
+  end_commit_check: true
+  on_failure: disclose_whole_experiment_invalid_or_incomplete_and_new_preregistration_with_new_seed_range
+  max_workers: 2
+  results_must_match_seeds: true
+  no_earlier_experiment_references: true   # 0023〜0027 の道具を読み込まない
+  estimated_runtime: "under 30 minutes for 20 individuals with 2 workers (42 bodies x 25500 pulses per seed, no probe copies; about a quarter of the pulse updates of 0027)"
