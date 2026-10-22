@@ -1,0 +1,254 @@
+# 実験 0030 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT のレビュー待ち・未確定。道具の実装の前に固定する）
+#
+# L3 の二つの未解決の問い（docs/c0-l3-carrier-identification-design.md §4.3・§3.3 (iii)・§4.4、#126）。C0。0029 の結果を受けた後続の研究。
+# F：0028 と同じ世界・経験 O・鏡 M・試行の中の並べ替え W の後、経験の終わりの直前の静かな Pulse T_0 から、各本体の重みを T_0 の値に固定して
+#    可塑性を止めた変種（F 本体）で、主の区間（13501〜25500）の時間差 1 の発火の組の非対称 Δ_AB と D ＝ Δ_AB − Δ_AC を比べる（README §2〜§4）。
+# N^cnt：自然な O・M・W1〜W19 の主の区間で、Δ_AB・D の外れが、発火の数の違いだけ（命題 3 の (a)・(b)）では作れない差かを問う（README §3.3）。
+# 二つの家族は同じ 20 個体の自然な本体を共有する別の家族。どちらも一方向。0029 の Wt の効果を要因に分解する実験ではない。
+#
+# この案の段階では、実装・契約テスト・smoke・本番の測定・seed の実行はしない（README の Status・§14）。
+# 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を開示し、
+# 新しい版・新しい seed の範囲で行う。
+#
+# 種別：事前登録した検証。主の判定は、F の家族に 4 つ、N^cnt の家族に 4 つ（README §4）。家族ごとに水準 0.05。実験全体（8 判定）で 0.05 とは主張しない（単純な上界 0.10）。
+# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。新しく選んだ値はない（T_0 の窓は 0026 の T の窓、区間・遅れは 0028）。
+# seed の範囲と乱数の流れの名前は、0030 のために新しく決めた識別子で、判定のパラメータではない。
+
+experiment: "0030"
+kind: preregistered_test
+seeds: {first: 23001, last: 23020}            # 本番。20 個体を全件記録・全件報告する。以後どの実験にも使わない
+smoke_seeds: {first: 23101, last: 23106}      # 操作の確認だけ。判定の量は計算・表示・保存しない。現象に関する数値（発火の数・組の数・T_0 の値・T_0 の有無・層など）も見ない
+synthetic_seeds: {first: 23201, last: 23299}  # 合成の契約テスト専用
+
+brain:                                  # 0026・0028・0029 の C0 と同じ（自然な本体・R(O)）
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml
+  dynamics_from: config/neuroarchitecture/minimal-v3.yaml
+  sensory_units: [s1, s2, s3]
+  receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+  refractory_pulses: 0
+  plastic_connections: six_s_to_s
+
+f_variant:                              # README §2.3・§2.4。F 本体の設計図（道具がメモリの上で作る。ファイルは作らない）
+  derived_from: brain.manifest
+  edit: "remove plastic: true from the six s-s projections and set each s-s weight to the original body's connection weight at the end of T_0 (value as recorded); all other YAML settings and wiring identical"
+  plastic_connections: none
+  unit_state_from: original_body_at_end_of_T0     # activity・adaptation・refractory_remaining・fire_count を公開の import_state で写す
+  connection_state: none                          # 可塑的な接続がない
+  pulse_numbering: "absolute t = T_0 + elapsed pulses of the rebuilt individual (spikes, full-state pulse, drive created_pulse)"
+  premise: P_tau_updates_after_12000_depend_only_on_state   # 担い手の設計 命題 1
+  implementation: manifest_values_and_core_public_import_state_only   # amplitude_ratio を 0 にしない（読み込みで拒まれる）。Core は変えない
+  rebuild_control:                      # README §2.4。組み立ての確認だけ
+    body: R_O
+    construction: "same rebuild as F(O) but keep the C0 manifest (plastic) and copy O's unit state and full connection state (weights and traces) at end of T_0 via public import_state"
+    expected: reproduces_natural_O_after_T0
+
+timeline:                               # Pulse（1 Pulse ＝ 1 秒）
+  pulse_interval_seconds: 1.0
+  trials: {first: 1, every: 60, count: 200}
+  experience_end: "trials.first - 1 + trials.count * trials.every"                      # 12000
+  last_stimulus: "trials.first + (trials.count - 1) * trials.every + c_offset"          # 11971
+  delay: "5 * adaptation_tau / pulse_interval_seconds"                                  # 1500（0027・0028・0029 と同じ）
+  count_window_main:                    # 主（0028 と同じ）
+    first: "experience_end + delay + 1"                                                 # 13501
+    length: "trials.count * trials.every"                                               # 12000
+    last: "count_window_main.first + count_window_main.length - 1"                      # 25500
+  freeze_window:                        # T_0 を探す窓（README §2.2。0026 の T の窓と同じ式。新しく選んだ値ではない）
+    first: "last_stimulus + 1"                                                          # 11972
+    last: "experience_end"                                                              # 12000
+  body_runs_to: "count_window_main.last"                                                # 25500
+
+stimulus:                               # 0025・0027・0028・0029 と同じ
+  b_offset: 2
+  c_offset: 30
+  counts: {A: 200, B: 200, C: 200}
+  role_assignment: "(seed - 1) mod 6"
+  role_orders:
+    - [receptor.x1, receptor.x2, receptor.x3]
+    - [receptor.x1, receptor.x3, receptor.x2]
+    - [receptor.x2, receptor.x1, receptor.x3]
+    - [receptor.x2, receptor.x3, receptor.x1]
+    - [receptor.x3, receptor.x1, receptor.x2]
+    - [receptor.x3, receptor.x2, receptor.x1]
+
+conditions:                             # 同じ seed（同じ出生時の状態）から、自然な本体 21（O・M・W1〜W19）
+  O: {schedule: ordered}                # 試行 k の 3 つの枠（t_k、t_k ＋ b_offset、t_k ＋ c_offset）に A・B・C。t_k ＝ 1 ＋ 60k
+  M: {schedule: mirrored}               # 同じ枠に A・C・B
+  within_trial_shuffles:                # 0025・0027・0028・0029 と同じ作り方
+    count: 19
+    schedule: shuffled_labels_within_each_trial
+    rng: "0030-within-trial-{i}:{seed}" # i ＝ 1..19（C4）
+    procedure: "for each i, one random.Random(rng) stream; for k = 0 .. trials.count - 1 in order, shuffle the list [A, B, C] once with that stream and assign it to (t_k, t_k + b_offset, t_k + c_offset)"
+  input_after_experience: none          # 12001 以後、どの本体にも外からの入力はない（F 本体・R(O) は T_0 より後に入力がない）
+  probes: none                          # 試しの複製は作らない
+  swaps: none                           # 塊の入れ替えはしない
+
+freeze:                                 # README §2.2・§2.3・§2.6
+  time:
+    rule: "T_0 = max{ t in [freeze_window.first, freeze_window.last] : no Unit fired at Pulse t in any of the 21 natural bodies }"
+    state: end_of_pulse_T0              # T_0 の処理の終わりの状態（置かれた駆動はない。Receptor の出来事もない）
+    if_none: F_events_not_outside_and_reported   # F の 4 つの事象で「外にない」に数え、記録する（除外しない）。N^cnt はそのまま計算する
+    no_t0: {valid: true, seed_status: completed, f_and_control_bodies: not_created, ncnt: computed_as_usual}
+  f_bodies: "for each natural body b in [O, M, W1..W19]: build F(b) from f_variant with b's weights at end of T_0, copy b's unit state at end of T_0, run T_0 + 1 .. body_runs_to without plasticity"
+  reference_bodies: [W1, W2, W3, W4, W5, W6, W7, W8, W9, W10, W11, W12, W13, W14, W15, W16, W17, W18, W19]   # K ＝ 19
+
+quantities:
+  per_body:                             # 主の区間 [S, E] ＝ count_window_main。A・B・C は役。自然な本体・F 本体のどれも
+    N: "N_{X->Y} = #{ t : S <= t <= E - 1, s_X(t) = 1, s_Y(t + 1) = 1 } for ordered pairs X != Y"   # 二つの発火がどちらも区間の中
+    Delta_AB: "N_{A->B} - N_{B->A}"
+    Delta_AC: "N_{A->C} - N_{C->A}"
+    D: "Delta_AB - Delta_AC"
+    spike_count: "N_X = #{ t : S <= t <= E, s_X(t) = 1 } for roles X in A, B, C"
+  primary:
+    window: count_window_main
+    per_individual:
+      F:                                # 一方向。max・min は F(W1)〜F(W19)。T_0 がない個体は 4 つとも false
+        O_Delta_AB_above: "Delta_AB(F(O)) > max_i Delta_AB(F(W_i))"
+        O_above: "D(F(O)) > max_i D(F(W_i))"
+        M_below: "D(F(M)) < min_i D(F(W_i))"
+        O_and_M_split: "O_above and M_below"
+      Ncnt:                             # 一方向。自然な本体。i ＝ 1..19。T_0 に依らない
+        E_Ca_cnt: "for all i: Delta_AB(O) - Delta_AB(W_i) > |N_A(O) - N_A(W_i)| + |N_B(O) - N_B(W_i)|"
+        E_O_cnt: "for all i: D(O) - D(W_i) > 2|N_A(O) - N_A(W_i)| + |N_B(O) - N_B(W_i)| + |N_C(O) - N_C(W_i)|"
+        E_M_cnt: "for all i: D(W_i) - D(M) > 2|N_A(M) - N_A(W_i)| + |N_B(M) - N_B(W_i)| + |N_C(M) - N_C(W_i)|"
+        E_OM_cnt: "E_O_cnt and E_M_cnt"
+    across_individuals:
+      F: {h_Ca: "count(O_Delta_AB_above)", h_O: "count(O_above)", h_M: "count(M_below)", h_OM: "count(O_and_M_split)"}
+      Ncnt: {h_Ca: "count(E_Ca_cnt)", h_O: "count(E_O_cnt)", h_M: "count(E_M_cnt)", h_OM: "count(E_OM_cnt)"}
+  subset_proposition: "each N^cnt event implies the corresponding 0028 event on the natural bodies (right-hand sides are >= 0), so the per-individual null bounds 1/20 and 1/420 apply"   # README §4.4
+  auxiliary:                            # 記録。判定に使わない
+    per_individual:
+      freeze_time: true
+      per_body_components: [six_N_counts, Delta_AB, Delta_AC, Delta_BC, D, spike_counts_per_role, silent_roles]   # 自然な 21・F の 21
+      natural_0028_form_events: [O_Delta_AB_above, O_above, M_below, O_and_M_split]   # 自然な O・M と W1〜W19。判定なし
+      ncnt_margins: "for each N^cnt event: number of W_i satisfying the inequality, and the largest (lhs - rhs) among the W_i not satisfying it"
+      F_ranks: [rank_of_Delta_AB_FO_among_reference, rank_of_D_FO_among_reference, rank_of_D_FM_among_reference]
+      F_opposite_direction: ["Delta_AB(F(O)) < min", "D(F(O)) < min", "D(F(M)) > max"]
+      frozen_per_judgment: {F: "all values used by the judgment are equal among F bodies", Ncnt: "all values used by the judgment are equal among natural bodies (0028 form)"}
+      birth_margin_strata:              # README §6。担い手の設計 命題 6 の構造的な沈黙の定義。F 本体には命題 6 の保証を主張しない
+        g: "g_i = intrinsic_drive_i / (1 - decay) - threshold_i for roles A, B, C (birth Unit dynamics)"
+        strata: {structural: "g_i < -0.03", conditional: "-0.03 <= g_i < 0", active: "g_i >= 0"}
+        record: "per role and stratum: individuals, no-T0 individuals, and counts of each of the eight primary events"   # 層ごとの判定は置かない
+    across_individuals:
+      counts_of_each_auxiliary_event: true
+      no_t0_individuals: true
+      clopper_pearson_95_of_h_over_20: [F.h_Ca, F.h_O, F.h_M, F.h_OM, Ncnt.h_Ca, Ncnt.h_O, Ncnt.h_M, Ncnt.h_OM]   # T_0 の有無に依らない。判定に使わない
+    when_no_t0:                         # README §2.6
+      recorded: [natural_body_components_and_silence, natural_0028_form_events, ncnt_margins, birth_margin_strata, Ncnt_frozen]
+      null_with_reason_no_t0: [F_body_components, F_ranks, F_opposite_direction, F_frozen, F_body_silence]
+  not_used: [effect_size_threshold, population_fraction_claims, ratios, normalizations, rates, weighted_lag_sums,
+             combined_scores, post_hoc_windows, post_hoc_lags, contribution_shares, comparison_between_families_h,
+             comparison_with_earlier_experiments_h, individual_eligibility_filters, selection_by_auxiliary_events,
+             selection_by_birth_margin_strata, comparison_of_F_with_natural_bodies, Ncnt_form_on_F_bodies,
+             decomposition_of_0029_Wt_effect, probe_readouts, between_trial_shuffle_reference]
+
+judgment:                               # README §4・§5
+  families:
+    F: {bodies: F_bodies, direction: one_sided, alpha: 0.05}
+    Ncnt: {bodies: natural_bodies, direction: one_sided, alpha: 0.05}
+  experiment_wide_error_rate_claimed: none   # 実験全体（8 判定）で 0.05 とは主張しない。単純な和の上界は 0.10
+  per_family:
+    alpha_split: {J_Ca: 0.016, J_O: 0.016, J_M: 0.016, J_OM: 0.002}   # 重みつきの Bonferroni（合計 0.05）。判定のあいだの従属に依らない。0028・0029 の Wt と同じ割り当て
+    F:
+      J_Ca: {statistic: h_Ca, holds_if: "h_Ca >= 4", per_individual_null_probability_at_most: "1/20"}   # P(Bin(20, 1/20) >= 4) = 0.015902 <= 0.016。h >= 3 では 0.075484
+      J_O: {statistic: h_O, holds_if: "h_O >= 4", per_individual_null_probability_at_most: "1/20"}
+      J_M: {statistic: h_M, holds_if: "h_M >= 4", per_individual_null_probability_at_most: "1/20"}
+      J_OM: {statistic: h_OM, holds_if: "h_OM >= 2", per_individual_null_probability_at_most: "1/420"}   # P(Bin(20, 1/420) >= 2) = 0.001047 <= 0.002。h >= 1 では 0.046557
+    Ncnt:
+      J_Ca: {statistic: h_Ca, holds_if: "h_Ca >= 4", per_individual_null_probability_at_most: "1/20"}
+      J_O: {statistic: h_O, holds_if: "h_O >= 4", per_individual_null_probability_at_most: "1/20"}
+      J_M: {statistic: h_M, holds_if: "h_M >= 4", per_individual_null_probability_at_most: "1/20"}
+      J_OM: {statistic: h_OM, holds_if: "h_OM >= 2", per_individual_null_probability_at_most: "1/420"}
+  null_hypothesis:
+    F_single: "for every individual, F(O) (resp. F(M)) is exchangeable with F(W_1..W_19) (for the quantity of the judgment)"
+    F_OM: "for every individual, D(F(O)), D(F(M)), D(F(W_1..W_19)) (21 values) are exchangeable"
+    Ncnt_single: "for every individual, the natural O (resp. M) is exchangeable with W_1..W_19 (as in 0028); each N^cnt event is a subset of the 0028 event"
+    Ncnt_OM: "for every individual, D(O), D(M), D(W_1..W_19) (21 values) are exchangeable (as in 0028)"
+  independence_assumption: "birth states and within-trial shuffle RNG streams are treated as independent across individuals (statistical model assumption; not implied by distinct seeds)"
+  holds_means: reject_null_at_alpha_under_assumptions   # 交換可能性の破れの数学的証明ではない
+  ties: strict_inequality_counts_ties_as_not_outside
+  frozen_individuals: count_as_not_outside              # 判定に使う値がすべて等しい個体。除外しない（A7）
+  no_t0_individuals: {in_denominator_of_20: true, F_events: false, Ncnt_events: computed_as_usual, recorded_separately_from_frozen: true, counted_as_completed: true}   # README §2.6
+  on_any_invalid: experiment_invalid_no_judgment        # 20 個体のどれかで必須の確認が失敗したら、どの家族の判定の量も計算・表示しない
+  scope:
+    F: C0_variant_with_weights_frozen_at_T0_and_no_plasticity_lag1_asymmetry_relative_to_F_within_trial_shuffle_reference
+    Ncnt: C0_natural_bodies_lag1_asymmetry_exceeding_count_only_differences_a_and_b_relative_to_within_trial_shuffle_reference
+  not_judged: [necessity_of_post_experience_rewriting_in_natural_C0, weight_carried_content, learning_necessity,
+               count_only_differences_other_than_a_and_b, origin_of_relative_timing, decomposition_of_0029_Wt_effect,
+               C_II_reproduction_and_elimination, C_III_cause_of_natural_difference, memory_formation, meaning,
+               three_element_order, intervals]
+
+records:                                # 全状態 ＝ 3 Unit の activity・順応・不応期の残り・発火の回数、接続ごとの重みと 2 つの痕跡、
+                                        # 次の Pulse に届く駆動、Delta の数（丸めずに値のまま）
+  full_state_fields: [pulse, units, connections, drives, deltas]
+  full_state_values_not_digests: true
+  no_judgment_quantities_in_raw: true   # 主の事象は raw に書かない。確認の後に本番・合成だけ report に書く（README §7。0029 CORRECTIONS.md C1 と同じ分け方）
+  natural_bodies:                       # O・M・W1〜W19
+    per_body: [birth_state, unit_dynamics, label_sequence, spikes_1_to_end, full_state_12000, full_state_end_of_T0, full_state_13500, full_state_25500,
+               full_state_first_stimulus_and_next, full_state_before_label_divergence]
+  f_bodies:                             # 21 本体（O・M・W1〜W19 の順）。T_0 がない個体では空の配列
+    per_body: [original_body, frozen_weights, unit_dynamics, full_state_start_at_T0, spikes_T0_plus_1_to_end, full_state_13500, full_state_25500]
+  control_bodies:                       # R(O) の 1 本体。T_0 がない個体では空の配列
+    per_body: [name, full_state_start_at_T0, spikes_T0_plus_1_to_end, full_state_13500, full_state_25500]
+  freeze_fields:                        # README §2.6。どちらの場合も同じ鍵を持つ
+    t0_exists: {when_t0: true, when_no_t0: false}
+    t0: {when_t0: integer_in_freeze_window, when_no_t0: null}
+    window_witness:                     # T_0 がないことの根拠
+      when_t0: null
+      when_no_t0: "array of {pulse, body, unit} for every Pulse of freeze_window in ascending order; the first firing (body in order O, M, W1..W19; unit in order s1, s2, s3) at that Pulse among the natural bodies"
+  no_t0:                                # T_0 がない個体の raw
+    natural_bodies: same_as_above_except_full_state_end_of_T0_is_null
+    f_bodies: []
+    control_bodies: []
+  inconsistent_raw_is_invalid: true     # T_0 がないのに F 本体がある、T_0 があるのに配列が空、window_witness と t0_exists の食い違い、など
+
+checks:                                 # README §7。操作だけを確かめる（D1）
+  result_values: [pass, fail, not_applicable]   # not_applicable は「この個体では定義されず行わなかった」。失敗ではなく invalid の理由にならない（README §2.6）
+  exact:
+    - stimulus_labels                   # 自然な 21 本体。O・M・W の札、試行の中の釣り合い、時刻の集合、感覚の出来事
+    - identical_birth_state_natural_bodies
+    - input_free_after_experience       # 自然な本体は 12001 以後、F 本体・R(O) は T_0 より後
+    - identical_before_label_divergence
+    - freeze_time_rule                  # T_0 が規則どおり（窓の中、どの自然な本体でも T_0 に発火がなく、それより後の窓の Pulse には発火がある）。T_0 の全状態に駆動・Delta がない。T_0 がない個体は T_0 がないことの証明
+    - f_construction                    # F(b) の設計図の値 ＝ C0 から 6 本の plastic: true を除き重みを b の T_0 の重みにちょうど替えたもの。力学が同じ。始まりの全状態 ＝ b の T_0 の Unit の状態、接続の状態・駆動・Delta なし
+    - f_weights_constant                # F(b) の記録したすべての全状態で接続の状態が空、Unit → Unit の駆動の重み ＝ b の T_0 の重み（ちょうど）
+    - f_matches_natural_until_first_spike   # F(b) の発火の列が、T_0 より後の b の最初の発火の Pulse まで（含む）b と一致
+    - rebuild_identity                  # R(O) の T_0 より後の発火と 13500・25500 の全状態が自然な O と一致
+    - no_clipping                       # 自然な本体は出生から、R(O) は T_0 の写した状態から再生
+    - lag1_counts_two_ways              # Pulse を順に見る数え方と、発火の時刻の集合を 1 ずらした交わりの数え方。自然な本体と F 本体のすべて（発火の数も）
+  numeric:
+    replay_weights_and_traces: {natural_at: [12000, T0, 13500, 25500], rebuild_control_at: [13500, 25500], tolerance: 1.0e-12}
+    pair_sum: {tolerance: 1.0e-12}      # 自然な本体・R(O) の記録したすべての時点
+  revalidate_from_raw: true
+  invalid_individuals: report_all
+  no_t0:                                # README §2.6・§7 の表。T_0 がない個体での適用
+    apply_on_natural_bodies_only: [stimulus_labels, identical_birth_state_natural_bodies, input_free_after_experience, identical_before_label_divergence,
+                                   no_clipping, lag1_counts_two_ways, replay_weights_and_traces, pair_sum]   # replay は natural_at の 12000・13500・25500（T_0 を除く）
+    freeze_time_rule: "no-T0 proof: every Pulse of freeze_window has a firing in some natural body; each window_witness entry matches the recorded spikes and is the first in the fixed order"
+    not_applicable: [f_construction, f_weights_constant, f_matches_natural_until_first_spike, rebuild_identity]
+    body_layout: "natural 21; f_bodies and control_bodies are empty arrays"
+  smoke_report_check_values: [fail, ok]   # smoke では pass と not_applicable を区別しない（T_0 の有無を表に出さない）
+
+execution:                              # 0023〜0029 の seed 単位の一度限りの実行の契約を継承（README §9）
+  experiment_id: "0030"
+  output_dir: data/experiments/0030
+  protocol_path: experiments/0030_post_experience_freeze_and_count_bound/protocol.yaml
+  measurement_commit: required
+  analysis_commit_must_equal_measurement_commit: true
+  start_record: run_started.json
+  finish_record: run_finished.json
+  per_seed:
+    allowed: true
+    start_record: {exclusive_create: true, fields: [seed, measurement_commit, protocol_sha256, started_at]}
+    finish_record: {fields: [seed, status, finished_at, raw_file_sha256, raw_file_bytes]}
+    refuse_if_start_record_exists: true
+    aggregate_only_after: all_20_seeds_have_start_and_finish_with_matching_raw_hash
+    no_partial_judgment_quantities: true
+    no_replacement_seeds: true
+  rerun: refuse
+  end_commit_check: true
+  on_failure: disclose_whole_experiment_invalid_or_incomplete_and_new_preregistration_with_new_seed_range
+  max_workers: 2
+  results_must_match_seeds: true
+  no_earlier_experiment_references: true   # 0023〜0029 の道具を読み込まない
+  estimated_runtime: "about 9 minutes for 20 individuals with 2 workers (21 natural bodies x 25500 pulses plus 22 F/control bodies x about 13500 pulses per seed)"
+  order: [preregistration_review_and_merge, tools_and_synthetic_contract_tests, smoke, tools_review_and_merge, fix_measurement_commit, formal_20_seeds_once, analysis_once]
