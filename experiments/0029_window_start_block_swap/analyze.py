@@ -24,6 +24,11 @@
    区別しない〕だけを書く）
 4. report は一度だけ書く（既にあれば上書きしない。解析の記録 analysis_log.jsonl に開始・完了と入力の SHA-256 を残す）
 
+事前登録への技術的な訂正（CORRECTIONS.md。測定の前）：C1 ― τ がある個体の raw の swap.events は null で、§4.1 の真偽は確認がすべて
+成り立った後に本番・合成のときだけ report の per_seed.<seed>.individual.events に書く（README §2.6 の表の「§4.1 の真偽」は report の
+値と読む。§7・§9・D2 に合わせる）。C2 ― Clopper–Pearson の区間は README §6 の意味で、τ の有無に依らず 8 つの判定について記録する。
+report には、適用した訂正の文書のパスと SHA-256 を preregistration_corrections として書く。
+
 使い方（リポジトリ直下で、測定の commit を checkout したきれいな作業ツリーで）:
   python experiments/0029_window_start_block_swap/analyze.py                         # 本番（protocol の execution.output_dir）
   python experiments/0029_window_start_block_swap/analyze.py <フォルダ> --smoke        # smoke（操作の確認だけ。data/experiments の下には書かない）
@@ -58,6 +63,7 @@ REPORT, LOG = "report.json", "analysis_log.jsonl"
 MODES = ("formal", "smoke", "synthetic")           # synthetic は契約テストの関数呼び出しだけ
 SEED_RANGES = {"formal": "seeds", "smoke": "smoke_seeds", "synthetic": "synthetic_seeds"}
 TOOL_FILES = ("analyze.py", "world.py", "alignment.py", "guard.py", "run.py")
+CORRECTIONS = HERE / "CORRECTIONS.md"              # 事前登録への技術的な訂正（測定の前。alignment.py が SHA-256 を固定値と照合する）
 
 
 def load(name: str, path: Path):
@@ -1020,6 +1026,11 @@ def judgment(per_seed: Mapping[str, dict]) -> dict:
                      "比較・出生時の値の層は補助の記録で、主の不成立を救わない")}
 
 
+def corrections_applied() -> dict:
+    """適用した事前登録への技術的な訂正（CORRECTIONS.md のパスと SHA-256、訂正の番号）。"""
+    return {"file": str(CORRECTIONS), "sha256": G.sha256_file(REPO / CORRECTIONS), "applied": list(ALIGN.CORRECTIONS_APPLIED)}
+
+
 # ---- 解析の本体 --------------------------------------------------------------------------------------------
 
 def analyze(out: Path, mode: str, plan=None, seeds: list[int] | None = None, repo: Path = REPO) -> dict:
@@ -1038,7 +1049,7 @@ def analyze(out: Path, mode: str, plan=None, seeds: list[int] | None = None, rep
         plan, seeds = W.plan_from(PROTOCOL), expected_seeds(mode)
     records, head = preconditions(out, mode, seeds, repo)
     base = {"experiment": EXPERIMENT, "kind": KIND, "mode": mode, "seeds": seeds, "plan": plan.as_dict(),
-            "records": records, "analysis_commit": head}
+            "records": records, "analysis_commit": head, "preregistration_corrections": corrections_applied()}
     checks, tau_exists, invalid = {}, {}, []
     for s in seeds:
         if records["statuses"].get(str(s)) != "completed":
@@ -1122,7 +1133,8 @@ def analysis_context(folder: Path, mode: str) -> dict:
         seeds[str(s)] = {n: (G.sha256_file(d / n) if (d / n).exists() else None) for n in (G.START, G.FINISH, G.RAW)}
     return {"experiment": EXPERIMENT, "kind": KIND, "mode": mode, "seeds": seeds,
             "protocol_sha256": G.sha256_file(REPO / PROTOCOL_PATH),
-            "tool_sha256": {n: G.sha256_file(REPO / HERE / n) for n in TOOL_FILES}}
+            "tool_sha256": {n: G.sha256_file(REPO / HERE / n) for n in TOOL_FILES},
+            "corrections_sha256": G.sha256_file(REPO / CORRECTIONS)}
 
 
 def _append(folder: Path, event: dict, create: bool = False) -> None:

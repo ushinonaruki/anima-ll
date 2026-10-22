@@ -8,9 +8,10 @@ execution（ID・出力先・protocol のパス）・乱数の流れの名前が
 J_Ca・J_O・J_M・J_OM の 4 つ。閾値は、割り当てた水準と K ＝ 19・向きの扱いから決まる最小の整数であることを、二項分布の上側の確率を
 厳密に計算して確かめる。
 
-protocol の書き方についての注（README の意味は変えない）：quantities.auxiliary の clopper_pearson_95_of_h_over_20 は、v0.2 の
-書き足しの位置のため when_no_tau の下に入っているが、README §6 の補助の表のとおり、τ の有無に依らない 8 つの判定の h／20 の区間
-（判定に使わない）として analyze.py が計算する。この alignment は protocol をそのままの形で比べる。
+事前登録への技術的な訂正（CORRECTIONS.md。測定の前。README・protocol は書き換えない）：C1 ― τ がある個体の raw の swap.events は
+null（§4.1 の真偽は report に書く）、C2 ― protocol の quantities.auxiliary.when_no_tau の下に入った clopper_pearson_95_of_h_over_20 は、
+README §6 の意味（τ の有無に依らない 8 つの判定の h／20 の区間。判定に使わない）で計算する。この alignment は protocol をそのままの
+形で比べ、CORRECTIONS.md の SHA-256 を固定値と照合する（確定の後に書き換えたら止まる）。
 """
 
 import importlib.util
@@ -189,6 +190,11 @@ PER_SEED = {"allowed": True,
             "no_partial_judgment_quantities": True, "no_replacement_seeds": True}
 
 
+CORRECTIONS_FILE = "CORRECTIONS.md"
+CORRECTIONS_SHA256 = "95b48825f89e5b3da910f952fc71bc19c410b6e10b7a1ecfec5408867f5dc648"
+CORRECTIONS_APPLIED = ("C1", "C2")
+
+
 def _load(name: str, path: Path):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
@@ -350,5 +356,10 @@ def check(protocol: dict) -> None:
            "一度限りの実行の決まりが想定と違う")
     expect(ex["on_failure"] == "disclose_whole_experiment_invalid_or_incomplete_and_new_preregistration_with_new_seed_range",
            "失敗したときの扱いが想定と違う")
+    # 事前登録への技術的な訂正（CORRECTIONS.md）
+    corr = HERE / CORRECTIONS_FILE
+    expect(corr.exists() and G.sha256_file(corr) == CORRECTIONS_SHA256,
+           "事前登録への技術的な訂正（CORRECTIONS.md）がないか、固定した SHA-256 と違う")
+    expect(W.NO_TAU_REASON == RECORDS["no_tau"]["events"]["not_outside_reason"], "τ がない個体の理由の名前が protocol と違う")
     if problems:
         raise SystemExit(f"protocol と {exp} の設計図・道具がずれている：\n- " + "\n- ".join(problems))

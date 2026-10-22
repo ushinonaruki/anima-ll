@@ -51,6 +51,7 @@ SYN = list(range(22201, 22221))
 GUARD_SEEDS = list(range(22221, 22241))
 POOL_SEEDS = list(range(22241, 22251))
 TOOLS = ("world.py", "run.py", "analyze.py", "alignment.py", "guard.py")
+CORRECTIONS = "CORRECTIONS.md"       # 事前登録への技術的な訂正（測定の前。README・protocol は書き換えない）
 PREREG = ("README.md", "protocol.yaml")
 
 
@@ -186,7 +187,7 @@ def test_runtime_core_and_other_experiments_are_unchanged_from_main() -> None:
     tools = {f"experiments/{EXP.name}/{n}" for n in TOOLS}
     if not set(diff) & tools:
         pytest.skip("この branch は 0029 の道具を変えていない")
-    assert set(diff) <= tools, sorted(set(diff) - tools)
+    assert set(diff) <= tools | {f"experiments/{EXP.name}/{CORRECTIONS}"}, sorted(set(diff) - tools)
 
 
 FORBIDDEN = [r'"00(0\d|1\d|2[0-8])"', r"'00(0\d|1\d|2[0-8])'", r"data/experiments/00(0\d|1\d|2[0-8])",
@@ -239,6 +240,23 @@ def test_tools_read_identity_from_this_protocol() -> None:
     for mode, key in (("formal", "seeds"), ("smoke", "smoke_seeds"), ("synthetic", "synthetic_seeds")):
         assert list(R.allowed_seeds(mode)) == A.expected_seeds(mode) == list(
             range(PROTOCOL[key]["first"], PROTOCOL[key]["last"] + 1))
+
+
+def test_the_preregistration_correction_is_pinned_and_recorded() -> None:
+    """CORRECTIONS.md（C1：τ がある個体の raw の swap.events は null で、§4.1 の真偽は report に書く。C2：Clopper–Pearson の区間は
+    README §6 の意味）。alignment.py は SHA-256 を固定値と照合し、書き換えたら止まる。README・protocol は書き換えない。"""
+    text = (EXP / CORRECTIONS).read_text(encoding="utf-8")
+    assert "## C1." in text and "## C2." in text and ALIGN.CORRECTIONS_APPLIED == ("C1", "C2")
+    assert G.sha256_file(EXP / CORRECTIONS) == ALIGN.CORRECTIONS_SHA256
+    assert A.corrections_applied() == {"file": f"experiments/{EXP.name}/{CORRECTIONS}", "sha256": ALIGN.CORRECTIONS_SHA256,
+                                       "applied": ["C1", "C2"]}
+    real = ALIGN.CORRECTIONS_SHA256
+    try:
+        ALIGN.CORRECTIONS_SHA256 = "0" * 64
+        with pytest.raises(SystemExit, match="CORRECTIONS"):
+            ALIGN.check(PROTOCOL)
+    finally:
+        ALIGN.CORRECTIONS_SHA256 = real
 
 
 def test_swap_uses_only_the_public_import_state() -> None:
@@ -1293,6 +1311,15 @@ def test_complete_valid_records_give_one_judgment_per_family(full_folder, tmp_pa
             assert fam[J][stat] == h and fam[J]["holds"] == (h >= ALIGN.HOLDS_MIN[f][J])
             assert len(fam[J]["clopper_pearson_95_of_h_over_n"]) == 2
     assert len(report["per_seed"]) == 20 and j["no_swap_time_individuals"] == []
+    assert report["preregistration_corrections"] == A.corrections_applied()
+    for s in SYN:                                     # 訂正 C1：raw の events は null、report の events は §4.1 の真偽
+        raw = json.loads(gzip.decompress((G.seed_dir(out, s) / G.RAW).read_bytes()))
+        assert raw["run"]["swap"]["tau_exists"] is True and raw["run"]["swap"]["events"] is None
+        ind = report["per_seed"][str(s)]["individual"]
+        assert ind["not_outside_reason"] is None and all(
+            isinstance(v, bool) for f in ("Wt", "U") for v in ind["events"][f].values())
+        assert {f: tuple(ind["events"][f]) for f in ("Wt", "U")} == W.EVENTS
+    assert all(len(fam[J]["clopper_pearson_95_of_h_over_n"]) == 2 for fam in j["families"].values() for J in ALIGN.JUDGMENTS)
     assert all(set(st.values()) == {"pass"} for st in report["check_results"].values())
     assert json.loads((out / A.REPORT).read_text())["judgment"] == j
     with pytest.raises(ERR, match="既にある"):
@@ -1469,7 +1496,11 @@ def test_smoke_analysis_never_computes_quantities_nor_shows_tau(notau_folder, tm
     assert _forbidden_keys(report) == set()
     assert all(set(st.values()) == {"ok"} for st in report["check_results"].values())
     assert set(report) == {"experiment", "kind", "mode", "seeds", "plan", "records", "analysis_commit", "valid",
-                           "invalid_seeds", "count_arithmetic", "checks", "checks_evaluated", "check_results", "judgment", "note"}
+                           "invalid_seeds", "count_arithmetic", "checks", "checks_evaluated", "check_results", "judgment", "note",
+                           "preregistration_corrections"}
+    for s in SYN:                                     # 訂正 C1：smoke の raw に、τ がある個体の判定の量（事象）は保存されていない
+        raw = json.loads(gzip.decompress((G.seed_dir(out, s) / G.RAW).read_bytes()))
+        assert raw["run"]["swap"]["events"] is None or raw["run"]["swap"]["events"] == W.no_tau_events()
 
 
 def test_report_destination_isolation(tmp_path, monkeypatch) -> None:
