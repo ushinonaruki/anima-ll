@@ -1,4 +1,5 @@
-# 実験 0029 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT のレビュー待ち・未確定。道具の実装の前に固定する）
+# 実験 0029 の実行条件と記録項目（事前登録の案 v0.2。ChatGPT のレビュー待ち・未確定。道具の実装の前に固定する）
+# v0.2：レビュー 5615329476 を受けて、τ がない個体の raw の形・操作の確認の適用・判定への数え方を固定（README §2.6。intervention.swap_time.no_tau、records.no_tau、checks.no_tau、judgment.no_swap_time）。閾値・seed・介入の方法は v0.1 と同じ
 #
 # L3 の担い手（docs/c0-l3-carrier-identification-design.md §4.1・§4.2、#126）の Wt・U。C0。
 # 0028 と同じ世界・経験 O・鏡 M・試行の中の並べ替え W の後、主の区間（13501〜25500）の始まりの直前の静かな Pulse τ に、
@@ -73,6 +74,10 @@ intervention:                           # README §2。ℐ-1（1 ステップの
     rule: "tau = max{ t in [swap_window.first, swap_window.last] : no Unit fired at Pulse t in any of the 22 natural bodies }"
     state: end_of_pulse_tau             # τ の処理の終わりの状態（置かれた駆動はない。Receptor の出来事もない）
     if_none: individual_not_outside_for_all_eight_judgments_and_reported   # 窓の中に τ がない個体は、8 つの判定すべてで「外にない」に数え、記録する（除外しない）
+    no_tau:                             # README §2.6。τ がないことは有効な結果で、その seed は completed（記録の欠け・操作の失敗ではない）
+      valid: true
+      seed_status: completed
+      swapped_and_control_bodies: not_created   # raw では空の配列
   recipient: W20
   donors: [O, M, W1, W2, W3, W4, W5, W6, W7, W8, W9, W10, W11, W12, W13, W14, W15, W16, W17, W18, W19]
   reference_donors: [W1, W2, W3, W4, W5, W6, W7, W8, W9, W10, W11, W12, W13, W14, W15, W16, W17, W18, W19]   # K ＝ 19
@@ -136,6 +141,10 @@ quantities:
     across_individuals:
       counts_of_each_auxiliary_event: true
       no_swap_time_individuals: true
+    when_no_tau:                        # README §2.6
+      recorded: [natural_body_components_and_silence, birth_margin_strata, natural_comparison]
+      null_with_reason_no_tau: [swapped_body_components, ranks, Wt_opposite_direction, U_directions, frozen_per_judgment, swapped_body_silence]
+      strata_counts: count_events_as_not_outside_and_record_no_tau_count_per_stratum
       clopper_pearson_95_of_h_over_20: [Wt.h_Ca, Wt.h_O, Wt.h_M, Wt.h_OM, U.h_Ca, U.h_O, U.h_M, U.h_OM]   # 判定に使わない
   not_used: [effect_size_threshold, population_fraction_claims, ratios, normalizations, rates, weighted_lag_sums,
              combined_scores, post_hoc_windows, post_hoc_lags, contribution_shares, comparison_between_families_h,
@@ -169,6 +178,7 @@ judgment:                               # README §4・§5
   ties: strict_inequality_counts_ties_as_not_outside
   frozen_individuals: count_as_not_outside              # 判定に使う値がすべて等しい個体。除外しない（A7）
   no_swap_time: count_as_not_outside                    # intervention.swap_time.if_none
+  no_tau_individuals: {in_denominator_of_20: true, all_eight_events: false, recorded_separately_from_frozen: true, counted_as_completed: true}   # README §2.6
   on_any_invalid: experiment_invalid_no_judgment        # 20 個体のどれかで必須の確認が失敗したら、どの家族の判定の量も計算・表示しない
   scope: C0_C_I_effect_of_donor_block_into_W20_at_tau_before_main_window_on_lag1_asymmetry_relative_to_donor_reference
   not_judged: [C_II_reproduction_and_elimination_of_natural_difference, C_III_cause_of_natural_difference, exclusivity_of_blocks,
@@ -183,12 +193,25 @@ records:                                # 全状態 ＝ 3 Unit の activity・�
   natural_bodies:                       # O・M・W1〜W20
     per_body: [birth_state, unit_dynamics, label_sequence, spikes_1_to_end, full_state_12000, full_state_end_of_tau, full_state_13500, full_state_25500,
                full_state_first_stimulus_and_next, full_state_before_label_divergence]
-  swapped_bodies:                       # 42 本体（2 つの塊 × 21 のドナー）
+  swapped_bodies:                       # 42 本体（2 つの塊 × 21 のドナー）。τ がない個体では空の配列
     per_body: [swap_record, full_state_end_of_tau_after_swap, spikes_tau_plus_1_to_end, full_state_13500, full_state_25500]
-  control_bodies:                       # 2 本体
+  control_bodies:                       # 2 本体。τ がない個体では空の配列
     per_body: [swap_record, full_state_end_of_tau_after_swap, spikes_tau_plus_1_to_end, full_state_13500, full_state_25500]
+  swap_fields:                          # README §2.6。どちらの場合も同じ鍵を持つ
+    tau_exists: {when_tau: true, when_no_tau: false}
+    tau: {when_tau: integer_in_swap_window, when_no_tau: null}
+    window_witness:                     # τ がないことの根拠
+      when_tau: null
+      when_no_tau: "array of {pulse, body, unit} for every Pulse of swap_window in ascending order; the first firing (body in order O, M, W1..W20; unit in order s1, s2, s3) at that Pulse among the natural bodies"
+  no_tau:                               # τ がない個体の raw
+    natural_bodies: same_as_above_except_full_state_end_of_tau_is_null
+    swapped_bodies: []
+    control_bodies: []
+    events: {all_eight: false, not_outside_reason: no_tau}
+  inconsistent_raw_is_invalid: true     # τ がないのに入れ替えた本体がある、τ があるのに空の配列、window_witness と tau_exists の食い違い、など
 
 checks:                                 # README §7。操作だけを確かめる（D1）
+  result_values: [pass, fail, not_applicable]   # not_applicable は「この個体では定義されず行わなかった」。失敗ではなく invalid の理由にならない（README §2.6）
   exact:
     - stimulus_labels                   # 自然な 22 本体。O・M・W の札、試行の中の釣り合い、時刻の集合、感覚の出来事
     - identical_birth_state_natural_bodies
@@ -206,6 +229,12 @@ checks:                                 # README §7。操作だけを確かめ�
     pair_sum: {tolerance: 1.0e-12}      # 記録したすべての時点と、τ の入れ替えた状態（I1）
   revalidate_from_raw: true
   invalid_individuals: report_all
+  no_tau:                               # README §2.6 の表。τ がない個体での適用
+    apply_on_natural_bodies_only: [stimulus_labels, identical_birth_state_natural_bodies, input_free_after_experience, identical_before_label_divergence,
+                                   no_clipping, lag1_counts_two_ways, replay_weights_and_traces, pair_sum]   # replay は natural_at の 12000・13500・25500（τ を除く）
+    swap_time_rule: "no-tau proof: every Pulse of swap_window has a firing in some natural body; each window_witness entry matches the recorded spikes and is the first in the fixed order"
+    not_applicable: [swap_composition, swap_invariants, full_swap_reproduces_donor, null_swap_identity]
+    body_layout: "natural 22; swapped_bodies and control_bodies are empty arrays"
 
 execution:                              # 0023〜0028 の seed 単位の一度限りの実行の契約を継承（README §9）
   experiment_id: "0029"
