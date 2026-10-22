@@ -1,0 +1,261 @@
+# 実験 0029 の実行条件と記録項目（事前登録の案 v0.2。ChatGPT のレビュー待ち・未確定。道具の実装の前に固定する）
+# v0.2：レビュー 5615329476 を受けて、τ がない個体の raw の形・操作の確認の適用・判定への数え方を固定（README §2.6。intervention.swap_time.no_tau、records.no_tau、checks.no_tau、judgment.no_swap_time）。閾値・seed・介入の方法は v0.1 と同じ
+#
+# L3 の担い手（docs/c0-l3-carrier-identification-design.md §4.1・§4.2、#126）の Wt・U。C0。
+# 0028 と同じ世界・経験 O・鏡 M・試行の中の並べ替え W の後、主の区間（13501〜25500）の始まりの直前の静かな Pulse τ に、
+# 受け手 W20 の状態の一方の塊（重み、または Unit の状態と痕跡）だけをドナー（O・M・W1〜W19）のものに替え、
+# 主の区間の時間差 1 の発火の組の非対称 Δ_AB と D ＝ Δ_AB − Δ_AC を比べる（README §0〜§4）。
+# Wt の家族は一方向（O の重みは Δ_AB・D を大きく、M の重みは D を小さくする向き：README §3.2）、U の家族は向きを問わない。
+# 主張の水準は C-I（固定した背景のもとでのドナーのあいだの条件付きの効果と、その介入の参照との比較）まで。C-II・C-III・排他性は判定しない。
+#
+# この案の段階では、実装・契約テスト・smoke・本番の測定・seed の実行はしない（README の Status・§14）。
+# 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を開示し、
+# 新しい版・新しい seed の範囲で行う。
+#
+# 種別：事前登録した検証。主の判定は、Wt の家族に 4 つ、U の家族に 4 つ（README §4）。家族ごとに水準 0.05。実験全体（8 判定）で 0.05 とは主張しない（単純な上界 0.10）。
+# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。新しく選んだ値は、τ の窓の幅 60（trials.every から）と、方法上の選択（README §5.4）。
+# seed の範囲と乱数の流れの名前は、0029 のために新しく決めた識別子で、判定のパラメータではない。
+
+experiment: "0029"
+kind: preregistered_test
+seeds: {first: 22001, last: 22020}            # 本番。20 個体を全件記録・全件報告する。以後どの実験にも使わない
+smoke_seeds: {first: 22101, last: 22106}      # 操作の確認だけ。判定の量は計算・表示・保存しない。現象に関する数値（発火の数・組の数・τ の値・層など）も見ない
+synthetic_seeds: {first: 22201, last: 22299}  # 合成の契約テスト専用
+
+brain:                                  # 0026・0028 の C0 と同じ
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml
+  dynamics_from: config/neuroarchitecture/minimal-v3.yaml
+  sensory_units: [s1, s2, s3]
+  receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+  refractory_pulses: 0
+  plastic_connections: six_s_to_s
+
+timeline:                               # Pulse（1 Pulse ＝ 1 秒）
+  pulse_interval_seconds: 1.0
+  trials: {first: 1, every: 60, count: 200}
+  experience_end: "trials.first - 1 + trials.count * trials.every"                      # 12000
+  delay: "5 * adaptation_tau / pulse_interval_seconds"                                  # 1500（0027・0028 と同じ）
+  count_window_main:                    # 主（0028 と同じ）
+    first: "experience_end + delay + 1"                                                 # 13501
+    length: "trials.count * trials.every"                                               # 12000
+    last: "count_window_main.first + count_window_main.length - 1"                      # 25500
+  swap_window:                          # τ を探す窓（README §2.2。幅 60 は新しく選んだ方法上の値）
+    first: "count_window_main.first - trials.every"                                     # 13441
+    last: "count_window_main.first - 1"                                                 # 13500
+  body_runs_to: "count_window_main.last"                                                # 25500
+
+stimulus:                               # 0025・0027・0028 と同じ
+  b_offset: 2
+  c_offset: 30
+  counts: {A: 200, B: 200, C: 200}
+  role_assignment: "(seed - 1) mod 6"
+  role_orders:
+    - [receptor.x1, receptor.x2, receptor.x3]
+    - [receptor.x1, receptor.x3, receptor.x2]
+    - [receptor.x2, receptor.x1, receptor.x3]
+    - [receptor.x2, receptor.x3, receptor.x1]
+    - [receptor.x3, receptor.x1, receptor.x2]
+    - [receptor.x3, receptor.x2, receptor.x1]
+
+conditions:                             # 同じ seed（同じ出生時の状態）から、自然な本体 22（O・M・W1〜W20）
+  O: {schedule: ordered}                # 試行 k の 3 つの枠（t_k、t_k ＋ b_offset、t_k ＋ c_offset）に A・B・C。t_k ＝ 1 ＋ 60k
+  M: {schedule: mirrored}               # 同じ枠に A・C・B
+  within_trial_shuffles:                # 0025・0027・0028 と同じ作り方。数だけ 20（W1〜W19 は参照のドナー、W20 は受け手）
+    count: 20
+    schedule: shuffled_labels_within_each_trial
+    rng: "0029-within-trial-{i}:{seed}" # i ＝ 1..20（C4）
+    procedure: "for each i, one random.Random(rng) stream; for k = 0 .. trials.count - 1 in order, shuffle the list [A, B, C] once with that stream and assign it to (t_k, t_k + b_offset, t_k + c_offset)"
+  input_after_experience: none          # 12001 以後、どの本体にも外からの入力はない
+  probes: none                          # 試しの複製は作らない
+
+intervention:                           # README §2。ℐ-1（1 ステップの状態の写像）。自然な経験の履歴は作らない
+  kind: state_block_swap
+  swap_time:
+    rule: "tau = max{ t in [swap_window.first, swap_window.last] : no Unit fired at Pulse t in any of the 22 natural bodies }"
+    state: end_of_pulse_tau             # τ の処理の終わりの状態（置かれた駆動はない。Receptor の出来事もない）
+    if_none: individual_not_outside_for_all_eight_judgments_and_reported   # 窓の中に τ がない個体は、8 つの判定すべてで「外にない」に数え、記録する（除外しない）
+    no_tau:                             # README §2.6。τ がないことは有効な結果で、その seed は completed（記録の欠け・操作の失敗ではない）
+      valid: true
+      seed_status: completed
+      swapped_and_control_bodies: not_created   # raw では空の配列
+  recipient: W20
+  donors: [O, M, W1, W2, W3, W4, W5, W6, W7, W8, W9, W10, W11, W12, W13, W14, W15, W16, W17, W18, W19]
+  reference_donors: [W1, W2, W3, W4, W5, W6, W7, W8, W9, W10, W11, W12, W13, W14, W15, W16, W17, W18, W19]   # K ＝ 19
+  blocks:                               # 0026 §2.3 と同じ置き場所
+    weights:                            # Wt：6 本の重み（接続の状態の weight）。痕跡は受け手のまま
+      family: Wt
+      replace: [connections.weight]
+    units:                              # U：3 Unit の activity・adaptation・refractory_remaining と、Unit ごとの痕跡 X_i（接続の欄の pre_trace・post_trace のすべて）
+      family: U
+      replace: [units.activity, units.adaptation, units.refractory_remaining, connections.pre_trace, connections.post_trace]
+      keep: [units.fire_count]          # 観察用の数で力学に使わない。受け手のまま
+  swapped_bodies: "for each block in blocks, for each donor in donors: clone recipient at end of tau, replace the block by the donor's values at end of tau, run tau + 1 .. body_runs_to with plasticity"
+  control_bodies:                       # 操作の確認だけ（README §7）
+    full_swap: "clone W20 at end of tau, replace both blocks by O's values; run to body_runs_to"     # O の自然な軌道と一致するはず
+    null_swap: "clone W20 at end of tau, replace both blocks by W20's own values; run to body_runs_to" # W20 の自然な軌道と一致するはず
+  plasticity_after_swap: true           # C0-1′ の定義どおり、入れ替えた後も可塑性ありで進める
+  invariants_checked_on_swapped_state:  # 担い手の整理 §3.2 の I1〜I4
+    I1_pair_sum_tolerance: 1.0e-12
+    I2_trace_per_unit: exact
+    I3_activity_positive: exact
+    I4_no_drives_at_tau: exact
+  implementation: core_public_import_state_only   # GenericCognitiveUnit.import_state・ConnectionStore.import_state だけ。Core は変えない
+
+quantities:
+  per_body:                             # 主の区間 [S, E] ＝ count_window_main。A・B・C は役。自然な本体・入れ替えた本体・確認の本体のどれも
+    N: "N_{X->Y} = #{ t : S <= t <= E - 1, s_X(t) = 1, s_Y(t + 1) = 1 } for ordered pairs X != Y"   # 二つの発火がどちらも区間の中
+    Delta_AB: "N_{A->B} - N_{B->A}"
+    Delta_AC: "N_{A->C} - N_{C->A}"
+    D: "Delta_AB - Delta_AC"
+  primary:
+    window: count_window_main
+    per_individual:                     # Y^c(d) ＝ 受け手 W20 の τ の状態の塊 c をドナー d のものに替えた本体。max・min は reference_donors の 19 本
+      Wt:                               # 一方向
+        O_Delta_AB_above: "Delta_AB(Y^Wt(O)) > max_d Delta_AB(Y^Wt(d))"
+        O_above: "D(Y^Wt(O)) > max_d D(Y^Wt(d))"
+        M_below: "D(Y^Wt(M)) < min_d D(Y^Wt(d))"
+        O_and_M_split: "O_above and M_below"
+      U:                                # 向きを問わない
+        O_Delta_AB_outside: "Delta_AB(Y^U(O)) > max_d Delta_AB(Y^U(d)) or Delta_AB(Y^U(O)) < min_d Delta_AB(Y^U(d))"
+        O_outside: "D(Y^U(O)) > max_d D(Y^U(d)) or D(Y^U(O)) < min_d D(Y^U(d))"
+        M_outside: "D(Y^U(M)) > max_d D(Y^U(d)) or D(Y^U(M)) < min_d D(Y^U(d))"
+        O_and_M_opposite_ends: "(D(Y^U(O)) > max_d D(Y^U(d)) and D(Y^U(M)) < min_d D(Y^U(d))) or (D(Y^U(O)) < min_d D(Y^U(d)) and D(Y^U(M)) > max_d D(Y^U(d)))"
+    across_individuals:
+      Wt: {h_Ca: "count(O_Delta_AB_above)", h_O: "count(O_above)", h_M: "count(M_below)", h_OM: "count(O_and_M_split)"}
+      U: {h_Ca: "count(O_Delta_AB_outside)", h_O: "count(O_outside)", h_M: "count(M_outside)", h_OM: "count(O_and_M_opposite_ends)"}
+  auxiliary:                            # 記録。判定に使わない
+    per_individual:
+      swap_time: true
+      per_body_components: [six_N_counts, Delta_AB, Delta_AC, Delta_BC, D, spike_counts_per_unit, silent_units]   # 入れ替えた 42・確認の 2・自然な 22
+      ranks: [rank_of_Delta_AB_O_among_reference, rank_of_D_O_among_reference, rank_of_D_M_among_reference]   # 家族ごと
+      Wt_opposite_direction: ["Delta_AB(Y^Wt(O)) < min", "D(Y^Wt(O)) < min", "D(Y^Wt(M)) > max"]
+      U_directions: [above_max_or_below_min_for_each_U_event, direction_pair_of_O_and_M_opposite_ends]
+      frozen_per_judgment: true
+      birth_margin_strata:              # README §6。担い手の設計 命題 6 の構造的な沈黙の定義。入れ替えた本体には命題 6 の保証を主張しない
+        g: "g_i = intrinsic_drive_i / (1 - decay) - threshold_i for roles A, B, C (birth Unit dynamics)"
+        strata: {structural: "g_i < -0.03", conditional: "-0.03 <= g_i < 0", active: "g_i >= 0"}
+        record: counts_of_each_primary_event_per_stratum   # 層ごとの判定は置かない
+      natural_comparison:               # 自然な O・M・W1〜W19 で 0028 と同じ 4 つの事象（判定なし）
+        events: [O_Delta_AB_above, O_above, M_below, O_and_M_split]
+        reference: [W1, W2, W3, W4, W5, W6, W7, W8, W9, W10, W11, W12, W13, W14, W15, W16, W17, W18, W19]
+    across_individuals:
+      counts_of_each_auxiliary_event: true
+      no_swap_time_individuals: true
+    when_no_tau:                        # README §2.6
+      recorded: [natural_body_components_and_silence, birth_margin_strata, natural_comparison]
+      null_with_reason_no_tau: [swapped_body_components, ranks, Wt_opposite_direction, U_directions, frozen_per_judgment, swapped_body_silence]
+      strata_counts: count_events_as_not_outside_and_record_no_tau_count_per_stratum
+      clopper_pearson_95_of_h_over_20: [Wt.h_Ca, Wt.h_O, Wt.h_M, Wt.h_OM, U.h_Ca, U.h_O, U.h_M, U.h_OM]   # 判定に使わない
+  not_used: [effect_size_threshold, population_fraction_claims, ratios, normalizations, rates, weighted_lag_sums,
+             combined_scores, post_hoc_windows, post_hoc_lags, contribution_shares, comparison_between_families_h,
+             comparison_with_earlier_experiments_h, individual_eligibility_filters, selection_by_natural_comparison,
+             selection_by_birth_margin_strata, probe_readouts, between_trial_shuffle_reference]
+
+judgment:                               # README §4・§5
+  families:
+    Wt: {block: weights, direction: one_sided, alpha: 0.05}
+    U: {block: units, direction: two_sided, alpha: 0.05}     # 向きを理論から導けないため（README §3.2）
+  experiment_wide_error_rate_claimed: none   # 実験全体（8 判定）で 0.05 とは主張しない。単純な和の上界は 0.10
+  per_family:
+    alpha_split: {J_Ca: 0.016, J_O: 0.016, J_M: 0.016, J_OM: 0.002}   # 重みつきの Bonferroni（合計 0.05）。判定のあいだの従属に依らない。0028 と同じ割り当て
+    Wt:
+      J_Ca: {statistic: h_Ca, holds_if: "h_Ca >= 4", per_individual_null_probability_at_most: "1/20"}   # P(Bin(20, 1/20) >= 4) = 0.015902 <= 0.016。h >= 3 では 0.0755
+      J_O: {statistic: h_O, holds_if: "h_O >= 4", per_individual_null_probability_at_most: "1/20"}
+      J_M: {statistic: h_M, holds_if: "h_M >= 4", per_individual_null_probability_at_most: "1/20"}
+      J_OM: {statistic: h_OM, holds_if: "h_OM >= 2", per_individual_null_probability_at_most: "1/420"}   # P(Bin(20, 1/420) >= 2) = 0.001047 <= 0.002。h >= 1 では 0.0466
+    U:
+      J_Ca: {statistic: h_Ca, holds_if: "h_Ca >= 6", per_individual_null_probability_at_most: "2/20"}   # P(Bin(20, 1/10) >= 6) = 0.011253 <= 0.016。h >= 5 では 0.043174
+      J_O: {statistic: h_O, holds_if: "h_O >= 6", per_individual_null_probability_at_most: "2/20"}
+      J_M: {statistic: h_M, holds_if: "h_M >= 6", per_individual_null_probability_at_most: "2/20"}
+      J_OM: {statistic: h_OM, holds_if: "h_OM >= 3", per_individual_null_probability_at_most: "2/420"}  # P(Bin(20, 1/210) >= 3) = 0.000116 <= 0.002。h >= 2 では 0.004070
+  null_hypothesis:
+    Wt_single: "for every individual, as a donor of the weights block into W20 at tau, O (resp. M) is exchangeable with W1..W19 (for the quantity of the judgment)"
+    Wt_OM: "for every individual, as donors of the weights block into W20 at tau, O, M, W1..W19 (21 donors) are exchangeable (for D)"
+    U_single: "for every individual, as a donor of the units block into W20 at tau, O (resp. M) is exchangeable with W1..W19 (for the quantity of the judgment)"
+    U_OM: "for every individual, as donors of the units block into W20 at tau, O, M, W1..W19 (21 donors) are exchangeable (for D)"
+  independence_assumption: "birth states and within-trial shuffle RNG streams are treated as independent across individuals (statistical model assumption; not implied by distinct seeds)"
+  holds_means: reject_null_at_alpha_under_assumptions   # 交換可能性の破れの数学的証明ではない
+  ties: strict_inequality_counts_ties_as_not_outside
+  frozen_individuals: count_as_not_outside              # 判定に使う値がすべて等しい個体。除外しない（A7）
+  no_swap_time: count_as_not_outside                    # intervention.swap_time.if_none
+  no_tau_individuals: {in_denominator_of_20: true, all_eight_events: false, recorded_separately_from_frozen: true, counted_as_completed: true}   # README §2.6
+  on_any_invalid: experiment_invalid_no_judgment        # 20 個体のどれかで必須の確認が失敗したら、どの家族の判定の量も計算・表示しない
+  scope: C0_C_I_effect_of_donor_block_into_W20_at_tau_before_main_window_on_lag1_asymmetry_relative_to_donor_reference
+  not_judged: [C_II_reproduction_and_elimination_of_natural_difference, C_III_cause_of_natural_difference, exclusivity_of_blocks,
+               contribution_shares, other_recipients, components_within_blocks, reachability_of_swapped_states,
+               learning_necessity, quantity_only_difference_excluded, plasticity_freeze_variant, count_exceeding_events,
+               memory_formation, meaning, three_element_order, intervals]
+
+records:                                # 全状態 ＝ 3 Unit の activity・順応・不応期の残り・発火の回数、接続ごとの重みと 2 つの痕跡、
+                                        # 次の Pulse に届く駆動、Delta の数（丸めずに値のまま）
+  full_state_fields: [pulse, units, connections, drives, deltas]
+  full_state_values_not_digests: true
+  natural_bodies:                       # O・M・W1〜W20
+    per_body: [birth_state, unit_dynamics, label_sequence, spikes_1_to_end, full_state_12000, full_state_end_of_tau, full_state_13500, full_state_25500,
+               full_state_first_stimulus_and_next, full_state_before_label_divergence]
+  swapped_bodies:                       # 42 本体（2 つの塊 × 21 のドナー）。τ がない個体では空の配列
+    per_body: [swap_record, full_state_end_of_tau_after_swap, spikes_tau_plus_1_to_end, full_state_13500, full_state_25500]
+  control_bodies:                       # 2 本体。τ がない個体では空の配列
+    per_body: [swap_record, full_state_end_of_tau_after_swap, spikes_tau_plus_1_to_end, full_state_13500, full_state_25500]
+  swap_fields:                          # README §2.6。どちらの場合も同じ鍵を持つ
+    tau_exists: {when_tau: true, when_no_tau: false}
+    tau: {when_tau: integer_in_swap_window, when_no_tau: null}
+    window_witness:                     # τ がないことの根拠
+      when_tau: null
+      when_no_tau: "array of {pulse, body, unit} for every Pulse of swap_window in ascending order; the first firing (body in order O, M, W1..W20; unit in order s1, s2, s3) at that Pulse among the natural bodies"
+  no_tau:                               # τ がない個体の raw
+    natural_bodies: same_as_above_except_full_state_end_of_tau_is_null
+    swapped_bodies: []
+    control_bodies: []
+    events: {all_eight: false, not_outside_reason: no_tau}
+  inconsistent_raw_is_invalid: true     # τ がないのに入れ替えた本体がある、τ があるのに空の配列、window_witness と tau_exists の食い違い、など
+
+checks:                                 # README §7。操作だけを確かめる（D1）
+  result_values: [pass, fail, not_applicable]   # not_applicable は「この個体では定義されず行わなかった」。失敗ではなく invalid の理由にならない（README §2.6）
+  exact:
+    - stimulus_labels                   # 自然な 22 本体。O・M・W の札、試行の中の釣り合い、時刻の集合、感覚の出来事
+    - identical_birth_state_natural_bodies
+    - input_free_after_experience       # 自然な本体は 12001 以後、入れ替えた本体・確認の本体は τ より後
+    - identical_before_label_divergence
+    - swap_time_rule                    # τ が規則どおり（窓の中、どの自然な本体でも τ に発火がなく、それより後の窓の Pulse には発火がある）。τ がない個体の確認も
+    - swap_composition                  # 入れ替えた状態 ＝ W20 の τ の状態の塊を、ドナーの τ の値にちょうど替えたもの（fire_count は W20 のまま）
+    - swap_invariants                   # 入れ替えた状態が I1〜I4 を満たす（I1 は numeric の許容）
+    - full_swap_reproduces_donor        # 両方の塊を O のものにした本体が、τ より後の発火・13500 と 25500 の力学の欄で O の自然な本体と一致
+    - null_swap_identity                # 両方の塊を W20 自身のものにした本体が、W20 の自然な本体と一致
+    - no_clipping                       # 自然な本体は出生から、入れ替えた本体・確認の本体は τ の入れ替えた状態から再生
+    - lag1_counts_two_ways              # Pulse を順に見る数え方と、発火の時刻の集合を 1 ずらした交わりの数え方。すべての本体
+  numeric:
+    replay_weights_and_traces: {natural_at: [12000, tau, 13500, 25500], swapped_at: [13500, 25500], tolerance: 1.0e-12}
+    pair_sum: {tolerance: 1.0e-12}      # 記録したすべての時点と、τ の入れ替えた状態（I1）
+  revalidate_from_raw: true
+  invalid_individuals: report_all
+  no_tau:                               # README §2.6 の表。τ がない個体での適用
+    apply_on_natural_bodies_only: [stimulus_labels, identical_birth_state_natural_bodies, input_free_after_experience, identical_before_label_divergence,
+                                   no_clipping, lag1_counts_two_ways, replay_weights_and_traces, pair_sum]   # replay は natural_at の 12000・13500・25500（τ を除く）
+    swap_time_rule: "no-tau proof: every Pulse of swap_window has a firing in some natural body; each window_witness entry matches the recorded spikes and is the first in the fixed order"
+    not_applicable: [swap_composition, swap_invariants, full_swap_reproduces_donor, null_swap_identity]
+    body_layout: "natural 22; swapped_bodies and control_bodies are empty arrays"
+
+execution:                              # 0023〜0028 の seed 単位の一度限りの実行の契約を継承（README §9）
+  experiment_id: "0029"
+  output_dir: data/experiments/0029
+  protocol_path: experiments/0029_window_start_block_swap/protocol.yaml
+  measurement_commit: required
+  analysis_commit_must_equal_measurement_commit: true
+  start_record: run_started.json
+  finish_record: run_finished.json
+  per_seed:
+    allowed: true
+    start_record: {exclusive_create: true, fields: [seed, measurement_commit, protocol_sha256, started_at]}
+    finish_record: {fields: [seed, status, finished_at, raw_file_sha256, raw_file_bytes]}
+    refuse_if_start_record_exists: true
+    aggregate_only_after: all_20_seeds_have_start_and_finish_with_matching_raw_hash
+    no_partial_judgment_quantities: true
+    no_replacement_seeds: true
+  rerun: refuse
+  end_commit_check: true
+  on_failure: disclose_whole_experiment_invalid_or_incomplete_and_new_preregistration_with_new_seed_range
+  max_workers: 2
+  results_must_match_seeds: true
+  no_earlier_experiment_references: true   # 0023〜0028 の道具を読み込まない
+  estimated_runtime: "about 10 minutes for 20 individuals with 2 workers (22 natural bodies x 25500 pulses plus 44 swapped/control bodies x about 12000 pulses per seed; about the same pulse updates as 0028)"
