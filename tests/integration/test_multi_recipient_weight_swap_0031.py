@@ -585,6 +585,26 @@ def test_structure_checks_detect_wrong_layout_and_judgment_fields(syn) -> None:
     assert set(_checks(data)) == {"revalidate_from_raw"}
 
 
+def test_raw_top_level_and_meta_fields_are_fixed(syn) -> None:
+    """README §7・protocol の records.no_judgment_quantities_in_raw：raw の最上位（meta・run）と meta の欄の集合を固定する。
+    判定の量などの余分な欄が最上位・meta のどこにあっても、欄が欠けても、revalidate_from_raw が fail（invalid）。"""
+    edits = {
+        "最上位の判定の量": lambda d: d.update(scores={"Agg": {"O_above": True}}),
+        "最上位の事象": lambda d: d.update(events={}),
+        "meta の事象": lambda d: d["meta"].update(events={"Agg": {}}),
+        "meta の点": lambda d: d["meta"].update(total_scores={"O": 3}),
+        "meta の欄の欠け": lambda d: d["meta"].pop("manifest"),
+        "meta が辞書でない": lambda d: d.update(meta="0031"),
+        "run が辞書でない": lambda d: d.update(run=[]),
+        "最上位の欄の欠け": lambda d: d.pop("meta"),
+    }
+    for name, f in edits.items():
+        data = copy.deepcopy(syn)
+        f(data)
+        assert set(_checks(data)) == {"revalidate_from_raw"}, name
+    assert set(syn) == A.RAW_KEYS and set(syn["meta"]) == A.META_KEYS and _checks(syn) == {}
+
+
 def _swap_time_problems(data, f, plan=SMALL):
     run = copy.deepcopy(data["run"])
     f(run)
@@ -1546,6 +1566,66 @@ def test_smoke_analysis_never_computes_quantities_nor_shows_tau(notau_folder, tm
     assert all(set(st.values()) == {"ok"} for st in report["check_results"].values())
     assert set(report) == {"experiment", "kind", "mode", "seeds", "plan", "records", "analysis_commit", "valid",
                            "invalid_seeds", "count_arithmetic", "checks", "checks_evaluated", "check_results", "judgment", "note"}
+
+
+def _rewrite_data(out: Path, seed: int, f) -> None:
+    """生の記録の全体（最上位・meta・run）を改ざんし、終了の記録のハッシュも書き直す。"""
+    d = G.seed_dir(out, seed)
+    data = json.loads(gzip.decompress((d / G.RAW).read_bytes()))
+    f(data)
+    payload = gzip.compress(json.dumps(data).encode("utf-8"), mtime=0)
+    (d / G.RAW).write_bytes(payload)
+    fin = json.loads((d / G.FINISH).read_text())
+    (d / G.FINISH).write_text(json.dumps(fin | {"raw_file_sha256": G.sha256_bytes(payload), "raw_file_bytes": len(payload)}))
+
+
+def test_extra_meta_field_in_a_saved_raw_makes_the_experiment_invalid(full_folder, tmp_path) -> None:
+    out = _copy(full_folder, tmp_path)
+    _rewrite_data(out, SYN[4], lambda d: d["meta"].update(events={"Agg": {"O_above": True}}))
+    _rewrite_data(out, SYN[6], lambda d: d.update(scores={}))
+    report = A.analyze(out, "synthetic", SMALL, SYN, repo=full_folder[0])
+    assert not report["valid"] and report["invalid_seeds"] == [SYN[4], SYN[6]] and report["judgment"] is None
+    assert all(set(report["checks"][str(s)]) == {"revalidate_from_raw"} for s in (SYN[4], SYN[6]))
+
+
+def test_a_failed_smoke_report_shows_only_failed_check_names(notau_folder, tmp_path, monkeypatch) -> None:
+    """smoke で確認が成り立たなかったとき、report には成り立たなかった確認の名前と fail・ok だけが出る。理由の文（τ の有無・
+    時刻・window_witness に触れうる）は出さない。同じ改ざんを本番・合成の確認で見ると理由の文が τ に触れることも確かめ、
+    隠すことに意味があることを示す。τ がない個体・τ がある個体・meta の余分な欄の 3 つの失敗を含む。"""
+    out = _copy(notau_folder, tmp_path)
+    _as_smoke(out)
+    plan = notau_plan()
+    raws = {s: json.loads(gzip.decompress((G.seed_dir(out, s) / G.RAW).read_bytes())) for s in SYN}
+    no_tau = next(s for s in SYN if raws[s]["run"]["swap"]["tau_exists"] is False)
+    with_tau = next(s for s in SYN if raws[s]["run"]["swap"]["tau_exists"] is True)
+    extra = next(s for s in SYN if s not in (no_tau, with_tau))
+
+    def witness(d):
+        d["run"]["swap"]["window_witness"][0]["unit"] = "s9"
+
+    def composition(d):
+        x = d["run"]["swapped_bodies"][3]
+        x["swap"]["tau"] -= 1
+    _rewrite_data(out, no_tau, witness)
+    _rewrite_data(out, with_tau, composition)
+    _rewrite_data(out, extra, lambda d: d["meta"].update(events={}))
+    for s, f in ((no_tau, witness), (with_tau, composition)):     # 理由の文は τ・window_witness に触れる（隠す意味がある）
+        data = copy.deepcopy(raws[s])
+        f(data)
+        why = " ".join(x for v in A.check_seed(data, "smoke", s, plan).values() for x in v)
+        assert "τ" in why or "window_witness" in why, why
+    monkeypatch.setattr(A, "expected_seeds", lambda mode: list(SYN))
+    monkeypatch.setattr(A.W, "plan_from", lambda protocol: notau_plan())
+    report = A.analyze(out, "smoke", repo=notau_folder[0])
+    assert not report["valid"] and report["judgment"] is None and report["invalid_seeds"] == sorted([no_tau, with_tau, extra])
+    assert report["checks"][str(no_tau)] == ["swap_time_rule"] and report["checks"][str(extra)] == ["revalidate_from_raw"]
+    assert "swap_composition" in report["checks"][str(with_tau)]
+    assert all(isinstance(v, list) and set(v) <= set(A.CHECK_NAMES) for v in report["checks"].values())
+    assert all(set(st.values()) <= {"fail", "ok"} for st in report["check_results"].values())
+    text = json.dumps(report, ensure_ascii=False)
+    for word in ("τ", "window_witness", "Pulse", "not_applicable", "tau_exists"):
+        assert word not in text, word
+    assert _forbidden_keys(report) == set()
 
 
 def test_report_destination_isolation(tmp_path, monkeypatch) -> None:

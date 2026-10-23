@@ -16,14 +16,15 @@
    not_applicable（失敗ではなく、invalid の理由にならない）、ほかの確認は自然な本体だけで行い、τ の規則の確認は τ がないことの証明
    （window_witness の再検証）になる。fail が 1 つでもあればその個体は invalid で、実験全体を invalid とする（judgment.on_any_invalid）。
    raw の swap の欄と本体の並びが §2.6 の対応から外れていれば、また raw に判定の量の欄があれば（records.
-   no_judgment_quantities_in_raw）invalid。時間差 1 の組の数え方の 2 通りの算術（lag1_counts_two_ways）は、ほかのすべての確認が
+   no_judgment_quantities_in_raw。raw の最上位・meta・run・各本体の欄の集合を固定し、余分な欄があれば）invalid。時間差 1 の組の数え方の 2 通りの算術（lag1_counts_two_ways）は、ほかのすべての確認が
    すべての個体で成り立ったときに最後に確かめる
 3. 判定（README §4、protocol の quantities・judgment）：**本番（formal）・合成で、20 個の seed がすべて completed、raw のハッシュが一致、
    すべての個体で fail がないときだけ**、主・補助の量を計算して report に書く。家族（Agg・All）ごとに 4 つの主の判定 J_Ca・J_O・J_M・
    J_OM。τ がない個体は 20 個体の分母に残り、8 つの事象をすべて「外にない」に数える（凍結とは別に記録）。All の事象が Agg の事象の
    部分集合であること（README §4.3 の命題 1 の帰結 2）を、個体ごと・判定ごとに機械的に確かめる（破れていれば解析の誤りとして止まる）。
    smoke では判定の量も、現象に関する数値（τ の値・τ の有無を含む）も計算・表示・保存しない（操作の確認だけ。確認の結果は fail か ok
-   〔pass と not_applicable を区別しない：checks.smoke_report_check_values〕だけを書く）
+   〔pass と not_applicable を区別しない：checks.smoke_report_check_values〕だけを書き、成り立たなかった確認は名前だけを書く。
+   理由の文〔τ の有無・時刻に触れうる〕は smoke の report に出さない）
 4. report は一度だけ書く（既にあれば上書きしない。解析の記録 analysis_log.jsonl に開始・完了と入力の SHA-256 を残す）
 
 使い方（リポジトリ直下で、測定の commit を checkout したきれいな作業ツリーで）:
@@ -100,6 +101,8 @@ NATURAL_EVENTS = tuple(PROTOCOL["quantities"]["auxiliary"]["per_individual"]["na
 NATURAL_REFERENCE = tuple(PROTOCOL["quantities"]["auxiliary"]["per_individual"]["natural_comparison"]["reference"])
 NULL_WITHOUT_TAU = tuple(PROTOCOL["quantities"]["auxiliary"]["when_no_tau"]["null_with_reason_no_tau"])
 NO_TAU_REASON = ALIGN.NO_TAU_REASON
+RAW_KEYS = {"meta", "run"}                         # raw の最上位（run.py の compute_and_write が書く欄）
+META_KEYS = {"experiment", "kind", "mode", "seed", "measurement_commit", "protocol_sha256", "protocol", "manifest"}
 RUN_KEYS = {"seed", "plan", "roles", "swap_window", "swap", "natural_bodies", "swapped_bodies", "control_bodies"}
 NATURAL_KEYS = {"body", "birth", "dynamics", "first_stimulus", "before_divergence", "states", "sensory", "spikes", "labels", "rng",
                 "first_divergence_from_O", "state_tau"}
@@ -393,7 +396,16 @@ def _check_structure(data, mode, seed, plan, start_record, out) -> None:
     """raw の形（README §2.6・§8）。swap の欄と本体の並びが §2.6 の対応から外れていれば、また raw に判定の量の欄があれば
     （records.no_judgment_quantities_in_raw）、ここで成り立たない（invalid）。"""
     bad = out["revalidate_from_raw"]
-    meta, run = data.get("meta") or {}, data.get("run") or {}
+    if not isinstance(data, dict) or set(data) != RAW_KEYS:
+        bad.append(f"raw の最上位の欄が {sorted(RAW_KEYS)} ではない（判定の量などの欄を書かない）")
+        return
+    meta, run = data["meta"], data["run"]
+    if not isinstance(meta, dict) or set(meta) != META_KEYS:
+        bad.append(f"raw の meta の欄が {sorted(META_KEYS)} ではない（判定の量などの欄を書かない）")
+        return
+    if not isinstance(run, dict):
+        bad.append("raw の run が辞書ではない")
+        return
     if (meta.get("experiment"), meta.get("kind"), meta.get("mode"), meta.get("seed")) != (EXPERIMENT, KIND, mode, seed):
         bad.append("raw の experiment・kind・mode・seed が想定と違う")
     if start_record is not None and (meta.get("measurement_commit"), meta.get("protocol_sha256")) != (
@@ -1110,10 +1122,20 @@ def analyze(out: Path, mode: str, plan=None, seeds: list[int] | None = None, rep
     statuses = {s: check_statuses(c, tau_exists.get(s)) for s, c in checks.items()}
     if mode == "smoke":                              # smoke では τ の有無を表に出さない（pass と not_applicable を区別しない）
         statuses = {s: smoke_statuses(st) for s, st in statuses.items()}
+    if mode == "smoke":                              # smoke では成り立たなかった確認の名前だけ（理由の文は τ に触れうるので出さない）
+        failed = {s: sorted(k for k, v in c.items() if v) for s, c in checks.items()}
+    else:
+        failed = {s: {k: v for k, v in c.items() if v} for s, c in checks.items()}
     report = base | {"valid": valid, "invalid_seeds": sorted(set(invalid)), "count_arithmetic": counted,
-                     "checks": {s: {k: v for k, v in c.items() if v} for s, c in checks.items()},
+                     "checks": failed,
                      "checks_evaluated": {s: sorted(c) for s, c in checks.items()},
                      "check_results": statuses}
+    if not valid and mode == "smoke":
+        tables.clear()
+        extra.clear()
+        return report | {"judgment": None, "note": ("smoke（操作の確認だけ）。invalid か記録の問題がある。確認の結果は fail・ok と、"
+                                                     "成り立たなかった確認の名前だけを書く（理由の文は書かない）。判定の量も現象に"
+                                                     "関する数値も計算・表示・保存していない")}
     if not valid:
         tables.clear()
         extra.clear()
