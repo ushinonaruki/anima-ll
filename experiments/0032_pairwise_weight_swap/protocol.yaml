@@ -1,0 +1,293 @@
+# 実験 0032 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT のレビュー待ち・未確定。道具の実装の前に固定する）
+#
+# 0031（#135）の 6 本の重みの入れ替えを、組ごと（A–B・A–C・B–C。各組の両向きの 2 本を同時に）に分ける。C0。
+# 0028〜0031 と同じ世界・経験 O・鏡 M・試行の中の並べ替え W の後、主の区間（13501〜25500）の始まりの直前の静かな Pulse τ に、
+# 5 つの受け手 W20〜W24 のそれぞれで、一つの組の 2 本の重みだけをドナー（O・M・W1〜W19）の τ の値に替え（残りの 2 組・Unit の状態・
+# 痕跡は受け手のまま）、主の区間の時間差 1 の発火の組の非対称 Δ_AB と D ＝ Δ_AB − Δ_AC を比べる（README §0〜§4）。
+# 個体ごとの事象は、組ごとに、受け手ごとの順位の点の合計で外にあるか（0031 の Agg と同じ形。一方向）。
+# 組ごとに 4 判定、3 組で 12 判定。重みつきの Bonferroni で 12 判定をまとめて水準 0.0495 ≤ 0.05 を主張する（README §5.2）。
+# 同じ個体で 6 本の入れ替え（0031 と同じ）も行い、組ごとの効果の和からのずれ（非加法性）を補助として記録する。非加法性は判定しない。
+# 主張の水準は C-I（受け手の残りの塊〔Unit の状態・痕跡と残りの 2 組の重み〕と τ を背景に固定した、ドナーのあいだの組の重みの
+# 条件付きの効果と、その介入の参照との比較）まで。C-II・C-III・排他性・寄与の割合・組のあいだの比較・加法性は判定しない。
+#
+# この案の段階では、実装・契約テスト・smoke・本番の測定・seed の実行はしない（README の Status・§14）。
+# 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を開示し、
+# 新しい版・新しい seed の範囲で行う。
+#
+# 種別：事前登録した検証。主の判定は、組 AB・AC・BC の家族に 4 つずつ（README §4）。
+# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。新しく選んだ値は、水準の割り当て（0.005・0.005・0.005・0.0015）だけ。
+# seed の範囲と乱数の流れの名前は、0032 のために新しく決めた識別子で、判定のパラメータではない。
+
+experiment: "0032"
+kind: preregistered_test
+seeds: {first: 25001, last: 25020}            # 本番。20 個体を全件記録・全件報告する。以後どの実験にも使わない
+smoke_seeds: {first: 25101, last: 25106}      # 操作の確認だけ。判定の量は計算・表示・保存しない。現象に関する数値（発火の数・組の数・点・τ の値・τ の有無・層など）も見ない
+synthetic_seeds: {first: 25201, last: 25299}  # 合成の契約テスト専用
+
+brain:                                  # 0026・0028〜0031 の C0 と同じ
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml
+  dynamics_from: config/neuroarchitecture/minimal-v3.yaml
+  sensory_units: [s1, s2, s3]
+  receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+  refractory_pulses: 0
+  plastic_connections: six_s_to_s
+
+timeline:                               # Pulse（1 Pulse ＝ 1 秒）。0029・0031 と同じ
+  pulse_interval_seconds: 1.0
+  trials: {first: 1, every: 60, count: 200}
+  experience_end: "trials.first - 1 + trials.count * trials.every"                      # 12000
+  delay: "5 * adaptation_tau / pulse_interval_seconds"                                  # 1500（0027〜0031 と同じ）
+  count_window_main:                    # 主（0028 と同じ）
+    first: "experience_end + delay + 1"                                                 # 13501
+    length: "trials.count * trials.every"                                               # 12000
+    last: "count_window_main.first + count_window_main.length - 1"                      # 25500
+  swap_window:                          # τ を探す窓（README §2.2。0029・0031 と同じ式）
+    first: "count_window_main.first - trials.every"                                     # 13441
+    last: "count_window_main.first - 1"                                                 # 13500
+  body_runs_to: "count_window_main.last"                                                # 25500
+
+stimulus:                               # 0025・0027〜0031 と同じ
+  b_offset: 2
+  c_offset: 30
+  counts: {A: 200, B: 200, C: 200}
+  role_assignment: "(seed - 1) mod 6"
+  role_orders:
+    - [receptor.x1, receptor.x2, receptor.x3]
+    - [receptor.x1, receptor.x3, receptor.x2]
+    - [receptor.x2, receptor.x1, receptor.x3]
+    - [receptor.x2, receptor.x3, receptor.x1]
+    - [receptor.x3, receptor.x1, receptor.x2]
+    - [receptor.x3, receptor.x2, receptor.x1]
+
+conditions:                             # 同じ seed（同じ出生時の状態）から、自然な本体 26（O・M・W1〜W24）
+  O: {schedule: ordered}                # 試行 k の 3 つの枠（t_k、t_k ＋ b_offset、t_k ＋ c_offset）に A・B・C。t_k ＝ 1 ＋ 60k
+  M: {schedule: mirrored}               # 同じ枠に A・C・B
+  within_trial_shuffles:                # 0025・0027〜0031 と同じ作り方。W1〜W19 は参照のドナー、W20〜W24 は受け手
+    count: 24
+    schedule: shuffled_labels_within_each_trial
+    rng: "0032-within-trial-{i}:{seed}" # i ＝ 1..24（C4）
+    procedure: "for each i, one random.Random(rng) stream; for k = 0 .. trials.count - 1 in order, shuffle the list [A, B, C] once with that stream and assign it to (t_k, t_k + b_offset, t_k + c_offset)"
+  input_after_experience: none          # 12001 以後、どの本体にも外からの入力はない
+  probes: none                          # 試しの複製は作らない
+
+intervention:                           # README §2。ℐ-1（1 ステップの状態の写像）。自然な経験の履歴は作らない
+  kind: state_block_swap
+  swap_time:
+    rule: "tau = max{ t in [swap_window.first, swap_window.last] : no Unit fired at Pulse t in any of the 26 natural bodies }"
+    common_to_all_recipients_and_swap_kinds: true   # README §2.2。受け手ごと・入れ替えの種類ごとに τ を変えない
+    state: end_of_pulse_tau             # τ の処理の終わりの状態（置かれた駆動はない。Receptor の出来事もない）
+    if_none: individual_not_outside_for_all_twelve_judgments_and_reported   # 窓の中に τ がない個体は、12 の判定すべてで「外にない」に数え、記録する（除外しない）
+    no_tau:                             # README §2.6。τ がないことは有効な結果で、その seed は completed（記録の欠け・操作の失敗ではない）
+      valid: true
+      seed_status: completed
+      swapped_and_control_bodies: not_created   # raw では空の配列
+  recipients: [W20, W21, W22, W23, W24]          # 0031 と同じ。番号で事前に決める。ドナーに含めない
+  donors: [O, M, W1, W2, W3, W4, W5, W6, W7, W8, W9, W10, W11, W12, W13, W14, W15, W16, W17, W18, W19]   # どの受け手・どの種類にも同じ 21
+  reference_donors: [W1, W2, W3, W4, W5, W6, W7, W8, W9, W10, W11, W12, W13, W14, W15, W16, W17, W18, W19]   # K ＝ 19
+  pairs:                                # README §2.3。役 A・B・C の組。接続の名前は役の割り当て（role_assignment）から決める
+    AB: [A->B, B->A]
+    AC: [A->C, C->A]
+    BC: [B->C, C->B]
+  swap_kinds:                           # README §2.3・§2.4。どの種類も重みの欄だけを替える
+    AB: {replace: "the two weights of pair AB", keep_from_recipient: [weights_of_pairs_AC_BC, units.activity, units.adaptation, units.refractory_remaining, units.fire_count, connections.pre_trace, connections.post_trace], role: primary}
+    AC: {replace: "the two weights of pair AC", keep_from_recipient: [weights_of_pairs_AB_BC, units.activity, units.adaptation, units.refractory_remaining, units.fire_count, connections.pre_trace, connections.post_trace], role: primary}
+    BC: {replace: "the two weights of pair BC", keep_from_recipient: [weights_of_pairs_AB_AC, units.activity, units.adaptation, units.refractory_remaining, units.fire_count, connections.pre_trace, connections.post_trace], role: primary}
+    "6": {replace: "all six weights (same as the 0031 Wt swap)", keep_from_recipient: [units.activity, units.adaptation, units.refractory_remaining, units.fire_count, connections.pre_trace, connections.post_trace], role: auxiliary_reference}   # 判定に使わない
+  swapped_bodies: "for each swap kind T in [AB, AC, BC, 6], for each recipient r in recipients, for each donor d in donors: clone r at end of tau, replace the weights of kind T by d's values at end of tau, run tau + 1 .. body_runs_to with plasticity"   # 4 × 5 × 21 ＝ 420 本体（組 315 ＋ 6 本 105）
+  control_bodies:                       # 操作の確認だけ（README §7）。受け手ごとに 2 つ、計 10（0031 と同じ）
+    full_swap: "for each recipient r: clone r at end of tau, replace weights and unit state and traces by O's values; run to body_runs_to"   # O の自然な軌道と一致するはず
+    null_swap: "for each recipient r: clone r at end of tau, replace weights and unit state and traces by r's own values; run to body_runs_to"   # r の自然な軌道と一致するはず
+  plasticity_after_swap: true           # C0-1′ の定義どおり、入れ替えた後も可塑性ありで進める
+  invariants_checked_on_swapped_state:  # 担い手の整理 §3.2 の I1〜I4。組の両向きを同時に替えるので I1 は保たれる（README §4.3 の命題 4）
+    I1_pair_sum_tolerance: 1.0e-12
+    I2_trace_per_unit: exact
+    I3_activity_positive: exact
+    I4_no_drives_at_tau: exact
+  implementation: core_public_import_state_only   # GenericCognitiveUnit.import_state・ConnectionStore.import_state だけ。Core は変えない
+
+quantities:
+  per_body:                             # 主の区間 [S, E] ＝ count_window_main。A・B・C は役。自然な本体・入れ替えた本体・確認の本体のどれも
+    N: "N_{X->Y} = #{ t : S <= t <= E - 1, s_X(t) = 1, s_Y(t + 1) = 1 } for ordered pairs X != Y"   # 二つの発火がどちらも区間の中
+    Delta_AB: "N_{A->B} - N_{B->A}"
+    Delta_AC: "N_{A->C} - N_{C->A}"
+    D: "Delta_AB - Delta_AC"
+    spike_count: "N_X = #{ t : S <= t <= E, s_X(t) = 1 } for roles X in A, B, C"
+  scores:                               # README §3.2。種類 T ごとに別々。x は Delta_AB または D、x_r^T(d) ＝ x(Y_r^T(d))
+    rank_score: "s^{x,T}_r(d) = sum over donors e != d of sign(x_r^T(d) - x_r^T(e))"     # 21 のドナーの中で。−20〜20 の整数
+    total_score: "S^{x,T}(d) = sum over recipients r of s^{x,T}_r(d)"                    # −100〜100 の整数
+    across_kinds: none                  # 種類のあいだで点を足したり比べたりしない
+  primary:
+    window: count_window_main
+    per_individual:                     # 組 P ∈ [AB, AC, BC] ごと。max・min は reference_donors の 19 本。τ がない個体は 12 とも false
+      per_pair:
+        O_Delta_AB_above: "S^{Delta_AB,P}(O) > max_{d in reference} S^{Delta_AB,P}(d)"
+        O_above: "S^{D,P}(O) > max_{d in reference} S^{D,P}(d)"
+        M_below: "S^{D,P}(M) < min_{d in reference} S^{D,P}(d)"
+        O_and_M_split: "O_above and M_below"
+    across_individuals:
+      per_pair: {h_Ca: "count(O_Delta_AB_above)", h_O: "count(O_above)", h_M: "count(M_below)", h_OM: "count(O_and_M_split)"}
+  propositions:                         # README §4.3。事象の包含関係・本体が何で決まるか・上界・量の意味だけを言い、成り立つかは決めない
+    order_preservation: "for fixed T, r and x: x_r^T(d) > x_r^T(e) implies s^{x,T}_r(d) >= s^{x,T}_r(e) + 2; x_r^T(d) = x_r^T(e) implies s^{x,T}_r(d) = s^{x,T}_r(e)"
+    null_bound: "under H_P, (S^{x,P}(O), S^{x,P}(W_1..W_19)) is exchangeable, so P(event) <= 1/20 (1/420 for J_OM)"
+    pair_swap_depends_on_donor_only_through_pair_weights: "for fixed r and P, Y_r^P(d) is determined by r's state at tau and d's two weights of pair P at tau; equal pair weights give equal x"
+    pair_swap_preserves_pair_sum: "every pair of a swapped state comes wholly from r or wholly from d, so I1 holds; swapping one direction only would break I1"
+    nonadditivity_meaning: "with the recipient as baseline of the 2x2x2 factorial over pairs, I^x(r,d) equals the sum of the three two-pair interaction terms and the three-pair term"
+  auxiliary:                            # 記録。判定に使わない
+    per_individual:
+      swap_time: true
+      per_body_components: [six_N_counts, Delta_AB, Delta_AC, Delta_BC, D, spike_counts_per_role, silent_roles]   # 入れ替えた 420・確認の 10・自然な 26
+      scores: [rank_scores_per_kind_recipient_and_donor, total_scores_per_kind_and_donor]   # Delta_AB と D、種類 AB・AC・BC・6
+      six_weight_reference:             # README §6。種類 6 の 4 つの事象（0031 の Agg と同じ形）。判定しない・閾値を当てない
+        events: [O_Delta_AB_above, O_above, M_below, O_and_M_split]
+        frozen: true
+      nonadditivity:                    # README §3.4。判定しない
+        baseline: "b_r^x = x(natural body of recipient r)"   # null_swap_identity で Null_r と一致を確かめる
+        pair_effect: "e_P^x(r,d) = x_r^P(d) - b_r^x"
+        six_effect: "e_6^x(r,d) = x_r^6(d) - b_r^x"
+        I: "I^x(r,d) = e_6^x(r,d) - sum over P of e_P^x(r,d) = x_r^6(d) - sum over P of x_r^P(d) + 2 b_r^x"   # 整数
+        record: [I_for_all_105_recipient_donor_pairs, count_of_I_equal_zero, sum_over_r_of_I_for_O_and_M_with_position_among_reference_sums, event_pattern_table_4_events_by_16_patterns_over_kinds_AB_AC_BC_6]
+      per_recipient_0029_form_events: "for each kind T and recipient r, the four 0029 Wt events; per individual the number k (0..5) of recipients where each holds"   # 受け手ごとの判定は置かない
+      ranks: "for each kind T: rank of S^{Delta_AB,T}(O), S^{D,T}(O), S^{D,T}(M) among reference"
+      opposite_direction: "for each kind T: S^{Delta_AB,T}(O) < min, S^{D,T}(O) < min, S^{D,T}(M) > max"
+      frozen_per_kind_and_judgment: "all total scores used by the judgment are equal"
+      target_only_silence: "for each kind T, recipient r and target Y_r^T(O) (J_Ca, J_O) and Y_r^T(M) (J_M): whether its set of silent roles differs from that of every Y_r^T(W_i); per individual the number of such recipients, and how often it co-occurs with each event"   # 0031 §6 と同じ
+      natural_pair_weight_ranks:        # README §6。自然な O・M の τ の重み w(A->B)・w(A->C)・w(B->C) が W1〜W19 のすべてより大きい・小さい・その間か（記述）
+        weights: {AB: "A->B", AC: "A->C", BC: "B->C"}
+        at: tau
+      birth_margin_strata:              # 0031 §6 と同じ。入れ替えた本体には命題 6 の保証を主張しない
+        g: "g_i = intrinsic_drive_i / (1 - decay) - threshold_i for roles A, B, C (birth Unit dynamics)"
+        strata: {structural: "g_i < -0.03", conditional: "-0.03 <= g_i < 0", active: "g_i >= 0"}
+        record: "per role and stratum: individuals, no-tau individuals, and counts of each of the twelve primary events"   # 層ごとの判定は置かない
+      natural_comparison:               # 自然な O・M・W1〜W19 で 0028 と同じ 4 つの事象（判定なし）。受け手の自然な本体は参照に入れない
+        events: [O_Delta_AB_above, O_above, M_below, O_and_M_split]
+        reference: [W1, W2, W3, W4, W5, W6, W7, W8, W9, W10, W11, W12, W13, W14, W15, W16, W17, W18, W19]
+    across_individuals:
+      counts_of_each_auxiliary_event: true
+      distribution_of_k_per_kind_and_event: true
+      no_tau_individuals: true
+      clopper_pearson_95_of_h_over_20: [AB.h_Ca, AB.h_O, AB.h_M, AB.h_OM, AC.h_Ca, AC.h_O, AC.h_M, AC.h_OM, BC.h_Ca, BC.h_O, BC.h_M, BC.h_OM]   # 判定に使わない
+    when_no_tau:                        # README §2.6
+      recorded: [natural_body_components_and_silence, birth_margin_strata, natural_comparison]
+      null_with_reason_no_tau: [swapped_body_components, scores, six_weight_reference, nonadditivity, per_recipient_0029_form_events, ranks, opposite_direction, frozen_per_kind_and_judgment, target_only_silence, swapped_body_silence, natural_pair_weight_ranks]
+      strata_counts: count_events_as_not_outside_and_record_no_tau_count_per_stratum
+  not_used: [effect_size_threshold, population_fraction_claims, ratios, normalizations, rates, weighted_lag_sums,
+             value_sum_aggregate_across_recipients, majority_rules_across_recipients, per_recipient_judgments,
+             all_recipients_family, heterogeneity_tests_across_recipients, recipient_selection_by_data,
+             score_sums_or_comparisons_across_kinds, comparison_of_h_across_pairs, contribution_shares, judgment_on_nonadditivity,
+             judgment_on_six_weight_reference, theory_weighted_alpha, two_pair_swaps, leave_one_pair_out_swaps, one_direction_weight_swaps,
+             post_hoc_windows, post_hoc_lags, comparison_with_earlier_experiments_h,
+             individual_eligibility_filters, selection_by_natural_comparison, selection_by_natural_pair_weight_ranks,
+             selection_by_birth_margin_strata, selection_by_target_only_silence, count_exceeding_events, units_block_swap,
+             probe_readouts, between_trial_shuffle_reference]
+
+judgment:                               # README §4・§5
+  families:
+    AB: {events: total_scores_across_recipients_for_pair_AB_swaps, direction: one_sided, alpha: 0.0165}
+    AC: {events: total_scores_across_recipients_for_pair_AC_swaps, direction: one_sided, alpha: 0.0165}
+    BC: {events: total_scores_across_recipients_for_pair_BC_swaps, direction: one_sided, alpha: 0.0165}
+  experiment_wide_error_rate_claimed: 0.05   # README §5.2。12 判定の割り当ての和 3 × 0.0165 ＝ 0.0495 ≤ 0.05（Bonferroni。判定のあいだの従属に依らない）
+  per_family:
+    alpha_split: {J_Ca: 0.005, J_O: 0.005, J_M: 0.005, J_OM: 0.0015}   # 重みつきの Bonferroni（家族の合計 0.0165）。三つの組で同じ（理論の見込みで厚くしない：README §5.3）
+    each_pair:                          # AB・AC・BC で同じ
+      J_Ca: {statistic: h_Ca, holds_if: "h_Ca >= 5", per_individual_null_probability_at_most: "1/20"}   # P(Bin(20, 1/20) >= 5) = 0.002574 <= 0.005。h >= 4 では 0.015902
+      J_O: {statistic: h_O, holds_if: "h_O >= 5", per_individual_null_probability_at_most: "1/20"}
+      J_M: {statistic: h_M, holds_if: "h_M >= 5", per_individual_null_probability_at_most: "1/20"}
+      J_OM: {statistic: h_OM, holds_if: "h_OM >= 2", per_individual_null_probability_at_most: "1/420"}   # P(Bin(20, 1/420) >= 2) = 0.001047 <= 0.0015。h >= 1 では 0.046557
+  null_hypothesis:                      # 組 P ごと（README §4.3・§4.4）
+    single_O: "for every individual, the joint distribution of the five recipients' states at tau and the 21 donors' two weights of pair P at tau is invariant under permutations of the labels O, W1..W19 (M fixed)"
+    single_M: "the same with M, W1..W19 (O fixed)"
+    OM: "the same under all permutations of the 21 donors"
+  recipient_donor_independence_assumption: "given the birth state, the recipients' states (including their weights of the other two pairs) are treated as independent of the donors' pair weights (distinct RNG stream names; O and M are fixed sequences; statistical model assumption)"
+  independence_assumption: "birth states and within-trial shuffle RNG streams are treated as independent across individuals (statistical model assumption; not implied by distinct seeds)"
+  within_individual_dependence: one_event_per_individual_per_judgment   # 受け手ごとの事象は従属するので、受け手ごとの判定を並べない
+  theory_expectations_not_used_for_alpha: "AB: J_Ca, J_O; AC: J_M; BC: none direct; single-pair J_OM: none (README §3.3)"   # 記録。判定の向き・閾値・水準に使わない
+  holds_means: reject_null_at_alpha_under_assumptions   # 交換可能性の破れの数学的証明ではない
+  ties: strict_inequality_counts_ties_as_not_outside
+  frozen_individuals: count_as_not_outside              # 除外しない（A7）
+  no_swap_time: count_as_not_outside                    # intervention.swap_time.if_none
+  no_tau_individuals: {in_denominator_of_20: true, all_twelve_events: false, recorded_separately_from_frozen: true, counted_as_completed: true}   # README §2.6
+  on_any_invalid: experiment_invalid_no_judgment        # 20 個体のどれかで必須の確認が失敗したら、どの家族の判定の量も計算・表示しない
+  scope: C0_C_I_effect_of_donor_pair_weights_into_five_W_type_recipients_with_other_pairs_and_unit_state_fixed_at_tau_before_main_window_on_lag1_asymmetry_relative_to_donor_reference
+  not_judged: [background_independence_for_arbitrary_backgrounds, heterogeneity_across_recipients, O_or_M_as_recipients, other_swap_times,
+               C_II_reproduction_and_elimination_of_natural_difference, C_III_cause_of_natural_difference, exclusivity_of_pairs,
+               contribution_shares, comparison_across_pairs, additivity_or_interaction, sufficiency_of_a_pair_for_the_six_weight_effect,
+               direction_within_pair, six_weight_reference_replication, units_block, reachability_of_swapped_states, learning_necessity,
+               quantity_only_difference_excluded, plasticity_freeze_variant, memory_formation, meaning, three_element_order, intervals]
+
+records:                                # 全状態 ＝ 3 Unit の activity・順応・不応期の残り・発火の回数、接続ごとの重みと 2 つの痕跡、
+                                        # 次の Pulse に届く駆動、Delta の数（丸めずに値のまま）
+  full_state_fields: [pulse, units, connections, drives, deltas]
+  full_state_values_not_digests: true
+  no_judgment_quantities_in_raw: true   # 主の事象・点・非加法性の量は raw に書かない。確認の後に本番・合成だけ report に書く（README §7）
+  raw_top_level_keys: [meta, run]       # 0031 の道具の修正（#134）と同じく、最上位・meta の欄の集合を固定する
+  natural_bodies:                       # O・M・W1〜W24
+    per_body: [birth_state, unit_dynamics, label_sequence, spikes_1_to_end, full_state_12000, full_state_end_of_tau, full_state_13500, full_state_25500,
+               full_state_first_stimulus_and_next, full_state_before_label_divergence]
+  swapped_bodies:                       # 420 本体（種類 AB・AC・BC・6 の順、その中で受け手 W20〜W24 の順、その中でドナー O・M・W1〜W19 の順）。τ がない個体では空の配列
+    per_body: [swap_record_tau_kind_connections_recipient_donor, full_state_end_of_tau_after_swap, spikes_tau_plus_1_to_end, full_state_13500, full_state_25500]
+  control_bodies:                       # 10 本体（受け手ごとに full_swap・null_swap）。τ がない個体では空の配列
+    per_body: [swap_record_tau_recipient_kind, full_state_end_of_tau_after_swap, spikes_tau_plus_1_to_end, full_state_13500, full_state_25500]
+  swap_fields:                          # README §2.6。どちらの場合も同じ鍵を持つ
+    tau_exists: {when_tau: true, when_no_tau: false}
+    tau: {when_tau: integer_in_swap_window, when_no_tau: null}
+    window_witness:                     # τ がないことの根拠
+      when_tau: null
+      when_no_tau: "array of {pulse, body, unit} for every Pulse of swap_window in ascending order; the first firing (body in order O, M, W1..W24; unit in order s1, s2, s3) at that Pulse among the natural bodies"
+  no_tau:                               # τ がない個体の raw
+    natural_bodies: same_as_above_except_full_state_end_of_tau_is_null
+    swapped_bodies: []
+    control_bodies: []
+  inconsistent_raw_is_invalid: true     # τ がないのに入れ替えた本体がある、τ があるのに空の配列、window_witness と tau_exists の食い違い、など
+
+checks:                                 # README §7。操作だけを確かめる（D1）
+  result_values: [pass, fail, not_applicable]   # not_applicable は「この個体では定義されず行わなかった」。失敗ではなく invalid の理由にならない（README §2.6）
+  exact:
+    - stimulus_labels                   # 自然な 26 本体。O・M・W の札、試行の中の釣り合い、時刻の集合、感覚の出来事
+    - identical_birth_state_natural_bodies
+    - input_free_after_experience       # 自然な本体は 12001 以後、入れ替えた本体・確認の本体は τ より後
+    - identical_before_label_divergence
+    - swap_time_rule                    # τ が規則どおり。τ の全状態に駆動・Delta がない。τ がない個体は τ がないことの証明
+    - swap_composition                  # 各 Y_r^P(d) ＝ 受け手 r の τ の状態の組 P の 2 本の重み（役の割り当てから決まる接続）だけを d の τ の値にちょうど替えたもの。Y_r^6(d) は 6 本。どの入れ替えにも同じ τ
+    - swap_invariants                   # 入れ替えた 420 本体の状態が I1〜I4 を満たす（I1 は numeric の許容）
+    - full_swap_reproduces_donor        # 受け手ごとに、すべてを O のものにした本体が、τ より後の発火・13500 と 25500 の力学の欄で O の自然な本体と一致
+    - null_swap_identity                # 受け手ごとに、すべてを r 自身のものにした本体が、r の自然な本体と一致
+    - no_clipping                       # 自然な本体は出生から、入れ替えた本体・確認の本体は τ の入れ替えた状態から再生
+    - lag1_counts_two_ways              # Pulse を順に見る数え方と、発火の時刻の集合を 1 ずらした交わりの数え方。すべての本体（発火の数も）
+  numeric:
+    replay_weights_and_traces: {natural_at: [12000, tau, 13500, 25500], swapped_at: [13500, 25500], tolerance: 1.0e-12}   # 確認の本体も swapped_at
+    pair_sum: {tolerance: 1.0e-12}      # 記録したすべての時点と、τ の入れ替えた状態（I1）
+  revalidate_from_raw: true             # 最上位・meta・run・各本体の欄の集合の固定、組と接続の対応、本体の並びを含む
+  invalid_individuals: report_all
+  no_tau:                               # README §2.6 の表。τ がない個体での適用
+    apply_on_natural_bodies_only: [stimulus_labels, identical_birth_state_natural_bodies, input_free_after_experience, identical_before_label_divergence,
+                                   no_clipping, lag1_counts_two_ways, replay_weights_and_traces, pair_sum]   # replay は natural_at の 12000・13500・25500（τ を除く）
+    swap_time_rule: "no-tau proof: every Pulse of swap_window has a firing in some natural body; each window_witness entry matches the recorded spikes and is the first in the fixed order"
+    not_applicable: [swap_composition, swap_invariants, full_swap_reproduces_donor, null_swap_identity]
+    body_layout: "natural 26; swapped_bodies and control_bodies are empty arrays"
+  smoke_report: {check_values: [fail, ok], checks: failed_check_names_only}   # smoke では pass と not_applicable を区別せず、理由の文を出さない（τ の有無を表に出さない。#134 と同じ）
+
+execution:                              # 0023〜0031 の seed 単位の一度限りの実行の契約を継承（README §9）
+  experiment_id: "0032"
+  output_dir: data/experiments/0032
+  protocol_path: experiments/0032_pairwise_weight_swap/protocol.yaml
+  measurement_commit: required
+  analysis_commit_must_equal_measurement_commit: true
+  start_record: run_started.json
+  finish_record: run_finished.json
+  per_seed:
+    allowed: true
+    start_record: {exclusive_create: true, fields: [seed, measurement_commit, protocol_sha256, started_at]}
+    finish_record: {fields: [seed, status, finished_at, raw_file_sha256, raw_file_bytes]}
+    refuse_if_start_record_exists: true
+    aggregate_only_after: all_20_seeds_have_start_and_finish_with_matching_raw_hash
+    no_partial_judgment_quantities: true
+    no_replacement_seeds: true
+  rerun: refuse
+  end_commit_check: true
+  on_failure: disclose_whole_experiment_invalid_or_incomplete_and_new_preregistration_with_new_seed_range
+  max_workers: 2
+  results_must_match_seeds: true
+  no_earlier_experiment_references: true   # 0023〜0031 の道具を読み込まない
+  estimated_runtime: "about 1 hour for 20 individuals with 2 workers (26 natural bodies x 25500 pulses plus 430 swapped/control bodies x about 12000 pulses per seed; about 2.9 times the pulse updates of 0031, whose formal run took about 20 minutes)"
+  resources: {cpu: 2, memory_gb: 7}      # 0031 と同じ
+  order: [preregistration_review_and_merge, tools_and_synthetic_contract_tests, smoke, tools_review_and_merge, fix_measurement_commit, formal_20_seeds_once, analysis_once]
