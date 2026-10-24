@@ -1,0 +1,15 @@
+{
+  "experiment": "0033",
+  "kind": "preregistered_test",
+  "mode": "formal",
+  "seed": 26004,
+  "measurement_commit": "c13fdde608bf895271af1bce97f488c17f8afe96",
+  "protocol_sha256": "c34ab21565e880575ed866b89a6852051fd91c848449a4e8fe4825421458d0dd",
+  "started_at": "2026-10-24T12:08:46.672790+00:00",
+  "max_workers": 2,
+  "environment": {
+    "python": "3.13.16",
+    "platform": "Linux-6.18.44-fc-v153-x86_64-with-glibc2.39",
+    "pid": 349
+  }
+}
