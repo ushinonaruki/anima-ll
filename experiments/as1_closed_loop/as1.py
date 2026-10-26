@@ -220,7 +220,12 @@ class AS1World:
         return [r for r in self.pending if r.receptor_id == receptor_id and r.pulse == pulse]
 
     def drain(self, receptor_id: ComponentId, pulse: PulseNumber) -> int:
-        """その Pulse にその Receptor で成立する出来事の数を返し、予約を成立済みに移す。"""
+        """その Pulse にその Receptor で成立する出来事の数を返し、予約を成立済みに移す。
+
+        同じ Receptor について、Pulse は増える順にだけ drain できる（重複・逆順の drain は止める）。
+        """
+        if pulse <= self.last_drained.get(receptor_id, 0):
+            raise ValueError(f"{receptor_id}：Pulse {pulse} は drain 済み（最後は {self.last_drained[receptor_id]}）")
         due = self.due(receptor_id, pulse)
         self.pending = [r for r in self.pending if r not in due]
         self.last_drained[receptor_id] = pulse
@@ -337,6 +342,19 @@ class InterventionConnections:
     def clear(self, label: str = "", boundary: PulseNumber | None = None) -> None:
         self.declare((), label, boundary)
 
+    def export_intervention_state(self) -> dict[str, JsonValue]:
+        """これからの軌道を決める介入の状態（宣言している介入と、FREEZE の宣言の時点の重み・痕跡）。比べるための写し。
+
+        last_inner・last_returned（契約テストの観察の写し）と history（記録）は、これからの軌道に効かないので含めない。
+        """
+        return {
+            "active": [(iv.kind, sorted(iv.targets), iv.trace_policy) for iv in self.active],
+            "frozen": {cid: dict(sorted(v.items())) for cid, v in sorted(self._frozen.items())},
+        }
+
+    def frozen_targets(self) -> set[str]:
+        return set(self._frozen)
+
     def masked_keys(self) -> set[ConnectionKey]:
         return {self._key_of[cid] for iv in self.active if iv.kind == FB1 for cid in iv.targets}
 
@@ -370,8 +388,17 @@ class InterventionConnections:
         return self.inner.export_state()
 
 
-def transplant(app: Application, weights: Mapping[str, float]) -> None:
-    """TRANSPLANT（PC-4）：宣言した接続の重みだけを置き換える。痕跡とほかの Σ は変えない（CT-I4）。Pulse のあいだに呼ぶ。"""
+def transplant(app: Application, weights: Mapping[str, float], *,
+               wrapper: "InterventionConnections | None" = None) -> None:
+    """TRANSPLANT（PC-4）：宣言した接続の重みだけを置き換える。痕跡とほかの Σ は変えない（CT-I4）。Pulse のあいだに呼ぶ。
+
+    FREEZE と併せるときは「移植してから FREEZE を宣言する」。FREEZE の対象の接続へ宣言の後に移植すると、次の更新で
+    宣言の時点の重みに戻されるので、wrapper を渡すとその順序の誤りを止める（AS1System.transplant は必ず渡す）。
+    """
+    if wrapper is not None:
+        clash = set(weights) & wrapper.frozen_targets()
+        if clash:
+            raise ValueError(f"FREEZE 中の接続 {sorted(clash)} へは移植できない（移植してから FREEZE を宣言する）")
     state = app.connections.export_state()
     app.connections.import_state({cid: {"weight": float(w), "pre_trace": state[cid]["pre_trace"],
                                         "post_trace": state[cid]["post_trace"]} for cid, w in weights.items()})
@@ -435,6 +462,9 @@ class AS1System:
 
     def clear(self, label: str = "") -> None:
         self.connections.clear(label, boundary=self.pulse)
+
+    def transplant(self, weights: Mapping[str, float]) -> None:
+        transplant(self.app, weights, wrapper=self.connections)
 
 
 def _birth(seed: int, tag: str):
@@ -535,24 +565,33 @@ def sigma(system_or_app, world: AS1World | None = None) -> dict:
         "deltas": [(d.delta_id, d.source_id, d.target_id, d.kind, d.expires_after_pulse) for d in state.deltas],
         "issuer": dict(sorted(rt._issuer._counters.items())),
         "runtime": {"intent_seq": rt._intent_seq, "degraded": rt._degraded,
-                    "in_flight": len(rt._coordinator.in_flight())},
+                    "in_flight": len(rt._coordinator.in_flight()), "waiting": len(rt._queue.waiting())},
         "world": world.export_state() if world is not None else None,
-        "interventions": None if wrapper is None else [(iv.kind, sorted(iv.targets), iv.trace_policy) for iv in wrapper.active],
+        "interventions": None if wrapper is None else wrapper.export_intervention_state(),
     }
 
 
 def advance_until_first_intent(system: AS1System, after: PulseNumber, horizon: PulseNumber) -> PulseNumber | None:
     """Pulse after の後の最初の意図の Pulse τ の処理の後で止める。H（horizon）までに意図がなければ None（打ち切り）。
 
-    意図は源の発火（Pulse の 4）で成立するので、来歴の発火の記録から τ を検知する（Effector への配送〔7〕を待たない。
-    監査 020）。止められるのは Pulse の境界だけなので、τ の末尾の更新（6）は τ の処理に含まれる。G-9 の前提 (b) により、
-    τ の末尾の更新は τ の発火に効かない。
+    意図は源の発火（Pulse の 4）で成立する（I1）。τ は、来歴のログの設定に依らない事実である源の Unit の発火の数
+    （`fire_count`）の増加で検知する（Effector への配送〔7〕を待たない。監査 020。#148 のレビューの必須 1）。出口がある個体では、
+    同じ Pulse に世界が受けた意図の記録とも一致することを確かめる。止められるのは Pulse の境界だけなので、τ の末尾の
+    更新（6）は τ の処理に含まれる。G-9 の前提 (b) により、τ の末尾の更新は τ の発火に効かない。
     """
     if system.pulse != after:
         raise ValueError(f"Pulse {after} の処理の後から始める（今は {system.pulse}）")
+    source = system.app.units.get(system.roles.source)
     for pulse in range(after + 1, horizon + 1):
+        fired_before = source.export_state()["fire_count"]
+        intents_before = len(system.world.intents)
         advance_to(system.app, pulse)
-        if any(p == pulse and u == system.roles.source for p, u in system.log.activity()[-3:]):
+        fired = source.export_state()["fire_count"] > fired_before
+        if system.meta.get("outlet", True):
+            received = len(system.world.intents) > intents_before
+            if fired != received:
+                raise RuntimeError(f"Pulse {pulse}：源の発火（{fired}）と世界が受けた意図（{received}）が食い違う")
+        if fired:
             return pulse
     return None
 

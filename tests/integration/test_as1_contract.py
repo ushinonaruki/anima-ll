@@ -222,7 +222,7 @@ def test_sigma1_sigma4_a_clone_without_intervention_stays_identical(seed) -> Non
     twin = A.clone(original)
     s0 = A.sigma(original)
     assert A.sigma(twin) == s0
-    assert s0["runtime"] == {"intent_seq": 0, "degraded": False, "in_flight": 0}     # CT-Σ4
+    assert s0["runtime"] == {"intent_seq": 0, "degraded": False, "in_flight": 0, "waiting": 0}   # CT-Σ4：計算の列も空
     A.advance_to(original.app, horizon)
     A.advance_to(twin.app, horizon)
     assert A.sigma(twin) == A.sigma(original)                                         # CT-Σ1
@@ -504,3 +504,126 @@ def test_021_one_connection_state_is_the_source_for_runtime_lifecycle_and_tools(
     A.transplant(system.app, {target: 0.002})
     assert wrapper.weights()[(system.roles.receiver, "main", system.roles.source)] == 0.002   # 観察と実の重みが一致
     assert A.pair_sums(store.export_state()) != A.pair_sums(twin.app.connections.export_state())
+
+
+# ---- #148 のレビューへの対応：ログに依らない τ・介入中の完全な複製・順序の検査・CT-G1c --------------------
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_first_intent_does_not_depend_on_the_log_settings(seed) -> None:
+    probe = run(seed, 1500)
+    t = probe.world.intents[3][0]
+    found = []
+    for log in (A.AS1Log(), A.AS1Log(keep=())):                 # 既定のログと、何も残さないログ
+        system = run(seed, t, log=log)
+        found.append(A.advance_until_first_intent(system, t, t + 300))
+    assert found == [probe.world.intents[4][0]] * 2
+    # 出口のない個体（結果が来ないので軌道は別）でも、τ は源の発火から同じ規則で決まる
+    open_probe = run(seed, 1500, outlet=False)
+    fires = [p for p, u in open_probe.log.activity() if u == open_probe.roles.source]
+    s = fires[3]
+    no_outlet = run(seed, s, outlet=False, log=A.AS1Log(keep=()))
+    assert A.advance_until_first_intent(no_outlet, s, s + 300) == fires[4]
+    for log in (A.AS1Log(), A.AS1Log(keep=())):
+        assert A.advance_until_first_intent(run(SILENT_SEED, 100, log=log), 100, 400) is None   # 同じ打ち切り
+
+
+def _scenario(seed, kind, policy, *, clone_at=None, clear_twin_at=None):
+    """t1 で介入を宣言し、t2 で解除する。clone_at があれば、その境界で複製して複製のほうを返す。"""
+    t1, t2, end = 300, 450, 700
+    system = run(seed, t1)
+    roles = system.roles
+    targets = frozenset({f"{roles.receiver}.main->{roles.source}", f"{roles.other}.main->{roles.source}"})
+    system.declare([A.Intervention(kind, targets, policy)])
+    marks = {}
+    current = system
+    for pulse in range(t1 + 1, end + 1):
+        A.advance_to(current.app, pulse)
+        if clone_at is not None and pulse == clone_at:
+            marks["at_clone_original"] = A.sigma(current)
+            twin = A.clone(current)
+            marks["original"] = current
+            current = twin
+            marks["at_clone_twin"] = A.sigma(current)
+        if clear_twin_at is not None and pulse == clear_twin_at:
+            current.clear()
+        if pulse == t2:
+            current.clear()
+        if pulse in (400, t2, 600, end):
+            marks[pulse] = A.sigma(current)
+    return current, marks
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+@pytest.mark.parametrize("kind,policy", [(A.FREEZE, A.ADVANCE), (A.FREEZE, A.HOLD), (A.FB1, A.ADVANCE)])
+def test_sigma_a_clone_made_during_an_intervention_follows_the_same_trajectory(seed, kind, policy) -> None:
+    reference, ref_marks = _scenario(seed, kind, policy)                  # M2：複製せずに同じ宣言で走らせる
+    twin, marks = _scenario(seed, kind, policy, clone_at=350)            # 介入の途中（350）で複製し、複製で続ける
+    assert marks["at_clone_twin"] == marks["at_clone_original"]
+    if kind == A.FREEZE:
+        frozen = marks["at_clone_twin"]["interventions"]["frozen"]
+        assert frozen and all(v["policy"] == policy for v in frozen.values())   # 宣言の時点の重み・痕跡も Σ に入る
+    for pulse in (400, 450, 600, 700):                                   # 介入中・解除の時点・解除後
+        assert marks[pulse] == ref_marks[pulse]
+    assert twin.log.activity() == [x for x in reference.log.activity() if x[0] > 350]
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_sigma_a_clone_made_during_freeze_shares_no_intervention_state(seed) -> None:
+    twin, marks = _scenario(seed, A.FREEZE, A.ADVANCE, clone_at=350, clear_twin_at=360)   # 複製だけ早く解除する
+    original = marks["original"]
+    A.advance_to(original.app, 700)                                       # 本体は複製を気にせず続ける（450 の解除はしない）
+    assert original.connections.active and original.connections.frozen_targets()
+    assert twin.connections.active == ()
+    assert A.sigma(original)["interventions"] != A.sigma(twin)["interventions"]
+    # 本体は、350 までは reference と同じで、その後も FREEZE のまま進んだ個体と一致する
+    still = run(seed, 300)
+    roles = still.roles
+    still.declare([A.Intervention(A.FREEZE, frozenset({f"{roles.receiver}.main->{roles.source}",
+                                                        f"{roles.other}.main->{roles.source}"}), A.ADVANCE)])
+    A.advance_to(still.app, 700)
+    assert _strip(A.sigma(original)) == _strip(A.sigma(still))
+    assert A.sigma(original)["interventions"] == A.sigma(still)["interventions"]
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_transplant_must_come_before_freeze(seed) -> None:
+    system = run(seed, 300)
+    target = f"{system.roles.receiver}.main->{system.roles.source}"
+    system.transplant({target: 0.002})                                    # 移植してから
+    system.declare([A.Intervention(A.FREEZE, frozenset({target}))])       # FREEZE を宣言する
+    A.advance_to(system.app, 500)
+    assert system.app.connections.export_state()[target]["weight"] == 0.002
+    with pytest.raises(ValueError):
+        system.transplant({target: 0.003})                                # 逆の順序は止める
+
+
+def test_world_rejects_repeated_or_reversed_drains() -> None:
+    world = A.AS1World(consequence_receptor="receptor.x1", delay=2)
+    world.drain("receptor.x1", 5)
+    with pytest.raises(ValueError):
+        world.drain("receptor.x1", 5)
+    with pytest.raises(ValueError):
+        world.drain("receptor.x1", 4)
+    world.drain("receptor.x2", 3)                                         # Receptor ごとに数える
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_g1c_the_compared_and_the_not_compared_fields(seed) -> None:
+    """CT-G1c：C0 と比べる欄（発火・感覚・Unit の状態・可塑的な重みと痕跡）と、比べない欄の差の中身。"""
+    until = 1500
+    system = run(seed, until, respond=False)
+    c0, _ = A.build_c0(seed, exogenous=())
+    A.advance_to(c0, until)
+    a, b = A.sigma(system), A.sigma(c0)
+    for key in ("pulse", "clock", "units", "connections", "drives", "deltas", "runtime"):
+        assert a[key] == b[key], key                                       # 比べる欄（＋Runtime の状態・届く途中の駆動）
+    # 比べない欄 1：Delta の識別子の発行（意図の Delta だけが番号を使う）
+    assert a["issuer"].get("d", 0) == len(system.world.intents) and b["issuer"].get("d", 0) == 0
+    assert {k: v for k, v in a["issuer"].items() if k != "d"} == {k: v for k, v in b["issuer"].items() if k != "d"}
+    # 比べない欄 2：接続の一覧に増えた Effector への投射（非可塑。伝達には使われない）
+    wa, wb = dict(system.app.connections.weights()), dict(c0.connections.weights())
+    extra = set(wa) - set(wb)
+    assert extra == {(u, A.INTENT_PORT, A.EFFECTOR_ID) for u in A.UNITS} and set(wb) <= set(wa)
+    assert {k: wa[k] for k in wb} == wb
+    # 比べない欄 3：意図・Effector・世界の記録（C0 にはない）
+    assert system.world.intents and b["world"] is None
