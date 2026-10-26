@@ -1,4 +1,4 @@
-# 実験 0034 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
+# 実験 0034 の実行条件と記録項目（事前登録の案 v0.2。ChatGPT のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
 #
 # AS1（自発の 1 つの行動、L = 2、外の刺激なし）の閉ループで、区間 W のすべての結果の刺激 e について、
 # Pulse t（意図の Pulse）の処理の後で個体と世界を複製し、複製の側で e の予約だけを取り消した系 N と、本体（系 F）の
@@ -72,8 +72,9 @@ events:
 judgment:
   per_individual:
     counts: [n_plus, n_minus, n_zero, n_unknown]
-    applicable: "n_plus + n_minus >= 1"
-    event_P_i: "n_plus > n_minus"       # 等しいときは成り立たない
+    applicable: "body F has at least one consequence reservation e with e.pulse in event_window"   # 本体だけで、反実仮想の前に決まる（A3）
+    not_applicable: "no event in event_window (e.g. the source never fires in W)"
+    event_P_i: "n_plus > n_minus"       # 等しいとき（n_plus = n_minus = 0 を含む）は成り立たない
   J_A:
     min_applicable: 10                  # m < 10 なら判定不能
     rule: "count(P_i over applicable individuals) >= k(m)"
@@ -81,16 +82,17 @@ judgment:
     k_definition: "smallest k with P(Binomial(m, 1/2) >= k) <= 0.05"
     alpha: 0.05
     direction: one_sided_plus           # 早める向き。機構から先に決まる（README §3.3）
-  null: "H0_dir: P(n_plus > n_minus) <= 1/2 for applicable iid Birth States"
+  null: "H0_dir: P(n_plus > n_minus) <= 1/2 for iid Birth States whose body has at least one event in W"
+  model_assumption: "the 0.05 bound holds within a model of iid Birth States; sequential deterministic seeds do not by themselves establish independence"
 
 auxiliary:                              # 判定に使わない（README §6）
   R2_CF2:
     systems: [F_CF, N_CF]               # 本体の複製と N の複製
-    intervention: {kind: FREEZE, targets: all_six_plastic, trace_policy: advance, declared_at_boundary: t}
+    intervention: {kind: FREEZE, targets: all_six_plastic, trace_policy: advance, declared_at_boundary: t, declared_once: true, cleared: never}
     record: [tau_F_CF, tau_N_CF, d_CF, B]
   R3_FB1:
     systems: [F_FB, N_FB]
-    intervention: {kind: FB1, targets: ["receiver.main->source"], declared_at_boundary: t}
+    intervention: {kind: FB1, targets: ["receiver.main->source"], declared_at_boundary: t, declared_once: true, cleared: never}
     record: [tau_F_FB, tau_N_FB, d_FB]
   R4_individual: [roles, intents_in_window, interval_summary, counts, fraction_nonzero, median_d_e, P_i]
   R5_weights:
