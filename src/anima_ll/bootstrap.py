@@ -24,6 +24,7 @@ from anima_ll.domain.model.runtime_event import RuntimeEvent, RuntimeEventType
 from anima_ll.domain.port.clock import Clock
 from anima_ll.domain.port.cognitive_unit import CognitiveUnit
 from anima_ll.domain.port.compute_kernel import ComputeKernel
+from anima_ll.domain.port.connection_state import ConnectionStatePort
 from anima_ll.domain.port.effector import Effector
 from anima_ll.domain.port.event_log import EventLog
 from anima_ll.domain.port.receptor import Receptor
@@ -196,6 +197,7 @@ def build_application(
     unit_overrides: Mapping[str, CognitiveUnit] | None = None,
     run_metadata: Mapping[str, JsonValue] | None = None,
     state_sample_interval: int = 0,
+    connection_wrapper: Callable[[ConnectionStatePort], ConnectionStatePort] | None = None,
 ) -> Application:
     problems = environment.binding_mismatches(manifest)
     if problems:
@@ -238,6 +240,9 @@ def build_application(
     units = UnitRegistry((unit_overrides or {}).get(u.unit_id) or u for u in built)
     coordinator = KernelTaskCoordinator(kernels, environment.capacities(), issuer)
     connections = ConnectionStore(manifest)   # 個体の Neuroarchitecture の接続の状態（初期の重みは設計図から）
+    # 研究用の介入の部品（AS1 の契約 §5）だけが使う口。渡さなければ、Runtime は接続の状態をそのまま使う（C0 と同じ）。
+    # 包みの部品も同じ port（weights・apply_activity・export_state）だけを持ち、重みの値は中の ConnectionStore が持つ
+    port: ConnectionStatePort = connection_wrapper(connections) if connection_wrapper is not None else connections
 
     pulse_runtime = PulseRuntime(
         units=units,
@@ -252,7 +257,7 @@ def build_application(
         dispatcher=EffectorDispatcher(list(effectors.values())),
         issuer=issuer,
         event_log=event_log,
-        connections=connections,
+        connections=port,
         state_sample_interval=state_sample_interval,
     )
     lifecycle = RuntimeLifecycle(
@@ -261,7 +266,7 @@ def build_application(
         pulse_runtime=pulse_runtime,
         coordinator=coordinator,
         units=units,
-        connections=connections,
+        connections=port,
         snapshot_store=snapshot_store,
     )
     return Application(lifecycle, pulse_runtime, units, receptors, effectors, connections)
