@@ -31,6 +31,7 @@ W12 = _load("world_0012_for_as1_test", ROOT / "experiments" / "0012_passive_worl
 PROTOCOL_0012 = yaml.safe_load((ROOT / "experiments" / "0012_passive_world" / "protocol.yaml").read_text(encoding="utf-8"))
 
 SEEDS = (9001, 9002, 9003)     # 源が発火する個体（道具の確認用。判定には使わない）
+ALL_SOURCE_ROLES = (9003, 9006, 9001)   # 源が s1・s2・s3 になる個体（監査 019：どの役でも出生時の状態が C0 と同じ）
 SILENT_SEED = 9004             # この割り当てでは源が 1500 Pulse のあいだ発火しない個体
 
 
@@ -187,7 +188,7 @@ def test_wc1c_cancel_acts_on_one_reservation_and_events_follow_the_multiplicity_
 
 # ---- C0 への還元（WC-6・CT-G1a） ------------------------------------------------------------
 
-@pytest.mark.parametrize("seed", SEEDS)
+@pytest.mark.parametrize("seed", ALL_SOURCE_ROLES)
 @pytest.mark.parametrize("outlet", [True, False])
 def test_g1a_ignoring_intents_with_the_c0_schedule_reproduces_the_existing_c0_experiment(seed, outlet) -> None:
     until = 2400                                   # 0012 の試行（1800 から）を含む
@@ -330,7 +331,7 @@ def test_i2_fb1_zeroes_only_the_target_transmission_and_the_target_weight_keeps_
     target = f"{roles.receiver}.main->{roles.source}"
     target_key = (roles.receiver, "main", roles.source)
     start = system.app.connections.export_state()
-    system.connections.declare([A.Intervention(A.FB1, frozenset({target}))], label=f"from {t1 + 1}")
+    system.declare([A.Intervention(A.FB1, frozenset({target}))])
     for pulse in range(t1 + 1, t2 + 1):
         A.advance_to(system.app, pulse)
         returned, inner = system.connections.last_returned, system.connections.last_inner
@@ -353,7 +354,7 @@ def test_i3_freeze_holds_the_target_weights_and_leaves_the_rest_to_the_rule(seed
     roles = system.roles
     target = f"{roles.receiver}.main->{roles.source}"
     start = system.app.connections.export_state()
-    system.connections.declare([A.Intervention(A.FREEZE, frozenset({target}), policy)])
+    system.declare([A.Intervention(A.FREEZE, frozenset({target}), policy)])
     A.advance_to(system.app, t2)
     end = system.app.connections.export_state()
     replay = _replay_store(system, start, _fired(system.log), t1 + 1, t2)
@@ -421,3 +422,85 @@ def test_open_loop_replay_of_the_own_sensory_sequence_reproduces_the_closed_loop
     assert opened.log.activity() == closed.log.activity()
     assert opened.app.connections.export_state() == closed.app.connections.export_state()
     assert opened.world.intents == closed.world.intents        # 意図は記録されるが、結果は持たない
+
+
+# ---- 監査 019〜021 -----------------------------------------------------------------------
+
+def test_019_the_seeds_cover_every_source_role() -> None:
+    assert sorted(A.assign_roles(s).source for s in ALL_SOURCE_ROLES) == list(A.UNITS)
+
+
+@pytest.mark.parametrize("seed", ALL_SOURCE_ROLES)
+def test_019_birth_states_and_the_birth_random_stream_are_those_of_c0(seed) -> None:
+    system = A.build(seed)
+    c0, _ = A.build_c0(seed, exogenous=())
+    assert {u.unit_id: u.export_state() for u in system.app.units.all()} == \
+           {u.unit_id: u.export_state() for u in c0.units.all()}                  # Pulse 0：出生時の状態が同じ
+    assert isinstance(system.app.units.get(system.roles.source), A.IntentSourceUnit)
+    assert system.app.connections.export_state() == c0.connections.export_state()
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_020_a_declaration_between_pulses_starts_at_the_next_pulse(seed) -> None:
+    keep = A.AS1Log.DEFAULT_KEEP | {RuntimeEventType.VIEW}
+    probe = run(seed, 1500)
+    t = next(p for p, u in probe.log.activity() if u == probe.roles.receiver and p > 200)   # 受が発火した Pulse
+    system = run(seed, t, log=A.AS1Log(keep=keep))
+    roles = system.roles
+    target = f"{roles.receiver}.main->{roles.source}"
+    system.declare([A.Intervention(A.FB1, frozenset({target}))])
+    assert system.connections.history[-1][0] == t                                  # 境界の記録
+    A.advance_to(system.app, t + 1)
+    view = next(e.data for e in system.log.of(RuntimeEventType.VIEW)
+                if e.pulse == t + 1 and e.data["unit_id"] == roles.source)
+    carried = [w for src, w in view["drives"] if src == roles.receiver]
+    assert carried and carried[0] > 0.0              # Pulse t に成立した駆動は、宣言の前の重みのまま届く
+    assert system.connections.last_returned[(roles.receiver, "main", roles.source)] == 0.0   # Pulse t + 1 の伝達から 0
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_020_observing_the_wrapper_does_not_move_the_intervals(seed) -> None:
+    def scenario(observe: bool):
+        system = run(seed, 300)
+        target = f"{system.roles.receiver}.main->{system.roles.source}"
+        system.declare([A.Intervention(A.FB1, frozenset({target}))])
+        for pulse in range(301, 501):
+            A.advance_to(system.app, pulse)
+            if observe:
+                for _ in range(3):
+                    system.connections.weights()
+                    system.connections.export_state()
+        system.clear()
+        A.advance_to(system.app, 800)
+        return system
+    seen, unseen = scenario(True), scenario(False)
+    assert seen.log.activity() == unseen.log.activity()
+    assert seen.app.connections.export_state() == unseen.app.connections.export_state()
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_020_the_first_intent_is_found_from_the_source_firing(seed) -> None:
+    probe = run(seed, 1500)
+    t = probe.world.intents[3][0]
+    expected = probe.world.intents[4][0]
+    system = run(seed, t)
+    tau = A.advance_until_first_intent(system, t, t + 300)
+    assert tau == expected and system.pulse == tau
+    assert system.world.intents[-1][0] == tau        # 同じ Pulse の 7 で世界にも届いている
+    assert A.advance_until_first_intent(run(SILENT_SEED, 100), 100, 400) is None   # 打ち切り
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_021_one_connection_state_is_the_source_for_runtime_lifecycle_and_tools(seed) -> None:
+    system = run(seed, 300)
+    store, wrapper = system.app.connections, system.connections
+    assert wrapper.inner is store
+    assert system.app.pulse_runtime._connections is wrapper and system.app.lifecycle._connections is wrapper
+    assert system.app.lifecycle.save_snapshot().connections == store.export_state()
+    twin = A.clone(system)
+    assert twin.connections.inner is twin.app.connections and twin.app.connections is not store
+    assert twin.app.pulse_runtime._connections is twin.connections
+    target = f"{system.roles.receiver}.main->{system.roles.source}"
+    A.transplant(system.app, {target: 0.002})
+    assert wrapper.weights()[(system.roles.receiver, "main", system.roles.source)] == 0.002   # 観察と実の重みが一致
+    assert A.pair_sums(store.export_state()) != A.pair_sums(twin.app.connections.export_state())

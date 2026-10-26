@@ -298,7 +298,10 @@ class InterventionConnections:
     - 介入を宣言していなければ、中の ConnectionStore の操作をそのまま渡す（CT-I1）
     - FB-1：weights() が伝達に返す写しの、対象の接続の値だけを 0 にする。中の重みは触らない（CT-I2）
     - FREEZE：apply_activity の後に、対象の接続の重みを、宣言した時点の値に公開の import_state で戻す（CT-I3）
-    介入の始まりと終わりは、Pulse のあいだに declare / clear で切り替える（区間は呼んだ側が記録する）。
+    介入の始まりと終わりは、Pulse のあいだに declare / clear で切り替える（監査 020）。切り替えの時刻は Pulse の境界で、
+    weights()・export_state() の呼び出しの回数には依らない（外からの観察は区間を進めない）。Pulse u と u + 1 のあいだで
+    宣言した介入は、Pulse u + 1 の冒頭の伝達（weights）と、Pulse u + 1 の末尾の更新（apply_activity）から効く。
+    AS1System.declare・clear は、その境界の Pulse 番号を history に記録する。
     """
 
     def __init__(self, inner: ConnectionStore, manifest: NeuroarchitectureManifest) -> None:
@@ -307,11 +310,11 @@ class InterventionConnections:
         self._plastic = {p.connection_id for p in manifest.projections if p.plastic}
         self.active: tuple[Intervention, ...] = ()
         self._frozen: dict[str, dict[str, float]] = {}
-        self.history: list[tuple[str, tuple[Intervention, ...]]] = []
+        self.history: list[tuple[PulseNumber | None, str, tuple[Intervention, ...]]] = []   # (境界の Pulse, 札, 介入)
         self.last_returned: Mapping[ConnectionKey, float] | None = None
         self.last_inner: Mapping[ConnectionKey, float] | None = None
 
-    def declare(self, interventions: Sequence[Intervention], label: str = "") -> None:
+    def declare(self, interventions: Sequence[Intervention], label: str = "", boundary: PulseNumber | None = None) -> None:
         for iv in interventions:
             if iv.kind not in (FB1, FREEZE):
                 raise ValueError(f"未知の介入: {iv.kind}")
@@ -329,10 +332,10 @@ class InterventionConnections:
                 for cid in iv.targets:
                     self._frozen[cid] = {**state[cid], "policy": iv.trace_policy}
         self.active = tuple(interventions)
-        self.history.append((label, self.active))
+        self.history.append((boundary, label, self.active))
 
-    def clear(self, label: str = "") -> None:
-        self.declare((), label)
+    def clear(self, label: str = "", boundary: PulseNumber | None = None) -> None:
+        self.declare((), label, boundary)
 
     def masked_keys(self) -> set[ConnectionKey]:
         return {self._key_of[cid] for iv in self.active if iv.kind == FB1 for cid in iv.targets}
@@ -425,6 +428,13 @@ class AS1System:
     @property
     def pulse(self) -> PulseNumber:
         return self.app.lifecycle.pulse
+
+    def declare(self, interventions: Sequence[Intervention], label: str = "") -> None:
+        """今の Pulse の境界（Pulse self.pulse の処理の後）で介入を宣言し、その境界を記録する。"""
+        self.connections.declare(interventions, label, boundary=self.pulse)
+
+    def clear(self, label: str = "") -> None:
+        self.connections.clear(label, boundary=self.pulse)
 
 
 def _birth(seed: int, tag: str):
@@ -529,6 +539,22 @@ def sigma(system_or_app, world: AS1World | None = None) -> dict:
         "world": world.export_state() if world is not None else None,
         "interventions": None if wrapper is None else [(iv.kind, sorted(iv.targets), iv.trace_policy) for iv in wrapper.active],
     }
+
+
+def advance_until_first_intent(system: AS1System, after: PulseNumber, horizon: PulseNumber) -> PulseNumber | None:
+    """Pulse after の後の最初の意図の Pulse τ の処理の後で止める。H（horizon）までに意図がなければ None（打ち切り）。
+
+    意図は源の発火（Pulse の 4）で成立するので、来歴の発火の記録から τ を検知する（Effector への配送〔7〕を待たない。
+    監査 020）。止められるのは Pulse の境界だけなので、τ の末尾の更新（6）は τ の処理に含まれる。G-9 の前提 (b) により、
+    τ の末尾の更新は τ の発火に効かない。
+    """
+    if system.pulse != after:
+        raise ValueError(f"Pulse {after} の処理の後から始める（今は {system.pulse}）")
+    for pulse in range(after + 1, horizon + 1):
+        advance_to(system.app, pulse)
+        if any(p == pulse and u == system.roles.source for p, u in system.log.activity()[-3:]):
+            return pulse
+    return None
 
 
 def intent_pulses(system: AS1System) -> list[PulseNumber]:
