@@ -736,6 +736,20 @@ def test_r4_r5_fields_come_from_the_raw_record() -> None:
     assert any(report["individuals"][str(s)]["intervals"]["window"] is None for s in SYN)   # W に意図が 2 つ未満の個体もある
 
 
+def test_window_is_on_the_consequence_pulse_and_intents_are_its_causes() -> None:
+    """区間 W は結果の予約 e の Pulse で定める（README §2）。R4 の「W の意図」は、その e の原因の意図の Pulse t（＝ e の Pulse − (L − 1)）。
+    両者を混同しないこと：L が一定なので、意図どうしの間隔と e どうしの間隔は同じ。"""
+    lag = PROTOCOL["world"]["delay_L"] - 1
+    for s in SYN:
+        data = measured(s)
+        run = data["run"]
+        e_pulses = sorted(ev["e"]["pulse"] for ev in run["events"])
+        assert all(SMALL.window_first <= p <= SMALL.window_last for p in e_pulses)
+        assert all(ev["e"]["pulse"] == ev["t"] + lag for ev in run["events"])
+        ind = AN.individual(run)
+        assert ind["intervals"]["window"] == AN._interval_summary(e_pulses)
+
+
 def test_interval_summary_definition() -> None:
     assert AN._interval_summary([]) is None and AN._interval_summary([5]) is None
     assert AN._interval_summary([3, 10, 12, 30]) == {"count": 3, "min": 2, "median": 7, "max": 18}
