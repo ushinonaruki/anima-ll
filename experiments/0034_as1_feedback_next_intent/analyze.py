@@ -117,8 +117,23 @@ def event_quantities(run: Mapping, ev: Mapping) -> dict:
             "s_FB": sign_of(sy["F_FB"]["tau"], sy["N_FB"]["tau"])}
 
 
+def _interval_summary(pulses: list[int]) -> dict | None:
+    gaps = [b - a for a, b in zip(pulses, pulses[1:])]
+    return {"count": len(gaps), "min": min(gaps), "median": statistics.median(gaps), "max": max(gaps)} if gaps else None
+
+
 def individual(run: Mapping) -> dict:
-    """個体ごとの量（README §2.4）。適用できるかどうかは、本体の区間 W の出来事の有無だけで決まる。"""
+    """個体ごとの量（README §2.4）と R4 の記録（README §6・§6.1）。適用できるかどうかは、本体の区間 W の出来事の有無だけで決まる。
+
+    R4 の欄（protocol の auxiliary.R4_individual との対応。監査 029）：
+    - roles ↔ roles（役の割り当て）
+    - intents_in_window ↔ events_in_window（区間 W に結果の予約 e がある本体の意図の数）
+    - interval_summary ↔ intervals.window（その意図どうしの間隔。全期間の源の発火の間隔は intervals.whole_run として別に残す。
+      二つを混ぜない）
+    - counts ↔ n_plus・n_minus・n_zero・n_unknown、fraction_nonzero、median_d_e、P_i
+    - §6.1 の沈黙の理由の記録：source_fires（源の発火の数：全期間・区間 W の意図）と birth_units（出生時の Unit の状態：
+      順応・力学の値を含む。生の記録のまま）
+    判定に使う欄（applicable・counts・P_i）の計算は、R4 の欄を足す前（測定の commit 候補 b831d9a）と同じ。"""
     events = [event_quantities(run, ev) for ev in run["events"]]
     counts = {k: sum(1 for e in events if e["s_e"] == s) for k, s in
               (("n_plus", "+"), ("n_minus", "-"), ("n_zero", "0"), ("n_unknown", "?"))}
@@ -126,7 +141,7 @@ def individual(run: Mapping) -> dict:
     known = [e["d_e"] for e in events if e["d_e"] is not None]
     source = run["roles"]["source"]
     fires = [p for p, u in run["body"]["activity"] if u == source]
-    intervals = [b - a for a, b in zip(fires, fires[1:])]
+    window_intents = sorted(ev["t"] for ev in run["events"])
     return {
         "applicable": applicable,
         **counts,
@@ -134,8 +149,10 @@ def individual(run: Mapping) -> dict:
         "events_in_window": len(run["events"]),
         "fraction_nonzero": (sum(1 for d in known if d != 0) / len(known)) if known else None,
         "median_d_e": statistics.median(known) if known else None,
-        "intervals": ({"count": len(intervals), "min": min(intervals), "median": statistics.median(intervals),
-                       "max": max(intervals)} if intervals else None),
+        "intervals": {"whole_run": _interval_summary(fires), "window": _interval_summary(window_intents)},
+        "roles": dict(run["roles"]),
+        "source_fires": {"whole_run": len(fires), "intents_in_window": len(window_intents)},
+        "birth_units": run["body"]["birth_units"],
         "B": {"known": sum(1 for e in events if e["B"] is not None),
               "nonzero": sum(1 for e in events if e["B"] not in (None, 0))},
         "FB": {"same_sign_as_s_e": sum(1 for e in events if e["s_FB"] == e["s_e"]), "events": len(events)},
@@ -473,8 +490,10 @@ def analyze_runs(runs: Mapping[int, dict], mode: str, plan: "M.Plan | None" = No
         return {"mode": mode, "valid": False, "O1": {"status": o1_status, "problems": o1},
                 "failed_checks": {str(s): v for s, v in failed.items()}, "judgment": None}
     individuals = {str(s): individual(data["run"]) for s, data in sorted(runs.items())}
-    weights = {str(s): {p: {"weights": {c: v["weight"] for c, v in st.items()}, "pair_sums": {"-".join(k): v for k, v in
-                                                                                             A.pair_sums(st).items()}}
+    # R5（README §6：6 本の重みと痕跡、組の和。監査 029 で痕跡を足した）
+    weights = {str(s): {p: {"weights": {c: v["weight"] for c, v in st.items()},
+                            "traces": {c: {"pre_trace": v["pre_trace"], "post_trace": v["post_trace"]} for c, v in st.items()},
+                            "pair_sums": {"-".join(k): v for k, v in A.pair_sums(st).items()}}
                         for p, st in data["run"]["body"]["checkpoints"].items()}
                for s, data in sorted(runs.items())}
     return {"mode": mode, "valid": True, "O1": {"status": o1_status, "problems": o1},
