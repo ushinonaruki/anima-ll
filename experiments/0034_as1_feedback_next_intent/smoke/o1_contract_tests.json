@@ -1,0 +1,18 @@
+{
+ "measurement_commit": "53f3f51186c5224cb3394281f85bfaf7ffe95d3e",
+ "command": [
+  "python",
+  "-m",
+  "pytest",
+  "-q",
+  "tests/integration/test_as1_contract.py",
+  "tests/integration/test_as1_feedback_next_intent_0034.py"
+ ],
+ "exit_code": 0,
+ "summary": "170 passed in 47.37s",
+ "test_files_sha256": {
+  "tests/integration/test_as1_contract.py": "af788b73f4766d77535d764667cf10e212a7c204ec44e1450a6303098885e60b",
+  "tests/integration/test_as1_feedback_next_intent_0034.py": "e28b8f12270bea4c3f209a8abb26b23cccc4f4c040e89bc10830f059ed1c2076"
+ },
+ "at": "2026-10-29T07:45:56.216298+00:00"
+}

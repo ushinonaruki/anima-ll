@@ -1,0 +1,56 @@
+{
+ "mode": "smoke",
+ "O1": "ok",
+ "checks": {
+  "27101": {
+   "structure": "ok",
+   "O2": "ok",
+   "O3": "ok",
+   "O4": "ok",
+   "O5": "ok",
+   "O6": "ok"
+  },
+  "27102": {
+   "structure": "ok",
+   "O2": "ok",
+   "O3": "ok",
+   "O4": "ok",
+   "O5": "ok",
+   "O6": "ok"
+  },
+  "27103": {
+   "structure": "ok",
+   "O2": "ok",
+   "O3": "ok",
+   "O4": "ok",
+   "O5": "ok",
+   "O6": "ok"
+  },
+  "27104": {
+   "structure": "ok",
+   "O2": "ok",
+   "O3": "ok",
+   "O4": "ok",
+   "O5": "ok",
+   "O6": "ok"
+  },
+  "27105": {
+   "structure": "ok",
+   "O2": "ok",
+   "O3": "ok",
+   "O4": "ok",
+   "O5": "ok",
+   "O6": "ok"
+  },
+  "27106": {
+   "structure": "ok",
+   "O2": "ok",
+   "O3": "ok",
+   "O4": "ok",
+   "O5": "ok",
+   "O6": "ok"
+  }
+ },
+ "valid": true,
+ "measurement_commit": "53f3f51186c5224cb3394281f85bfaf7ffe95d3e"
+}
