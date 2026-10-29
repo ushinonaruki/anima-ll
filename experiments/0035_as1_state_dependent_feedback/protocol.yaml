@@ -1,9 +1,10 @@
-# 実験 0035 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT・Gemini のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
+# 実験 0035 の実行条件と記録項目（事前登録の案 v0.2。ChatGPT・Gemini のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
 #
 # AS1（自発の 1 つの行動、L = 2、外の刺激なし）の閉ループで、区間 W のすべての結果の刺激 e について、0034 と同じ反実仮想
 # （本体 F と、Pulse t の後の複製から e の予約だけを取り消した系 N）で符号 s_e を求める。あわせて、分岐の時点の状態 Σ_t を保存し、
-# Σ_t だけから二経路近似（README §3）で符号を予測する。個体ごとに、予測の当たりの割合が、個体の中の最良の定数の予測を上回るか（Q_i）を
-# 数え、適用できる個体の数 m に対する二項の上側の閾値で判定する（README §4・§5）。
+# Σ_t だけから二経路近似（README §3）で符号を予測する。W の符号が 2 種類以上に分かれた個体（判定の対象）ごとに、予測の当たりの割合が、
+# 個体の中の最良の定数の予測を上回るか（Q_i）を数え、判定の対象の個体の数 m に対する二項の上側の閾値で判定する（README §4・§5）。
+# v0.2：監査 031（天井）・032（受の複数回の発火、他の経路）・033（0034 の raw を使わない）を反映した（README の冒頭）。
 #
 # この案の段階では、この実験の道具の実装・smoke・本番の測定・どの seed の実行もしない（README の Status・§14）。
 # 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を
@@ -14,7 +15,7 @@
 
 experiment: "0035"
 kind: preregistered_test
-seeds: {first: 28001, last: 28040}            # 本番。40 個体を全件記録・全件報告する。以後どの実験にも使わない
+seeds: {first: 28001, last: 28060}            # 本番。60 個体を全件記録・全件報告する。以後どの実験にも使わない
 smoke_seeds: {first: 28101, last: 28106}      # 操作の確認だけ。盲検。判定の量・現象の数値は計算・表示・保存しない
 synthetic_seeds: {first: 28201, last: 28299}  # 合成の契約テスト専用
 
@@ -84,6 +85,7 @@ prediction:                             # README §3。合わせ込む値を持�
   inputs_per_pulse:
     receiver: "drives to receiver in Sigma_t at t + 1; plus receptor_weight at t + 2 in F"
     source: "drives to source in Sigma_t at t + 1; plus w(receiver->source) at p if the receiver fired at p - 1 in that world"
+  receiver_firings: "all receiver firings in (t, tau_hat] are followed, not only the first (audit 032)"
   stop: "first source firing tau_hat in (t, t + H], else none"
   ignored: [other_unit_after_t, plasticity_after_t]
   sign:
@@ -98,25 +100,30 @@ judgment:
     applicable: "body F has at least one consequence reservation e with e.pulse in event_window"   # 本体だけで、反実仮想・予測の前に決まる（A3）
     not_applicable: "no event in event_window"
     evaluable_events: "s_e != ?"
+    decision_population_V_i: "applicable and the evaluable s_e take at least two distinct values (uses s_e labels only, never s_hat)"   # 監査 031。README §4.1・§4.3
     acc_rule: "fraction of evaluable events with s_hat == s_e"
     acc_const: "max over c in {+, 0, -} of fraction of evaluable events with s_e == c"
-    event_Q_i: "at least one evaluable event and acc_rule > acc_const"   # 等しいときは成り立たない
+    event_Q_i: "acc_rule > acc_const (for individuals with V_i)"   # 等しいときは成り立たない
   J_S:
     min_applicable: 10
-    rule: "count(Q_i over applicable individuals) >= k(m)"
+    m: "number of individuals with V_i"
+    rule: "count(Q_i over individuals with V_i) >= k(m)"
     k_of_m: {10: 9, 11: 9, 12: 10, 13: 10, 14: 11, 15: 12, 16: 12, 17: 13, 18: 13, 19: 14, 20: 15,
-             21: 15, 22: 16, 23: 16, 24: 17, 25: 18, 26: 18, 27: 19, 28: 19, 29: 20, 30: 20,
-             31: 21, 32: 22, 33: 22, 34: 23, 35: 23, 36: 24, 37: 24, 38: 25, 39: 26, 40: 26}
+             21: 15, 22: 16, 23: 16, 24: 17, 25: 18, 26: 18, 27: 19, 28: 19, 29: 20, 30: 20, 31: 21,
+             32: 22, 33: 22, 34: 23, 35: 23, 36: 24, 37: 24, 38: 25, 39: 26, 40: 26, 41: 27, 42: 27,
+             43: 28, 44: 28, 45: 29, 46: 30, 47: 30, 48: 31, 49: 31, 50: 32, 51: 32, 52: 33, 53: 33,
+             54: 34, 55: 35, 56: 35, 57: 36, 58: 36, 59: 37, 60: 37}
     k_definition: "smallest k with P(Binomial(m, 1/2) >= k) <= 0.05"
     alpha: 0.05
     direction: one_sided                # 定数の予測より当たる向き
-  null: "H0_S: P(Q_i) <= 1/2 for iid Birth States whose body has at least one event in W"
+  null: "H0_S: P(Q_i | V_i) <= 1/2 for iid Birth States whose body has at least one event in W and whose s_e in W take at least two values"
+  conditional_inference: "V_i depends only on each individual's own s_e labels (not on s_hat); selected individuals are iid from the conditional population, so the count is dominated by Bin(m, 1/2) under H0_S"
   model_assumption: "the 0.05 bound holds within a model of iid Birth States; sequential deterministic seeds do not by themselves establish independence"
   not_a_test_of: "causal contribution of any state variable (README §0.2)"
 
 auxiliary:                              # 判定に使わない（README §6）
   R1_event: [t, e_pulse, tau_F, tau_N, d_e, s_e, tau_hat_F, tau_hat_N, s_hat]
-  R2_individual: [roles, birth_units, events_in_window, counts, acc_rule, acc_plus, acc_zero, acc_minus, acc_const, Q_i, confusion_3x3]
+  R2_individual: [roles, birth_units, events_in_window, counts, V_i, acc_rule, acc_plus, acc_zero, acc_minus, acc_const, Q_i, confusion_3x3]
   R3_alternative_rules:
     direct_only: "receiver drive only from the forced firing at t + 2 in F; s_hat in {+, 0}"
     past_rhythm: "r_hat = last receiver firing + its previous interval; src_hat = t + previous source interval; '-' if t + 2 < r_hat < src_hat else '0'"
@@ -127,6 +134,8 @@ auxiliary:                              # 判定に使わない（README §6）
   R7_weights:
     pulses: [300, 600, 900, 1200, 1500, 1800, 2099]
     record: [six_weights_and_traces, pair_sums]
+  R8_by_other_unit: "accuracy of s_hat split by whether the other unit fired in (t, min(tau_F, tau_N)] in the body or in N; descriptive, no test"
+  R9_outside_decision: "applicable individuals without V_i (single-class, no evaluable event), their acc_rule; and the v0.1 count of acc_rule > acc_const over all applicable individuals (not used for the judgment)"
 
 operation_checks:                       # README §7。生の記録から再検証。一つでも満たさなければ無効
   O1: contract tests pass at the measurement commit (recorded by run.py before any seed)
