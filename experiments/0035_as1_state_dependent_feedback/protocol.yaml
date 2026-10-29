@@ -1,10 +1,12 @@
-# 実験 0035 の実行条件と記録項目（事前登録の案 v0.2。ChatGPT・Gemini のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
+# 実験 0035 の実行条件と記録項目（事前登録の案 v0.3。ChatGPT・Gemini のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
 #
 # AS1（自発の 1 つの行動、L = 2、外の刺激なし）の閉ループで、区間 W のすべての結果の刺激 e について、0034 と同じ反実仮想
 # （本体 F と、Pulse t の後の複製から e の予約だけを取り消した系 N）で符号 s_e を求める。あわせて、分岐の時点の状態 Σ_t を保存し、
 # Σ_t だけから二経路近似（README §3）で符号を予測する。W の符号が 2 種類以上に分かれた個体（判定の対象）ごとに、予測の当たりの割合が、
 # 個体の中の最良の定数の予測を上回るか（Q_i）を数え、判定の対象の個体の数 m に対する二項の上側の閾値で判定する（README §4・§5）。
 # v0.2：監査 031（天井）・032（受の複数回の発火、他の経路）・033（0034 の raw を使わない）を反映した（README の冒頭）。
+# v0.3：レビュー 5699857818。V_i を常設チェック A3・A7(b) の例外として明記（README §4.5）、R6 の分母を m に統一、O7 を本体と系 N の
+#       軌道・Σ の非干渉に拡大、u_e = min(tau_F, tau_N, t + H)、評価できる出来事が 0 の割合は null。
 #
 # この案の段階では、この実験の道具の実装・smoke・本番の測定・どの seed の実行もしない（README の Status・§14）。
 # 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を
@@ -100,7 +102,9 @@ judgment:
     applicable: "body F has at least one consequence reservation e with e.pulse in event_window"   # 本体だけで、反実仮想・予測の前に決まる（A3）
     not_applicable: "no event in event_window"
     evaluable_events: "s_e != ?"
+    zero_evaluable: "acc_rule, acc_const and per-constant accuracies are null (not 0); such individuals cannot satisfy V_i"
     decision_population_V_i: "applicable and the evaluable s_e take at least two distinct values (uses s_e labels only, never s_hat)"   # 監査 031。README §4.1・§4.3
+    standing_check_exception: "V_i depends on s_e, so it is an explicit exception to A3 and A7(b), limited to J_S and R6 (README §4.5); V_i is not claimed to be neutral with respect to prediction accuracy"
     acc_rule: "fraction of evaluable events with s_hat == s_e"
     acc_const: "max over c in {+, 0, -} of fraction of evaluable events with s_e == c"
     event_Q_i: "acc_rule > acc_const (for individuals with V_i)"   # 等しいときは成り立たない
@@ -128,14 +132,15 @@ auxiliary:                              # 判定に使わない（README §6）
     direct_only: "receiver drive only from the forced firing at t + 2 in F; s_hat in {+, 0}"
     past_rhythm: "r_hat = last receiver firing + its previous interval; src_hat = t + previous source interval; '-' if t + 2 < r_hat < src_hat else '0'"
     negative_control: "within-individual cyclic shift: event k gets s_hat of event (k + floor(n/2)) mod n; n < 2 not applicable"
-  R4_misses: "for s_hat != s_e: whether the other unit fired in (t, min(tau_F, tau_N)] in the body or in N"
+  window_end_u_e: "min(tau_F, tau_N, t + H) with a censored side taken as t + H"
+  R4_misses: "for s_hat != s_e: whether the other unit fired in (t, u_e] in the body or in N"
   R5_pooled_confusion: "3x3 over all events; descriptive, no test"
-  R6_interval: {method: clopper_pearson, level: 0.95, of: "fraction of applicable individuals with Q_i"}
+  R6_interval: {method: clopper_pearson, level: 0.95, of: "#{V_i and Q_i} / m (same denominator as J_S)"}
   R7_weights:
     pulses: [300, 600, 900, 1200, 1500, 1800, 2099]
     record: [six_weights_and_traces, pair_sums]
-  R8_by_other_unit: "accuracy of s_hat split by whether the other unit fired in (t, min(tau_F, tau_N)] in the body or in N; descriptive, no test"
-  R9_outside_decision: "applicable individuals without V_i (single-class, no evaluable event), their acc_rule; and the v0.1 count of acc_rule > acc_const over all applicable individuals (not used for the judgment)"
+  R8_by_other_unit: "accuracy of s_hat split by whether the other unit fired in (t, u_e] in the body or in N; descriptive, no test"
+  R9_outside_decision: "applicable individuals without V_i (single-class, no evaluable event), their acc_rule (null if no evaluable event); and, over all applicable individuals, the count and fraction with acc_rule > acc_const (denominator = applicable individuals; not mixed with R6; not used for the judgment)"
 
 operation_checks:                       # README §7。生の記録から再検証。一つでも満たさなければ無効
   O1: contract tests pass at the measurement commit (recorded by run.py before any seed)
@@ -144,7 +149,9 @@ operation_checks:                       # README §7。生の記録から再検�
   O4: same as 0034 (N pending and N sensory equal the body minus e up to min(tau_F, tau_N, t + H))
   O5: saved Sigma_t equals sigma of N at the branch except reservation e; tau_N recomputed from the saved firings of N equals the detection record
   O6: seeds do not overlap previously run seeds
-  O7: the body rerun without Sigma_t recording and without branching gives the same intents, sensory events, firings and R7 connection states
+  O7:
+    body: "the body rerun without Sigma_t recording and without branching gives the same intents, sensory events and firings, and the same sigma at pulses 300, 600, ..., 1800, 2099 and at every event t"
+    N: "per event, N' from the same branch without the added firing record (0034 records only) gives the same tau_N, stop pulse and sensory events as N, and the same sigma at the stop pulse"
 
 records:
   body_log_keep: [RUN, SENSORY, ACTIVITY, DELTA, EFFECT]
