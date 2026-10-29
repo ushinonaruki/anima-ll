@@ -22,6 +22,9 @@ seed を単位にした一度限りの実行（guard.py）：
 
 **smoke は盲検**（#150 のレビューの必須 1）：生の記録は保存せず、本番と同じ確認を実行の場で当てた ok・fail と、生の記録の SHA-256
 だけを残す（blinded）。実行の時間・失敗の理由の文（Pulse の番号を含みうる）も残さず、表示もしない。smoke は必ず盲検、本番は必ず盲検でない。
+seed ごとの実行の時間を戻せないように（#150 の再レビュー 5692062243）、盲検では、開始・終了の記録の時刻の欄に非公開の値（BLINDED_TIME）を
+明示して入れ、seed を 1 つずつ順に実行し（終わる順を残さない）、seed ごとの進み具合を表示せず、実行の最後に出力先のすべてのファイル・
+フォルダの時刻を揃える（conceal_times）。開始・終了の記録そのものと一度限りの実行の保護は、本番と同じ。
 **O1**：seed に触れる前に、測定の commit で契約テストを走らせ、その結果を出力先の o1_contract_tests.json に一度だけ残す
 （record_contract_tests。通らなければ実行しない）。
 **結果の写し**：本番の出力先（data/experiments/0034）は、解析の後の結果の PR で experiments/0034_as1_feedback_next_intent/results/ に
@@ -40,6 +43,7 @@ import argparse
 import gzip
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import time
@@ -59,6 +63,11 @@ DATA_ROOT = Path("data/experiments")
 MODES = ("formal", "smoke", "synthetic")        # synthetic は契約テストの関数呼び出しだけ（コマンドからは使えない）
 SEED_RANGES = {"formal": "seeds", "smoke": "smoke_seeds", "synthetic": "synthetic_seeds"}
 MAX_WORKERS = 2                                 # 実行前に固定。CPU 数では決めない
+# 盲検（smoke）の時刻の扱い（#150 の再レビュー 5692062243 の修正必須）：開始・終了の時刻の欄には、この非公開の値を明示して入れる。
+# 盲検では 1 つずつ順に実行し（終わる順 ＝ 始める順 ＝ seed の順。どの seed が先に終わったかを残さない）、実行の最後に、出力先の
+# すべてのファイル・フォルダの更新時刻を CONCEALED_MTIME に揃える（ファイルの時刻からも、seed ごとの時間を戻せないようにする）
+BLINDED_TIME = "blinded"
+CONCEALED_MTIME = 0
 
 
 def load(name: str, path: Path):
@@ -95,6 +104,12 @@ def blinded(raw: dict, mode: str, seed: int, check_plan=None) -> dict:
     checks = AN.check_seed(as_saved, mode, seed, check_plan)
     return {"meta": raw["meta"], "blind": {"checks": {k: ("fail" if v else "ok") for k, v in checks.items()},
                                            "raw_sha256": G.sha256_bytes(canonical)}}
+
+
+def conceal_times(out: Path) -> None:
+    """盲検の実行の最後に、出力先のすべてのファイル・フォルダのアクセス・更新の時刻を CONCEALED_MTIME に揃える。"""
+    for p in sorted(out.rglob("*"), reverse=True) + [out]:
+        os.utime(p, (CONCEALED_MTIME, CONCEALED_MTIME), follow_symlinks=False)
 
 
 def compute_and_write(seed: int, raw_path: str, meta: dict, runner: Callable[[int], dict] = measure,
@@ -165,6 +180,11 @@ def execute(mode: str, seeds: list[int], out: Path, repo: Path, expected_commit:
     started: dict[int, float] = {}
     first_failure: tuple[int | None, BaseException] | None = None
 
+    workers = 1 if blind else MAX_WORKERS
+
+    def stamp() -> str:
+        return BLINDED_TIME if blind else G.now_iso()
+
     def why(e: BaseException) -> str:
         # 盲検では、例外の文（Pulse の番号などを含みうる）を残さず、種類の名前だけを残す
         return type(e).__name__ if blind else repr(e)
@@ -173,7 +193,7 @@ def execute(mode: str, seeds: list[int], out: Path, repo: Path, expected_commit:
         d = G.seed_dir(out, seed)
         if not (d / G.FINISH).exists():
             raw = d / G.RAW                                             # 書けていれば開示のために SHA-256 を残す
-            G.finish_seed(out, seed, ek | {"seed": seed, "status": "failed", "finished_at": G.now_iso(),
+            G.finish_seed(out, seed, ek | {"seed": seed, "status": "failed", "finished_at": stamp(),
                                            "raw_file_sha256": G.sha256_file(raw) if raw.exists() else None,
                                            "raw_file_bytes": raw.stat().st_size if raw.exists() else None,
                                            "reason": reason, "seconds": None if blind else time.time() - started.get(seed, time.time())})
@@ -188,64 +208,69 @@ def execute(mode: str, seeds: list[int], out: Path, repo: Path, expected_commit:
         G.verify_clean_commit(repo, commit)                            # 終わりに確かめ直す
         if G.sha256_file(repo / PROTOCOL_PATH) != protocol_sha:
             raise G.GuardError("実行中に protocol.yaml が変わった")
-        G.finish_seed(out, seed, ek | {"seed": seed, "status": "completed", "finished_at": G.now_iso(),
+        G.finish_seed(out, seed, ek | {"seed": seed, "status": "completed", "finished_at": stamp(),
                                        "raw_file_sha256": res["raw_file_sha256"], "raw_file_bytes": res["raw_file_bytes"],
                                        "measurement_commit_end": commit, "seconds": None if blind else time.time() - started[seed]})
         done["completed"].append(seed)
 
-    with G.session_lock(out):
-        preflight(out, mode, seeds, commit, protocol_sha)
-        queue = list(seeds)
-        inflight: dict = {}
-        try:
-            with executor_factory(min(len(seeds), MAX_WORKERS)) as pool:
-                while queue or inflight:
-                    while queue and first_failure is None and len(inflight) < MAX_WORKERS:
-                        s = queue.pop(0)
-                        try:
-                            G.verify_clean_commit(repo, commit)          # seed に触れる前
-                            G.begin_seed(out, s, ek | {"seed": s, "measurement_commit": commit,
-                                                       "protocol_sha256": protocol_sha, "started_at": G.now_iso(),
-                                                       "max_workers": MAX_WORKERS, "environment": G.environment()})
-                        except BaseException as e:
-                            first_failure = (s, e)
-                            if (G.seed_dir(out, s) / G.START).exists():   # 開始の記録が残ったなら、その seed は使用済み
-                                started[s] = time.time()
-                            else:
-                                queue.insert(0, s)
+    try:
+        with G.session_lock(out):
+            preflight(out, mode, seeds, commit, protocol_sha)
+            queue = list(seeds)
+            inflight: dict = {}
+            try:
+                with executor_factory(min(len(seeds), workers)) as pool:
+                    while queue or inflight:
+                        while queue and first_failure is None and len(inflight) < workers:
+                            s = queue.pop(0)
+                            try:
+                                G.verify_clean_commit(repo, commit)          # seed に触れる前
+                                G.begin_seed(out, s, ek | {"seed": s, "measurement_commit": commit,
+                                                           "protocol_sha256": protocol_sha, "started_at": stamp(),
+                                                           "max_workers": workers, "environment": G.environment()})
+                            except BaseException as e:
+                                first_failure = (s, e)
+                                if (G.seed_dir(out, s) / G.START).exists():   # 開始の記録が残ったなら、その seed は使用済み
+                                    started[s] = time.time()
+                                else:
+                                    queue.insert(0, s)
+                                break
+                            started[s] = time.time()
+                            meta = ek | {"seed": s, "measurement_commit": commit, "protocol_sha256": protocol_sha,
+                                         "protocol": PROTOCOL, "manifest": W.manifest_raw(), "blind": blind}
+                            inflight[pool.submit(compute_and_write, s, str(G.seed_dir(out, s) / G.RAW), meta, runner,
+                                                 blind, check_plan)] = s
+                        if not inflight:
                             break
-                        started[s] = time.time()
-                        meta = ek | {"seed": s, "measurement_commit": commit, "protocol_sha256": protocol_sha,
-                                     "protocol": PROTOCOL, "manifest": W.manifest_raw(), "blind": blind}
-                        inflight[pool.submit(compute_and_write, s, str(G.seed_dir(out, s) / G.RAW), meta, runner,
-                                             blind, check_plan)] = s
-                    if not inflight:
-                        break
-                    finished, _ = wait(list(inflight), return_when=FIRST_COMPLETED)
-                    for fut in finished:
-                        s = inflight.pop(fut)
-                        try:
-                            complete(s, fut.result())
-                            print(f"seed {s} completed ({len(done['completed'])}/{len(seeds)})"
-                                  + ("" if blind else f" / {time.time() - started[s]:.0f}s"), flush=True)
-                        except BaseException as e:
-                            fail(s, why(e))
-                            first_failure = first_failure or (s, e)
-        except BaseException as e:                                     # 中断・プールの破損
-            first_failure = first_failure or (None, e)
-            raise
-        finally:
-            for s in started:                                           # 始めたのに終了の記録がない seed
-                if s not in done["completed"] and s not in done["failed"]:
-                    fail(s, why(first_failure[1]) if first_failure else "終了の記録がないまま実行が終わった")
-            done["not_started"] = [s for s in seeds if s not in started]
-            done["completed"].sort()
-            done["failed"].sort()
-    if first_failure is not None:
-        s, e = first_failure
-        raise G.GuardError(f"失敗（seed {s}：{why(e)}）。失敗・中断した seed は再実行しない。まだ始めていない seed "
-                           f"{done['not_started']} も、この出力先では始めない") from e
-    return done
+                        finished, _ = wait(list(inflight), return_when=FIRST_COMPLETED)
+                        for fut in finished:
+                            s = inflight.pop(fut)
+                            try:
+                                complete(s, fut.result())
+                                if not blind:                            # 盲検では seed ごとの進み具合も表示しない
+                                    print(f"seed {s} completed ({len(done['completed'])}/{len(seeds)}) / "
+                                          f"{time.time() - started[s]:.0f}s", flush=True)
+                            except BaseException as e:
+                                fail(s, why(e))
+                                first_failure = first_failure or (s, e)
+            except BaseException as e:                                     # 中断・プールの破損
+                first_failure = first_failure or (None, e)
+                raise
+            finally:
+                for s in started:                                           # 始めたのに終了の記録がない seed
+                    if s not in done["completed"] and s not in done["failed"]:
+                        fail(s, why(first_failure[1]) if first_failure else "終了の記録がないまま実行が終わった")
+                done["not_started"] = [s for s in seeds if s not in started]
+                done["completed"].sort()
+                done["failed"].sort()
+        if first_failure is not None:
+            s, e = first_failure
+            raise G.GuardError(f"失敗（seed {s}：{why(e)}）。失敗・中断した seed は再実行しない。まだ始めていない seed "
+                               f"{done['not_started']} も、この出力先では始めない") from e
+        return done
+    finally:
+        if blind and out.exists():                                     # 盲検：ファイルの時刻からも seed ごとの時間を戻せないようにする
+            conceal_times(out)
 
 
 def record_contract_tests(repo: Path, out: Path, commit: str, run=subprocess.run) -> dict:

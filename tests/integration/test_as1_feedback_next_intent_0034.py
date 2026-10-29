@@ -15,6 +15,7 @@ import functools
 import gzip
 import importlib.util
 import json
+import re
 import subprocess
 from concurrent.futures import Future
 from pathlib import Path
@@ -420,10 +421,48 @@ def _keys(x, path=()):
             yield from _keys(v, path)
 
 
-def _blind_exec(repo, out, seeds):
+ISO_TIME = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
+NUMERIC_OK = {"seed", "raw_file_bytes", "max_workers", "pid"}       # 実行の記録に数値で残ってよい欄（時間の手がかりにならない）
+
+
+def _numeric_keys(x, key=None):
+    if isinstance(x, bool):
+        return set()
+    if isinstance(x, (int, float)):
+        return {key}
+    if isinstance(x, dict):
+        return set().union(*(_numeric_keys(v, k) for k, v in x.items())) if x else set()
+    if isinstance(x, list):
+        return set().union(*(_numeric_keys(v, key) for v in x)) if x else set()
+    return set()
+
+
+def _blind_exec(repo, out, seeds, runner=None, workers=None):
+    def factory(n):
+        if workers is not None:
+            workers.append(n)
+        return SerialExecutor(n)
     return R.execute("synthetic", seeds, out, repo, _git(repo, "rev-parse", "HEAD"),
-                     runner=functools.partial(M.measure_seed, PROTOCOL, plan=SMALL),
-                     executor_factory=SerialExecutor, blind=True, check_plan=SMALL)
+                     runner=runner or functools.partial(M.measure_seed, PROTOCOL, plan=SMALL),
+                     executor_factory=factory, blind=True, check_plan=SMALL)
+
+
+def _assert_no_timing(out: Path) -> None:
+    """盲検の出力先から、seed ごとの実行の時間を戻せないこと（#150 の再レビュー 5692062243）：
+    開始・終了の記録の時刻の欄は非公開の値、時刻の形の文字列も時間の数値もなく、ファイル・フォルダの時刻はすべて揃っている。"""
+    for d in [out, *out.rglob("*")]:                                  # 読むと変わるアクセスの時刻は見ない（中身の更新の時刻を見る）
+        assert d.stat().st_mtime == R.CONCEALED_MTIME, d
+    for d in sorted((out / R.G.SEEDS_DIR).iterdir()):
+        start = json.loads((d / R.G.START).read_text(encoding="utf-8"))
+        finish = json.loads((d / R.G.FINISH).read_text(encoding="utf-8"))
+        assert start["started_at"] == R.BLINDED_TIME and finish["finished_at"] == R.BLINDED_TIME
+        assert finish["seconds"] is None and start["max_workers"] == 1
+        for rec in (start, finish):
+            assert not ISO_TIME.search(json.dumps(rec)), rec
+            assert _numeric_keys(rec) <= NUMERIC_OK, _numeric_keys(rec)
+        if (d / R.G.RAW).exists():
+            raw = json.loads(gzip.decompress((d / R.G.RAW).read_bytes()))
+            assert not ISO_TIME.search(json.dumps(raw["blind"])) and set(raw["meta"]) == META_KEYS
 
 
 def test_blind_execution_stores_no_phenomenon_values(repo, tmp_path, monkeypatch, capsys) -> None:
@@ -431,10 +470,14 @@ def test_blind_execution_stores_no_phenomenon_values(repo, tmp_path, monkeypatch
     monkeypatch.setattr(R, "REPO", repo)
     out = tmp_path / "out"
     seeds = [first_with_events(), next(s for s in SYN if not measured(s)["run"]["events"]), SYN[-1]]
-    done = _blind_exec(repo, out, seeds)
-    assert done["completed"] == sorted(seeds)
-    printed = capsys.readouterr().out
-    assert all(line.endswith(f"/{len(seeds)})") for line in printed.splitlines() if line.startswith("seed "))   # 時間を表示しない
+    workers: list[int] = []
+    done = _blind_exec(repo, out, seeds, workers=workers)
+    assert done["completed"] == sorted(seeds) and workers == [1]     # 盲検は 1 つずつ（終わる順を残さない）
+    assert capsys.readouterr().out == ""                             # seed ごとの進み具合・時間を表示しない
+    _assert_no_timing(out)
+    assert AN.verify_records(out, "synthetic", sorted(seeds))["state"] == "complete"   # 非公開の時刻でも一度限りの記録として読める
+    with pytest.raises(R.G.GuardError):
+        _blind_exec(repo, out, seeds[:1])                            # 二度と始めない
     files = sorted(p for p in out.rglob("*") if p.is_file() and p != out / R.G.LOCK)
     assert (out / R.G.LOCK).read_bytes() == b""                 # 同時の実行を止める鍵のファイル（空）
     assert {p.name for p in files} == {R.G.START, R.G.FINISH, R.G.RAW} and len(files) == 3 * len(seeds)
@@ -454,6 +497,39 @@ def test_blind_execution_stores_no_phenomenon_values(repo, tmp_path, monkeypatch
             canonical = json.dumps(json.loads(json.dumps(again)), separators=(",", ":"), sort_keys=True).encode("utf-8")
             assert data["blind"]["raw_sha256"] == R.G.sha256_bytes(canonical)
             assert AN.check_blinded(data, s, "synthetic") == {k: "ok" for k in AN.CHECK_NAMES}
+
+
+def test_blind_failure_keeps_no_timing_or_reason_text(repo, tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setattr(R, "REPO", repo)
+    out = tmp_path / "out"
+
+    def boom(seed: int) -> dict:
+        if seed == GUARD_SEEDS[1]:
+            raise RuntimeError("Pulse 1234：x")
+        return M.measure_seed(PROTOCOL, seed, SMALL)
+    with pytest.raises(R.G.GuardError) as err:
+        _blind_exec(repo, out, GUARD_SEEDS[:3], runner=boom)
+    assert "1234" not in str(err.value)
+    statuses = {s: st for s, (st, _) in R.G.scan(out)["seeds"].items()}
+    assert statuses == {GUARD_SEEDS[0]: "completed", GUARD_SEEDS[1]: "failed"}
+    finish = json.loads((R.G.seed_dir(out, GUARD_SEEDS[1]) / R.G.FINISH).read_text(encoding="utf-8"))
+    assert finish["reason"] == "RuntimeError"                        # 例外の文（Pulse の番号）を残さない
+    assert all("1234" not in p.read_bytes().decode("utf-8", "replace") for p in out.rglob("*") if p.is_file())
+    assert capsys.readouterr().out == ""
+    _assert_no_timing(out)
+
+
+def test_non_blind_runs_keep_real_times(repo, tmp_path, monkeypatch) -> None:
+    """本番の形（盲検でない）では、これまでどおり時刻・時間・並列数を残す（盲検の扱いは smoke にだけ効く）。"""
+    monkeypatch.setattr(R, "REPO", repo)
+    out = tmp_path / "out"
+    _exec(repo, out, GUARD_SEEDS[:1])
+    d = R.G.seed_dir(out, GUARD_SEEDS[0])
+    start = json.loads((d / R.G.START).read_text(encoding="utf-8"))
+    finish = json.loads((d / R.G.FINISH).read_text(encoding="utf-8"))
+    assert ISO_TIME.match(start["started_at"]) and ISO_TIME.match(finish["finished_at"])
+    assert isinstance(finish["seconds"], float) and start["max_workers"] == R.MAX_WORKERS
+    assert (d / R.G.START).stat().st_mtime != R.CONCEALED_MTIME
 
 
 def test_blinded_record_marks_a_failed_check_without_reasons() -> None:
