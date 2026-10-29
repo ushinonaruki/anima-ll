@@ -1,0 +1,12 @@
+{
+  "experiment": "0034",
+  "kind": "preregistered_test",
+  "mode": "smoke",
+  "seed": 27101,
+  "status": "completed",
+  "finished_at": "blinded",
+  "raw_file_sha256": "ee1762d972f426fa79d90ccecd8c04b4ce068dc12e3a770db36ef0180fdc63e8",
+  "raw_file_bytes": 2524,
+  "measurement_commit_end": "53f3f51186c5224cb3394281f85bfaf7ffe95d3e",
+  "seconds": null
+}
