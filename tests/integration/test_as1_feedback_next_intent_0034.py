@@ -248,9 +248,9 @@ def test_first_after_respects_the_horizon() -> None:
 
 def test_individual_applicability_depends_only_on_body_events() -> None:
     none = AN.individual({"plan": {"horizon": 60}, "roles": {"source": "s1"},
-                          "body": {"intents": [[10, "d"]], "activity": []}, "events": []})
+                          "body": {"intents": [[10, "d"]], "activity": [], "birth_units": {}}, "events": []})
     assert none["applicable"] is False and none["P_i"] is False                     # 出来事なし：N/A
-    zeros = AN.individual({"plan": {"horizon": 60}, "roles": {"source": "s1"}, "body": {"intents": [[10, "d"], [20, "d"]], "activity": []},
+    zeros = AN.individual({"plan": {"horizon": 60}, "roles": {"source": "s1"}, "body": {"intents": [[10, "d"], [20, "d"]], "activity": [], "birth_units": {}},
                            "events": [{"t": 10, "e": {"pulse": 11}, "systems": {k: {"tau": 20 if k == "N" else None} for k in AN.SYSTEMS}}]})
     assert zeros["applicable"] is True and zeros["n_zero"] == 1 and zeros["P_i"] is False   # 効果 0 でも適用できる・不成立
 
@@ -663,3 +663,93 @@ def test_results_copy_is_verified_byte_for_byte(repo, tmp_path, monkeypatch) -> 
     rep = copy_to("rep")
     (rep / AN.REPORT).write_text(json.dumps({"measurement_commit": "0" * 40}), encoding="utf-8")
     assert AN.verify_results_copy(out, rep)
+
+
+# ---- R4・R5 の report の欄（監査 029）。判定は、欄を足す前（測定の commit 候補 b831d9a）の analyze.py と同じ --------------
+
+BEFORE_R4_R5 = "b831d9ab65c0024e80a1d0b4b960ca4ed12ed2d1"
+JUDGMENT_KEYS = ("applicable", "n_plus", "n_minus", "n_zero", "n_unknown", "P_i", "events_in_window", "fraction_nonzero",
+                 "median_d_e", "B", "FB", "events")
+
+
+@functools.lru_cache(maxsize=None)
+def _analyze_before():
+    """欄を足す前の analyze.py（git の履歴から読む。ほかの道具は今のものを使う：この変更で analyze.py のほかは変えていない）。"""
+    src = subprocess.run(["git", "-C", str(ROOT), "show", f"{BEFORE_R4_R5}:experiments/0034_as1_feedback_next_intent/analyze.py"],
+                         capture_output=True, text=True, check=True).stdout
+    import types
+    module = types.ModuleType("analyze_0034_before_r4_r5")
+    module.__file__ = str(EXP / "analyze.py")
+    exec(compile(src, f"analyze.py@{BEFORE_R4_R5[:7]}", "exec"), module.__dict__)
+    return module
+
+
+def test_only_analyze_changed_since_the_previous_candidate() -> None:
+    """欄を足す前の候補から変えた道具は analyze.py だけ（測定・実行・照合の道具、AS1 の道具、Core は同じ）。"""
+    tools = [f"experiments/0034_as1_feedback_next_intent/{f}" for f in ("measure.py", "run.py", "guard.py", "alignment.py",
+                                                                         "README.md", "protocol.yaml")]
+    changed = subprocess.run(["git", "-C", str(ROOT), "diff", "--name-only", BEFORE_R4_R5, "--", *tools,
+                              "experiments/as1_closed_loop", "src"], capture_output=True, text=True, check=True).stdout.split()
+    assert changed == [], changed
+
+
+def _both_reports(runs, plan):
+    return AN.analyze_runs(runs, "synthetic", plan, o1=[]), _analyze_before().analyze_runs(runs, "synthetic", plan, o1=[])
+
+
+def test_judgment_is_unchanged_by_the_r4_r5_fields() -> None:
+    """合成の個体（SMALL の 10 個体と、本番の Plan の個体）で、主の判定・個体ごとの判定の欄・R5 の重みと組の和が、欄を足す前と
+    同じであること（値は見ずに、同じかどうかだけを確かめる）。"""
+    seed, text = _formal_synthetic()
+    for runs, plan in (({s: measured(s) for s in SYN}, SMALL), ({seed: json.loads(text)}, M.formal_plan(PROTOCOL))):
+        new, old = _both_reports(runs, plan)
+        assert new["valid"] is old["valid"] is True
+        assert new["judgment"] == old["judgment"]
+        for s in new["individuals"]:
+            a, b = new["individuals"][s], old["individuals"][s]
+            assert {k: a[k] for k in JUDGMENT_KEYS} == {k: b[k] for k in JUDGMENT_KEYS}
+            assert a["intervals"]["whole_run"] == b["intervals"]                # 全期間の間隔は、名前を分けただけ
+        for s in new["R5_weights"]:
+            for p in new["R5_weights"][s]:
+                x, y = new["R5_weights"][s][p], old["R5_weights"][s][p]
+                assert (x["weights"], x["pair_sums"]) == (y["weights"], y["pair_sums"])
+
+
+def test_r4_r5_fields_come_from_the_raw_record() -> None:
+    runs = {s: measured(s) for s in SYN}
+    report = AN.analyze_runs(runs, "synthetic", SMALL, o1=[])
+    for s, data in runs.items():
+        run, ind = data["run"], report["individuals"][str(s)]
+        assert ind["roles"] == run["roles"] and ind["birth_units"] == run["body"]["birth_units"]
+        fires = [p for p, u in run["body"]["activity"] if u == run["roles"]["source"]]
+        window = sorted(ev["t"] for ev in run["events"])
+        assert ind["source_fires"] == {"whole_run": len(fires), "intents_in_window": len(window)}
+        assert ind["source_fires"]["intents_in_window"] == ind["events_in_window"]
+        assert ind["intervals"]["window"] == AN._interval_summary(window)
+        assert ind["intervals"]["whole_run"] == AN._interval_summary(fires)
+        if len(window) >= 2:                                                   # 区間 W の間隔は W の意図だけから
+            assert ind["intervals"]["window"]["count"] == len(window) - 1
+        for p, st in run["body"]["checkpoints"].items():
+            r5 = report["R5_weights"][str(s)][p]
+            assert set(r5) == {"weights", "traces", "pair_sums"} and sorted(r5["traces"]) == sorted(st)
+            assert all(r5["traces"][c] == {"pre_trace": v["pre_trace"], "post_trace": v["post_trace"]} for c, v in st.items())
+    assert any(report["individuals"][str(s)]["intervals"]["window"] is None for s in SYN)   # W に意図が 2 つ未満の個体もある
+
+
+def test_window_is_on_the_consequence_pulse_and_intents_are_its_causes() -> None:
+    """区間 W は結果の予約 e の Pulse で定める（README §2）。R4 の「W の意図」は、その e の原因の意図の Pulse t（＝ e の Pulse − (L − 1)）。
+    両者を混同しないこと：L が一定なので、意図どうしの間隔と e どうしの間隔は同じ。"""
+    lag = PROTOCOL["world"]["delay_L"] - 1
+    for s in SYN:
+        data = measured(s)
+        run = data["run"]
+        e_pulses = sorted(ev["e"]["pulse"] for ev in run["events"])
+        assert all(SMALL.window_first <= p <= SMALL.window_last for p in e_pulses)
+        assert all(ev["e"]["pulse"] == ev["t"] + lag for ev in run["events"])
+        ind = AN.individual(run)
+        assert ind["intervals"]["window"] == AN._interval_summary(e_pulses)
+
+
+def test_interval_summary_definition() -> None:
+    assert AN._interval_summary([]) is None and AN._interval_summary([5]) is None
+    assert AN._interval_summary([3, 10, 12, 30]) == {"count": 3, "min": 2, "median": 7, "max": 18}
