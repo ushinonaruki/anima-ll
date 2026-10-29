@@ -315,9 +315,13 @@ def _o4_o5(run, o4, o5) -> None:
             if (name == "N" and hist) or (name != "N" and (len(hist) != 1 or hist[0][0] != t)):
                 o5.append(f"{where}：{name} の宣言が、Pulse t の境界の一度だけになっていない")
         for name in ("F_CF", "N_CF"):
-            wc = sy[name]["weight_changes"]
+            wc = sy[name]["weight_changes"]                  # Pulse ごとの末尾の重みの、変わった時点の列（監査 026）
             if not wc or len(wc) != 1 or wc[0][0] != t:
                 o5.append(f"{where}：{name} の FREEZE の区間で可塑的な重みが変わった")
+            frozen = sy[name]["interventions"]["frozen"]
+            if wc and (sorted(frozen) != PLASTIC or any(frozen[c]["weight"] != wc[0][1].get(c) for c in frozen)
+                       or any(v.get("policy") != "advance" for v in frozen.values())):
+                o5.append(f"{where}：{name} の FREEZE の宣言の時点の基準が、分岐の時点の重みと違う")
         if sy["F_CF"]["weight_changes"] and sy["N_CF"]["weight_changes"] \
                 and sy["F_CF"]["weight_changes"][0][1] != sy["N_CF"]["weight_changes"][0][1]:
             o5.append(f"{where}：F_CF と N_CF の分岐の時点の重みが違う")

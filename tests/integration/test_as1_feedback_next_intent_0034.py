@@ -166,6 +166,21 @@ def test_o5_detects_a_broken_intervention() -> None:
         [r["events"][0]["t"] + 1, r["events"][0]["systems"]["N_CF"]["weight_changes"][0][1]]), "O5")
     _tampered(lambda r: r["events"][0]["systems"]["F_CF"]["interventions"]["active"].clear(), "O5")
     _tampered(lambda r: r["events"][0]["systems"]["N"]["history"].append([0, "x", []]), "O5")
+    _tampered(lambda r: next(iter(r["events"][0]["systems"]["F_CF"]["interventions"]["frozen"].values())).update(weight=0.0042), "O5")
+    _tampered(lambda r: r["events"][0]["systems"]["N_FB"]["masked_weights"].pop(), "O5")    # Pulse ごとの証拠の欠け
+
+
+def test_o4_compares_only_the_post_branch_slice() -> None:
+    """監査 025：本体の分岐の前の感覚の出来事は比べない（N のログは分岐から始まる）。分岐の後に余計な刺激があれば不合格。"""
+    seed = first_with_events()
+    data = measured(seed)
+    ev = data["run"]["events"][-1]
+    if len(data["run"]["events"]) > 1:
+        assert any(x[0] <= ev["t"] for x in data["run"]["body"]["sensory"])          # 本体には分岐の前の出来事がある
+    assert not any(x[0] <= ev["t"] for x in ev["systems"]["N"]["sensory"])            # N のログは分岐から始まる
+    assert failures(data, seed) == {}
+    ev["systems"]["N"]["sensory"].append([ev["t"] + 1, data["run"]["roles"]["other"].replace("s", "receptor.x")])
+    assert "O4" in failures(data, seed)
 
 
 def test_structure_detects_extra_fields_and_wrong_roles() -> None:
