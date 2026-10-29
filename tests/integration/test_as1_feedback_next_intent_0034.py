@@ -667,14 +667,21 @@ def test_results_copy_is_verified_byte_for_byte(repo, tmp_path, monkeypatch) -> 
 
 # ---- R4・R5 の report の欄（監査 029）。判定は、欄を足す前（測定の commit 候補 b831d9a）の analyze.py と同じ --------------
 
-BEFORE_R4_R5 = "b831d9ab65c0024e80a1d0b4b960ca4ed12ed2d1"
+BEFORE_R4_R5 = "b831d9ab65c0024e80a1d0b4b960ca4ed12ed2d1"   # 欄を足す前の候補（#150 の merge）
+R4_R5_HEAD = "e0b133d040e288ce758533154c825a363d96126e"     # #151 のレビューした head（欄を足した後）
+# #151 で変えていないはずの道具・事前登録・AS1・Core（監査 030：比べるのは、この 2 つの固定の commit の間だけ）
+UNCHANGED_IN_151 = (*(f"experiments/0034_as1_feedback_next_intent/{f}" for f in ("measure.py", "run.py", "guard.py", "alignment.py",
+                                                                                   "README.md", "protocol.yaml")),
+                    "experiments/as1_closed_loop", "src")
+CHANGED_IN_151 = {"experiments/0034_as1_feedback_next_intent/analyze.py", "tests/integration/test_as1_feedback_next_intent_0034.py"}
 JUDGMENT_KEYS = ("applicable", "n_plus", "n_minus", "n_zero", "n_unknown", "P_i", "events_in_window", "fraction_nonzero",
                  "median_d_e", "B", "FB", "events")
 
 
 @functools.lru_cache(maxsize=None)
 def _analyze_before():
-    """欄を足す前の analyze.py（git の履歴から読む。ほかの道具は今のものを使う：この変更で analyze.py のほかは変えていない）。"""
+    """欄を足す前の analyze.py（git の履歴から読む。ほかの道具は今のものを使う：#151 で analyze.py のほかは変えていない。
+    test_pr151_changed_only_analyze_and_its_contract_test）。履歴にないときは、skip ではなく失敗する。"""
     src = subprocess.run(["git", "-C", str(ROOT), "show", f"{BEFORE_R4_R5}:experiments/0034_as1_feedback_next_intent/analyze.py"],
                          capture_output=True, text=True, check=True).stdout
     import types
@@ -684,13 +691,47 @@ def _analyze_before():
     return module
 
 
-def test_only_analyze_changed_since_the_previous_candidate() -> None:
-    """欄を足す前の候補から変えた道具は analyze.py だけ（測定・実行・照合の道具、AS1 の道具、Core は同じ）。"""
-    tools = [f"experiments/0034_as1_feedback_next_intent/{f}" for f in ("measure.py", "run.py", "guard.py", "alignment.py",
-                                                                         "README.md", "protocol.yaml")]
-    changed = subprocess.run(["git", "-C", str(ROOT), "diff", "--name-only", BEFORE_R4_R5, "--", *tools,
-                              "experiments/as1_closed_loop", "src"], capture_output=True, text=True, check=True).stdout.split()
-    assert changed == [], changed
+def _changed_between(repo: Path, base: str, head: str, paths=()) -> list[str]:
+    """固定の 2 つの commit の間で変わったファイル（作業ツリー・HEAD は見ない）。"""
+    return subprocess.run(["git", "-C", str(repo), "diff", "--name-only", base, head, "--", *paths],
+                          capture_output=True, text=True, check=True).stdout.split()
+
+
+def test_pr151_changed_only_analyze_and_its_contract_test() -> None:
+    """#151 の変更の範囲（歴史上の事実）を確かめる：欄を足す前の候補 b831d9a からレビューした head e0b133d までに変えたのは、
+    analyze.py と、この契約テストのファイルだけ（測定・実行・照合の道具、README・protocol、AS1 の道具、Core は同じ）。
+    監査 030：比べるのは固定の 2 つの commit の間で、今の作業ツリー・HEAD とは比べない（結果の README §15 の追記や、後の別の
+    変更で、このテストが誤って失敗しないように）。2 つの commit が履歴にないときは、skip ではなく失敗する。"""
+    assert _changed_between(ROOT, BEFORE_R4_R5, R4_R5_HEAD, UNCHANGED_IN_151) == []
+    assert set(_changed_between(ROOT, BEFORE_R4_R5, R4_R5_HEAD)) == CHANGED_IN_151
+
+
+def test_the_pr151_scope_check_ignores_later_changes(tmp_path) -> None:
+    """監査 030：後で README に結果（§15）を書き足したり、src・AS1 の道具を変えたりしても、#151 の範囲の確かめは変わらない。
+    元のリポジトリの objects を参照する一時のリポジトリを作り（元のリポジトリには書かない）、そこで README・src・AS1 の道具を変えて commit し、
+    さらに commit しない変更も残してから確かめる。前の版の比べ方（終点を指定しない git diff）なら、これらが差分に出ることも示す。"""
+    clone = tmp_path / "clone"
+    head = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+    later = ("experiments/0034_as1_feedback_next_intent/README.md", "src/anima_ll/bootstrap.py", "experiments/as1_closed_loop/as1.py")
+    # 元のリポジトリの objects を参照するだけの新しいリポジトリ（元には何も書かない）。変える 3 つだけを取り出す（速さのため）
+    objects = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                             capture_output=True, text=True, check=True).stdout.strip() + "/objects"
+    subprocess.run(["git", "init", "-q", str(clone)], check=True)
+    (clone / ".git/objects/info/alternates").write_text(objects + "\n", encoding="utf-8")
+    _git(clone, "sparse-checkout", "set", "--no-cone", *(f"/{f}" for f in later))
+    _git(clone, "checkout", "-q", "--detach", head)
+    readme = clone / later[0]
+    readme.write_text(readme.read_text(encoding="utf-8") + "\n## 15. 結果（契約テストの模擬）\n", encoding="utf-8")
+    for f in later[1:]:
+        (clone / f).write_text((clone / f).read_text(encoding="utf-8") + "\n# 契約テストの模擬の変更\n", encoding="utf-8")
+    _git(clone, "-c", "user.email=t@example.invalid", "-c", "user.name=t", "-c", "commit.gpgsign=false",
+         "commit", "-q", "-am", "simulated later change")
+    (clone / "src/anima_ll/bootstrap.py").write_text("# commit しない変更\n", encoding="utf-8")
+    assert _changed_between(clone, BEFORE_R4_R5, R4_R5_HEAD, UNCHANGED_IN_151) == []
+    assert set(_changed_between(clone, BEFORE_R4_R5, R4_R5_HEAD)) == CHANGED_IN_151
+    unanchored = subprocess.run(["git", "-C", str(clone), "diff", "--name-only", BEFORE_R4_R5, "--", *UNCHANGED_IN_151],
+                                capture_output=True, text=True, check=True).stdout.split()
+    assert set(later) <= set(unanchored)
 
 
 def _both_reports(runs, plan):
