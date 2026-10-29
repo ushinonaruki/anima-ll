@@ -134,6 +134,7 @@ def test_the_formal_plan_through_the_runtime_passes_every_operation_check() -> N
     assert run["clone_check"]["at"] == 300 and run["clone_check"]["until"] == 600
     assert sorted(map(int, run["body"]["checkpoints"])) == [300, 600, 900, 1200, 1500, 1800, 2099]
     assert set(run["rerun"]["sigma_sha256"]) == {str(p) for p in M.formal_plan(PROTOCOL).checkpoints} | {str(ev["t"]) for ev in run["events"]}
+    assert run["rerun_plain"]["pulse"] == 2099 and run["rerun_plain"]["sigma_end_sha256"] == run["body"]["checkpoint_sigma_sha256"]["2099"]
 
 
 def test_the_synthetic_range_contains_individuals_with_and_without_events() -> None:
@@ -282,6 +283,67 @@ def test_o7_detects_a_body_that_differs_from_the_plain_rerun() -> None:
     _tampered(lambda r: r["events"][0]["sigma_t"]["units"][r["roles"]["source"]].update(activity=0.123), "O7")
 
 
+def test_o7_detects_a_body_that_differs_from_the_read_free_rerun() -> None:
+    """監査 034：途中で Σ を一度も読まない走り直しとの比べ（意図・感覚・発火の列と、最後の Pulse の Σ）。"""
+    _tampered(lambda r: r["rerun_plain"]["intents"].pop(), "O7")
+    _tampered(lambda r: r["rerun_plain"]["activity"].pop(0), "O7")
+    _tampered(lambda r: r["rerun_plain"]["sensory"].append([r["plan"]["body_runs_to"], r["roles"]["consequence_receptor"]]), "O7")
+    _tampered(lambda r: r["rerun_plain"].update(sigma_end_sha256="0" * 64), "O7")
+    _tampered(lambda r: r["rerun_plain"].update(pulse=r["plan"]["body_runs_to"] - 1), "O7")
+
+
+def test_o7_detects_a_read_that_changes_the_state(monkeypatch) -> None:
+    """読み出しに副作用がある道具（読むたびに源の順応を少し上げる sigma）を差し込むと、本体と、同じく読む走り直しは一致しうるが、
+    読まない走り直しとは一致しない。O7 の (a) は、この場合に成り立たない（監査 034 の比べ方が副作用を検出できることの確かめ）。
+    順応は発火で 0 に戻らないので、差し込んだ副作用は最後の Σ まで残る。"""
+    seed = first_with_events()
+    real = M._sigma
+
+    def leaky(system):
+        out = real(system)
+        unit = next(u for u in system.app.units.all() if u.unit_id == system.roles.source)
+        state = unit.export_state()
+        state["adaptation"] += 1e-6
+        unit.import_state(state)
+        return out
+    probe = A.build(seed, delay=2, multiplicity=PROTOCOL["world"]["multiplicity"], respond=True, exogenous=(),
+                    log=A.AS1Log(keep=M.body_log_keep(PROTOCOL)))
+    before = real(probe)
+    leaky(probe)
+    assert real(probe) != before                                                     # 差し込む副作用が、本当に状態を変えること
+    monkeypatch.setattr(M, "_sigma", leaky)
+    data = json.loads(json.dumps(_raw(M.measure_seed(PROTOCOL, seed, SMALL))))
+    got = failures(data, seed)
+    assert "O7" in got and any("途中で Σ を読まない" in x for x in got["O7"]), sorted(got)
+
+
+def test_reading_the_state_does_not_change_the_system() -> None:
+    """sigma・export_state・ログの読み出しは状態を変えない（監査 034）。同じ時点の 2 つの複製の一方だけで何度も読み、返った写しを
+    書き換えても、その後の発火・意図・感覚の列と、最後の Σ が、読まない方と一致する。返った写しは系の内部と共有されていない。"""
+    body, (t, _, _) = _first_event_live(first_with_events())
+    x, y = A.clone(body), A.clone(body)
+    for _ in range(3):
+        s = A.sigma(x)
+        s["units"][next(iter(s["units"]))]["activity"] = 99.0
+        s["connections"][next(iter(s["connections"]))]["weight"] = 99.0
+        s["world"]["pending"].clear() if isinstance(s["world"]["pending"], list) else None
+        c = x.app.connections.export_state()
+        c[next(iter(c))]["weight"] = 99.0
+        w = x.world.export_state()
+        for v in w.values():
+            if isinstance(v, list):
+                v.clear()
+        for u in x.app.units.all():
+            u.export_state()
+        x.log.activity()
+        x.log.sensory()
+    assert M._sigma(x) == M._sigma(y)
+    A.advance_to(x.app, t + SMALL.horizon)
+    A.advance_to(y.app, t + SMALL.horizon)
+    assert x.log.activity() == y.log.activity() and x.log.sensory() == y.log.sensory()
+    assert x.world.intents == y.world.intents and M._sigma(x) == M._sigma(y)
+
+
 def test_o7_detects_an_n_that_differs_from_n_prime() -> None:
     _tampered(lambda r: r["events"][0]["N_prime"].update(tau=r["events"][0]["t"] + 1), "O7")
     _tampered(lambda r: r["events"][0]["N_prime"].update(stopped_at=r["events"][0]["N"]["stopped_at"] - 1), "O7")
@@ -350,6 +412,7 @@ def test_structure_detects_extra_fields_and_wrong_roles() -> None:
     _tampered(lambda r: r["events"][0].update(s_hat="+"), "structure")              # 予測の量を raw に入れない
     _tampered(lambda r: r["events"][0]["N"].update(tau_hat=1), "structure")
     _tampered(lambda r: r["rerun"].update(extra=1), "structure")
+    _tampered(lambda r: r["rerun_plain"].update(sigma={}), "structure")
     _tampered(lambda r: r["roles"].update(source="s9"), "structure")
     _tampered(lambda r: r["plan"].update(horizon=61), "structure")
 
@@ -523,6 +586,27 @@ def test_past_rhythm_definition() -> None:
     assert AN.past_rhythm([[50, "r"], [90, "r"]], [60, 95], "s", "r", 95) == "0"   # r̂ ＝ 130 ＝ ŝrc（厳密に小さくない）
     assert AN.past_rhythm([[90, "r"]], [60, 95], "s", "r", 95) == "0"            # 受の過去の発火が 1 つ：足りない
     assert AN.past_rhythm(act, [95], "s", "r", 95) == "0"                        # 源の直前の意図がない：足りない
+
+
+def test_past_rhythm_uses_the_whole_history_up_to_t() -> None:
+    """監査 035：使う履歴は Pulse 1〜t（区間 W の前も、分岐の Pulse t の受の発火も含む）。t の後の情報は使わない。"""
+    assert "window" not in " ".join(inspect.signature(AN.past_rhythm).parameters)   # 区間 W で切らない
+    # 受の分岐の Pulse t の発火を含める：[80, 95] → r̂ ＝ 110（t の発火を除くと履歴が足りず 0）
+    assert AN.past_rhythm([[80, "r"], [95, "r"]], [60, 95], "s", "r", 95) == "-"
+    assert AN.past_rhythm([[80, "r"]], [60, 95], "s", "r", 95) == "0"
+    # 区間 W の始まり（SMALL では e の Pulse 31、t ＝ 30）の前の履歴だけで決まる：受 12・25 → r̂ ＝ 38、源 5・30 → ŝrc ＝ 55
+    assert AN.past_rhythm([[12, "r"], [25, "r"], [5, "s"]], [5, 30], "s", "r", 30) == "-"
+    # 源の意図は、今の出来事の意図 t とその前のもの（t の後の意図は使わない）
+    assert AN.past_rhythm([[12, "r"], [25, "r"]], [5, 30, 31, 32], "s", "r", 30) == "-"
+    # 合成の個体でも、出来事ごとの s_rhythm は、本体の Pulse 1〜t の記録だけから計算した値と同じ
+    for seed in SYN:
+        run = measured(seed)["run"]
+        intents = [p for p, _ in run["body"]["intents"]]
+        for ev in run["events"]:
+            t = ev["t"]
+            want = AN.past_rhythm([x for x in run["body"]["activity"] if x[0] <= t], [p for p in intents if p <= t],
+                                  run["roles"]["source"], run["roles"]["receiver"], t)
+            assert AN.event_quantities(run, ev)["s_rhythm"] == want
 
 
 # ---- 個体の量・判定の算術（合成の入力） ------------------------------------------------------------
@@ -789,6 +873,7 @@ def test_records_state_and_the_synthetic_pipeline_through_run_and_analyze(repo, 
 # ---- smoke の盲検（0034 の #150 のレビューの必須 1）：現象の数値を保存しない -------------------------------------
 
 FORBIDDEN_KEYS = ((AN.RUN_KEYS - {"seed", "plan", "roles"}) | AN.BODY_KEYS | AN.EVENT_KEYS | AN.N_KEYS | AN.RERUN_KEYS
+                  | AN.RERUN_PLAIN_KEYS
                   | {"run", "s_e", "d_e", "s_hat", "tau_hat_F", "tau_hat_N", "acc_rule", "acc_const", "V_i", "Q_i", "J_S", "R6",
                      "judgment", "individuals", "auxiliary"})
 META_KEYS = {"experiment", "kind", "mode", "seed", "measurement_commit", "protocol_sha256", "protocol", "manifest", "blind"}

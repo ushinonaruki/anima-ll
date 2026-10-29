@@ -12,7 +12,10 @@ seed ごとに measure_seed：
 3. 本体を最後（body_runs_to）まで進める。Pulse clone_check.at の処理の後で作った介入なしの複製を clone_check.until まで進め、
    本体と Σ を比べるための写しを残す（O3）
 4. **O7 の (a)**：同じ seed の本体を、Σ_t の記録・系 N の分岐・複製をしない形でもう一度走らせる。意図・感覚の出来事・発火の列と、
-   Pulse 300・600・…・2099 と各出来事の t での Σ の SHA-256 を残す（比べるために Σ を読むだけ）
+   Pulse 300・600・…・2099 と各出来事の t での Σ の SHA-256 を残す（比べるために Σ を読むだけ。rerun）
+5. **O7 の (a) の補い（監査 034）**：上の走り直しも Σ を読むので、両方で読むだけでは読み出しそのものの副作用を検出できない。
+   そこで、途中で Σ を一度も読まず、分岐も複製もしない走り直しをもう一つ行い、意図・感覚の出来事・発火の列と、最後の Pulse
+   （body_runs_to）での Σ の SHA-256 を残す（rerun_plain）。最後の Σ だけで途中のすべての状態の一致を証明したとは言わない
 
 生の記録だけを返す。予測（二経路近似）・判定の量（s_e・Q_i・J_S）と補助の量は計算しない（analyze.py）。
 """
@@ -144,6 +147,17 @@ def body_rerun(protocol: dict, seed: int, plan: Plan) -> dict:
             "activity": [list(x) for x in body.log.activity()], "sigma_sha256": sigma_at}
 
 
+def body_rerun_plain(protocol: dict, seed: int, plan: Plan) -> dict:
+    """O7 の (a) の補い（監査 034）：途中で Σ を一度も読まず、分岐も複製もしない本体。最後の Pulse の後で一度だけ Σ を読む。"""
+    world = protocol["world"]
+    body = A.build(seed, delay=int(world["delay_L"]), multiplicity=world["multiplicity"], respond=bool(world["respond"]),
+                   exogenous=(), log=A.AS1Log(keep=body_log_keep(protocol)))
+    A.advance_to(body.app, plan.body_runs_to)
+    return {"intents": [list(x) for x in body.world.intents], "sensory": _sensory(body),
+            "activity": [list(x) for x in body.log.activity()], "pulse": body.pulse,
+            "sigma_end_sha256": sigma_sha256(_sigma(body))}
+
+
 def measure_seed(protocol: dict, seed: int, plan: Plan | None = None) -> dict:
     plan = plan or formal_plan(protocol)
     world = protocol["world"]
@@ -210,6 +224,7 @@ def measure_seed(protocol: dict, seed: int, plan: Plan | None = None) -> dict:
         "clone_check": clone_check,
         "events": events,
         "rerun": body_rerun(protocol, seed, plan),
+        "rerun_plain": body_rerun_plain(protocol, seed, plan),
     }
 
 

@@ -115,6 +115,7 @@ def check(protocol: dict) -> None:
     plan = M.formal_plan(protocol)
     assert (plan.window_first, plan.window_last, plan.horizon, plan.body_runs_to) == (301, 1800, 300, 2099)
     assert (plan.clone_check_at, plan.clone_check_until) == (300, 600)              # O3
+    assert plan.body_runs_to in plan.checkpoints                                    # O7 の (a)：最後の Pulse の Σ を比べる
     assert list(plan.checkpoints) == protocol["auxiliary"]["R7_weights"]["pulses"] == R7_PULSES
     # 出来事・符号・分岐の前の状態
     ev = protocol["events"]

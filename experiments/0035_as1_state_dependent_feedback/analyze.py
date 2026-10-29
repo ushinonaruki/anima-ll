@@ -325,12 +325,13 @@ def auxiliary(individuals: Mapping[str, Mapping], runs: Mapping[int, dict]) -> d
 
 # ---- 操作の確認（README §7。生の記録から） -------------------------------------------------------
 
-RUN_KEYS = {"seed", "plan", "roles", "body", "clone_check", "events", "rerun"}
+RUN_KEYS = {"seed", "plan", "roles", "body", "clone_check", "events", "rerun", "rerun_plain"}
 BODY_KEYS = {"intents", "sensory", "activity", "realized", "pending_end", "checkpoints", "checkpoint_sigma_sha256", "birth_units"}
 EVENT_KEYS = {"t", "intent_delta_id", "e", "sigma_t", "body_pending", "n_pending", "n_branch_sigma_sha256", "N", "N_prime"}
 N_KEYS = {"tau", "stopped_at", "sensory", "sigma_stop_sha256", "firings"}
 N_PRIME_KEYS = {"tau", "stopped_at", "sensory", "sigma_stop_sha256"}
 RERUN_KEYS = {"intents", "sensory", "activity", "sigma_sha256"}
+RERUN_PLAIN_KEYS = {"intents", "sensory", "activity", "pulse", "sigma_end_sha256"}
 
 
 def _expected_sensory(pending_rows: list, t: int, stop: int) -> list[list]:
@@ -362,8 +363,8 @@ def _structure(data, mode, seed, plan, out) -> None:
     if set(run) != RUN_KEYS:
         out.append(f"run の欄が {sorted(run)}（判定の量の欄を raw に入れない）")
         return
-    if set(run["body"]) != BODY_KEYS or set(run["rerun"]) != RERUN_KEYS:
-        out.append("body または rerun の欄が違う")
+    if set(run["body"]) != BODY_KEYS or set(run["rerun"]) != RERUN_KEYS or set(run["rerun_plain"]) != RERUN_PLAIN_KEYS:
+        out.append("body・rerun・rerun_plain の欄が違う")
     if run["seed"] != seed:
         out.append(f"seed が {run['seed']}")
     want = plan or M.formal_plan(PROTOCOL)
@@ -496,11 +497,19 @@ def _o6(seed, mode, out) -> None:
 
 def _o7(run, o7) -> None:
     """(a) 本体：記録も分岐もしない走り直しと、意図・感覚・発火の列と、チェックポイントと各 t の Σ が一致する。
+    あわせて（監査 034）、途中で Σ を一度も読まない走り直しと、意図・感覚・発火の列と、最後の Pulse の Σ が一致する
+    （両方で Σ を読むだけでは、読み出しそのものの副作用を検出できないため。最後の Σ だけで途中の状態の一致を証明したとは言わない）。
     (b) 系 N：追加の記録をしない N′ と、τ_N・止まった Pulse・感覚の出来事・止まった Pulse での Σ が一致する。"""
-    body, rerun, plan = run["body"], run["rerun"], run["plan"]
+    body, rerun, plain, plan = run["body"], run["rerun"], run["rerun_plain"], run["plan"]
     for key in ("intents", "sensory", "activity"):
         if rerun[key] != body[key]:
             o7.append(f"本体の {key} が、記録も分岐もしない走り直しと違う")
+        if plain[key] != body[key]:
+            o7.append(f"本体の {key} が、途中で Σ を読まない走り直しと違う")
+    end = str(plan["body_runs_to"])
+    if plain["pulse"] != plan["body_runs_to"] or end not in body["checkpoint_sigma_sha256"] \
+            or plain["sigma_end_sha256"] != body["checkpoint_sigma_sha256"][end]:
+        o7.append("最後の Pulse の本体の Σ が、途中で Σ を読まない走り直しの Σ と違う")
     want_pulses = {str(p) for p in plan["checkpoints"]} | {str(ev["t"]) for ev in run["events"]}
     if set(rerun["sigma_sha256"]) != want_pulses or set(body["checkpoint_sigma_sha256"]) != {str(p) for p in plan["checkpoints"]}:
         o7.append("Σ を比べる Pulse の組が、チェックポイントと出来事の t の組と違う")
