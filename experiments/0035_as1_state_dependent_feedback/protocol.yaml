@@ -1,0 +1,143 @@
+# 実験 0035 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT・Gemini のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
+#
+# AS1（自発の 1 つの行動、L = 2、外の刺激なし）の閉ループで、区間 W のすべての結果の刺激 e について、0034 と同じ反実仮想
+# （本体 F と、Pulse t の後の複製から e の予約だけを取り消した系 N）で符号 s_e を求める。あわせて、分岐の時点の状態 Σ_t を保存し、
+# Σ_t だけから二経路近似（README §3）で符号を予測する。個体ごとに、予測の当たりの割合が、個体の中の最良の定数の予測を上回るか（Q_i）を
+# 数え、適用できる個体の数 m に対する二項の上側の閾値で判定する（README §4・§5）。
+#
+# この案の段階では、この実験の道具の実装・smoke・本番の測定・どの seed の実行もしない（README の Status・§14）。
+# 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を
+# 開示し、新しい版・新しい seed の範囲で行う。
+#
+# 種別：事前登録した検証。主の判定は J_S の 1 つ。
+# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。新しく選んだ値とその理由は README §1.1。
+
+experiment: "0035"
+kind: preregistered_test
+seeds: {first: 28001, last: 28040}            # 本番。40 個体を全件記録・全件報告する。以後どの実験にも使わない
+smoke_seeds: {first: 28101, last: 28106}      # 操作の確認だけ。盲検。判定の量・現象の数値は計算・表示・保存しない
+synthetic_seeds: {first: 28201, last: 28299}  # 合成の契約テスト専用
+
+tools:
+  base: experiments/as1_closed_loop/as1.py    # #148。この実験の道具はこれを読むだけで変えない
+  contract_tests: tests/integration/test_as1_contract.py
+  previous_experiment: experiments/0034_as1_feedback_next_intent   # 道具の作り（guard・盲検の smoke・O1 の記録・結果の写し）を引き継ぐ
+
+brain:                                  # C0 のまま（0034 と同じ）
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml
+  added_by_tool: {effector: effector.y1, intent_port: intent, intent_projections: "sK.intent -> effector.y1 (K = 1, 2, 3)"}
+  sensory_units: [s1, s2, s3]
+  receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+  receptor_weight: 1.0                  # 設計図の Receptor → Unit の投射の重み（二経路近似の結果の刺激の重み）
+  refractory_pulses: 0
+  plastic_connections: six_s_to_s
+  adaptation_tau_pulses: 300
+
+roles:                                  # 0034 と同じ
+  stream: "as1-roles-{seed}"
+  rule: "random.Random(stream).shuffle([s1, s2, s3]) -> (source, receiver, other)"
+  consequence_receptor: "receptor of receiver"
+
+world:                                  # 0034 と同じ
+  delay_L: 2
+  multiplicity: per_reservation
+  respond: true
+  exogenous: []
+  payload: none
+
+timeline:                               # 0034 と同じ（1 Pulse = 1 秒）
+  pulse_interval_seconds: 1.0
+  event_window:
+    first: "adaptation_tau_pulses + 1"                  # 301
+    last: "6 * adaptation_tau_pulses"                   # 1800
+  branch_pulse: "e.pulse - (delay_L - 1)"
+  horizon_H: "adaptation_tau_pulses"                    # 300
+  body_runs_to: "event_window.last - (delay_L - 1) + horizon_H"   # 2099
+
+events:                                 # 0034 と同じ
+  definition: "all intents at t with consequence reservation e (origin = intent delta id) and e.pulse in event_window"
+  sampling: none
+  counterfactual:
+    F: "the body itself (deterministic continuation)"
+    N: "clone(body at end of t) with only reservation e cancelled by id (CT-Sigma5)"
+  next_intent:
+    F: "first pulse > t in body.world.intents"
+    N: "advance_until_first_intent(N, t, t + H); also recomputed from the saved firings of N (O5)"
+  sign:
+    both_found: "sign(tau_N - tau_F)"
+    only_F_found: "+"
+    only_N_found: "-"
+    none_found: "?"
+  pre_branch_state:                     # README §2.4。読み出しだけ（O7）
+    record: "as1.sigma(body) at the end of pulse t"
+    contents: [units, connections, drives, world, runtime]
+
+prediction:                             # README §3。合わせ込む値を持たない
+  name: two_path_approximation          # 二経路近似（既存の I1〜I4 とは別のもの）
+  inputs: "Sigma_t only (source and receiver states and dynamics, w(receiver->source), drives created at t, receptor_weight)"
+  units_kept: [source, receiver]
+  connection_kept: "receiver.main->source"
+  dynamics: "Core SimpleActivityDynamics.advance with delta_time = 1 (no runtime, no Application)"
+  per_world:
+    F: "receiver gets receptor_weight at pulse t + 2"
+    N: "no consequence stimulus"
+  inputs_per_pulse:
+    receiver: "drives to receiver in Sigma_t at t + 1; plus receptor_weight at t + 2 in F"
+    source: "drives to source in Sigma_t at t + 1; plus w(receiver->source) at p if the receiver fired at p - 1 in that world"
+  stop: "first source firing tau_hat in (t, t + H], else none"
+  ignored: [other_unit_after_t, plasticity_after_t]
+  sign:
+    both_found: "sign(tau_hat_N - tau_hat_F)"
+    only_F_found: "+"
+    only_N_found: "-"
+    none_found: "0"                     # 予測は ? を出さない
+  isolated_nonfiring: "handled by the same table; no special value"   # README §3.3
+
+judgment:
+  per_individual:
+    applicable: "body F has at least one consequence reservation e with e.pulse in event_window"   # 本体だけで、反実仮想・予測の前に決まる（A3）
+    not_applicable: "no event in event_window"
+    evaluable_events: "s_e != ?"
+    acc_rule: "fraction of evaluable events with s_hat == s_e"
+    acc_const: "max over c in {+, 0, -} of fraction of evaluable events with s_e == c"
+    event_Q_i: "at least one evaluable event and acc_rule > acc_const"   # 等しいときは成り立たない
+  J_S:
+    min_applicable: 10
+    rule: "count(Q_i over applicable individuals) >= k(m)"
+    k_of_m: {10: 9, 11: 9, 12: 10, 13: 10, 14: 11, 15: 12, 16: 12, 17: 13, 18: 13, 19: 14, 20: 15,
+             21: 15, 22: 16, 23: 16, 24: 17, 25: 18, 26: 18, 27: 19, 28: 19, 29: 20, 30: 20,
+             31: 21, 32: 22, 33: 22, 34: 23, 35: 23, 36: 24, 37: 24, 38: 25, 39: 26, 40: 26}
+    k_definition: "smallest k with P(Binomial(m, 1/2) >= k) <= 0.05"
+    alpha: 0.05
+    direction: one_sided                # 定数の予測より当たる向き
+  null: "H0_S: P(Q_i) <= 1/2 for iid Birth States whose body has at least one event in W"
+  model_assumption: "the 0.05 bound holds within a model of iid Birth States; sequential deterministic seeds do not by themselves establish independence"
+  not_a_test_of: "causal contribution of any state variable (README §0.2)"
+
+auxiliary:                              # 判定に使わない（README §6）
+  R1_event: [t, e_pulse, tau_F, tau_N, d_e, s_e, tau_hat_F, tau_hat_N, s_hat]
+  R2_individual: [roles, birth_units, events_in_window, counts, acc_rule, acc_plus, acc_zero, acc_minus, acc_const, Q_i, confusion_3x3]
+  R3_alternative_rules:
+    direct_only: "receiver drive only from the forced firing at t + 2 in F; s_hat in {+, 0}"
+    past_rhythm: "r_hat = last receiver firing + its previous interval; src_hat = t + previous source interval; '-' if t + 2 < r_hat < src_hat else '0'"
+    negative_control: "within-individual cyclic shift: event k gets s_hat of event (k + floor(n/2)) mod n; n < 2 not applicable"
+  R4_misses: "for s_hat != s_e: whether the other unit fired in (t, min(tau_F, tau_N)] in the body or in N"
+  R5_pooled_confusion: "3x3 over all events; descriptive, no test"
+  R6_interval: {method: clopper_pearson, level: 0.95, of: "fraction of applicable individuals with Q_i"}
+  R7_weights:
+    pulses: [300, 600, 900, 1200, 1500, 1800, 2099]
+    record: [six_weights_and_traces, pair_sums]
+
+operation_checks:                       # README §7。生の記録から再検証。一つでも満たさなければ無効
+  O1: contract tests pass at the measurement commit (recorded by run.py before any seed)
+  O2: same as 0034 (IC-1, WC-2, K1, W-2)
+  O3: same as 0034 (no-intervention clone equals the body in sigma from 300 to 600)
+  O4: same as 0034 (N pending and N sensory equal the body minus e up to min(tau_F, tau_N, t + H))
+  O5: saved Sigma_t equals sigma of N at the branch except reservation e; tau_N recomputed from the saved firings of N equals the detection record
+  O6: seeds do not overlap previously run seeds
+  O7: the body rerun without Sigma_t recording and without branching gives the same intents, sensory events, firings and R7 connection states
+
+records:
+  body_log_keep: [RUN, SENSORY, ACTIVITY, DELTA, EFFECT]
+  per_event: [sigma_t, n_pending, n_sensory, n_firings, tau_N]
+  save: "guard layout (seeds/<seed>/raw.json.gz), copied byte for byte to results/ in the results PR (as in 0034)"
