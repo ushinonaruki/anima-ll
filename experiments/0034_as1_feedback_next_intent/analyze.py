@@ -8,12 +8,14 @@
 1. 実行の記録（guard.py）を確かめる。未完了なら解析しない。失敗・中断・破損・範囲の外・別の測定の commit なら、実験全体を invalid として
    記録と操作の確認だけを報告する（判定しない）
 2. 操作の確認 O2〜O6（README §7）を、保存した生の記録から seed ごとに再検証する（D2）。一つでも成り立たなければ invalid で、判定の量を
-   計算・表示しない。O1（測定の commit で契約テストが通ること）は、解析の道具の HEAD ＝ 測定の commit を確かめたうえで、その commit の
-   契約テストの結果（道具の PR・測定の記録）に委ねる（解析はテストを走らせない）
+   計算・表示しない。O1（測定の commit で契約テストが通ること）は、run.py が seed に触れる前に測定の commit で契約テストを実際に走らせて
+   出力先に残した o1_contract_tests.json を確かめる（o1_check：commit・終了コード・結果の行・テストのファイルの SHA-256。無い・合わない
+   なら invalid。解析はテストを走らせない）
 3. 判定（README §2〜§5）：本番・合成で、すべての seed が completed で invalid がないときだけ、出来事ごとの符号 s_e、個体ごとの
    n₊・n₋・n₀・n_?・P_i、適用できる個体の数 m（本体の出来事の有無だけで決まる）、J_A、補助の記録（R2〜R6）を計算して report に書く。
-   smoke では判定の量も現象に関する数値（出来事の数・τ・重み）も計算・表示・保存しない（確認の結果 ok・fail と、成り立たなかった確認の
-   名前だけを書く）
+   smoke は盲検：run.py は生の記録を保存せず、実行の場で同じ確認（check_seed）を当てた ok・fail と生の記録の SHA-256 だけを残す
+   （盲検の記録）。解析はその形を確かめ（check_blinded）、確認ごとの ok・fail だけを report に書く。smoke の O2〜O5 は、保存した生の記録
+   からの再検証（D2）ではなく、測定の commit の同じ関数を実行の場で当てた結果である（D2 との違いとして開示する。本番は D2 のまま）
 4. report は一度だけ書く（既にあれば上書きしない。analysis_log.jsonl に開始・完了と入力の SHA-256 を残す）
 
 使い方（リポジトリ直下で、測定の commit を checkout したきれいな作業ツリーで）:
@@ -27,6 +29,7 @@ import gzip
 import importlib.util
 import json
 import math
+import re
 import statistics
 from collections.abc import Iterable, Mapping
 from pathlib import Path
@@ -43,6 +46,12 @@ SEED_RANGES = {"formal": "seeds", "smoke": "smoke_seeds", "synthetic": "syntheti
 CHECK_NAMES = ("structure", "O2", "O3", "O4", "O5", "O6")
 SYSTEMS = ("N", "F_CF", "N_CF", "F_FB", "N_FB")
 REPORT, LOG = "report.json", "analysis_log.jsonl"
+# O1 の証拠（run.record_contract_tests が書き、o1_check が確かめる）
+CONTRACT_TESTS = ("tests/integration/test_as1_contract.py", "tests/integration/test_as1_feedback_next_intent_0034.py")
+O1_FILE = "o1_contract_tests.json"
+O1_KEYS = {"measurement_commit", "command", "exit_code", "summary", "test_files_sha256", "at"}
+BLIND_KEYS = {"checks", "raw_sha256"}
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 def load(name: str, path: Path):
@@ -184,7 +193,7 @@ def judge(individuals: Mapping[str, Mapping]) -> dict:
 RUN_KEYS = {"seed", "plan", "roles", "body", "clone_check", "events"}
 BODY_KEYS = {"intents", "sensory", "activity", "realized", "pending_end", "checkpoints", "birth_units"}
 EVENT_KEYS = {"t", "intent_delta_id", "e", "body_pending", "n_pending", "systems"}
-SYSTEM_KEYS = {"tau", "stopped_at", "sensory", "interventions", "history", "masked_weights", "weight_changes"}
+SYSTEM_KEYS = {"tau", "stopped_at", "sensory", "interventions", "history", "masked_weights", "baseline_weights", "pulse_weights"}
 
 
 def _expected_sensory(pending_rows: list, t: int, stop: int) -> list[list]:
@@ -231,6 +240,9 @@ def _structure(data, mode, seed, plan, out) -> None:
             out.append(f"meta の {k} が {meta.get(k)}")
     if meta.get("manifest") != M.manifest_raw():
         out.append("meta の設計図が AS1 の設計図と違う")
+    want_blind = {"smoke": True, "formal": False}.get(mode)            # 合成はどちらでもよい（契約テストのため）
+    if not isinstance(meta.get("blind"), bool) or (want_blind is not None and meta["blind"] is not want_blind):
+        out.append(f"meta の blind が {meta.get('blind')}（smoke は盲検、本番は盲検でない）")
     for ev in run["events"]:
         if set(ev) != EVENT_KEYS or set(ev["systems"]) != set(SYSTEMS) or any(set(s) != SYSTEM_KEYS for s in ev["systems"].values()):
             out.append(f"出来事 t={ev.get('t')} の欄が違う")
@@ -314,21 +326,32 @@ def _o4_o5(run, o4, o5) -> None:
             hist = s["history"]
             if (name == "N" and hist) or (name != "N" and (len(hist) != 1 or hist[0][0] != t)):
                 o5.append(f"{where}：{name} の宣言が、Pulse t の境界の一度だけになっていない")
-        for name in ("F_CF", "N_CF"):
-            wc = sy[name]["weight_changes"]                  # Pulse ごとの末尾の重みの、変わった時点の列（監査 026）
-            if not wc or len(wc) != 1 or wc[0][0] != t:
-                o5.append(f"{where}：{name} の FREEZE の区間で可塑的な重みが変わった")
-            frozen = sy[name]["interventions"]["frozen"]
-            if wc and (sorted(frozen) != PLASTIC or any(frozen[c]["weight"] != wc[0][1].get(c) for c in frozen)
-                       or any(v.get("policy") != "advance" for v in frozen.values())):
+        for name in ("F_CF", "N_CF"):                       # Pulse ごとの証拠（監査 026）
+            s = sy[name]
+            base, rows, stop = s["baseline_weights"], s["pulse_weights"], s["stopped_at"]
+            frozen = s["interventions"]["frozen"]
+            if not isinstance(base, dict) or sorted(base) != PLASTIC:
+                o5.append(f"{where}：{name} の分岐の時点の重みの記録がない・接続が足りない")
+                continue
+            if sorted(frozen) != PLASTIC or any(frozen[c]["weight"] != base[c] or frozen[c].get("policy") != "advance"
+                                                for c in PLASTIC):
                 o5.append(f"{where}：{name} の FREEZE の宣言の時点の基準が、分岐の時点の重みと違う")
-        if sy["F_CF"]["weight_changes"] and sy["N_CF"]["weight_changes"] \
-                and sy["F_CF"]["weight_changes"][0][1] != sy["N_CF"]["weight_changes"][0][1]:
+            if not isinstance(rows, list) or [r[0] for r in rows] != list(range(t + 1, stop + 1)):
+                o5.append(f"{where}：{name} の Pulse ごとの重みの記録が、t + 1 から止まった Pulse まで欠けなく続いていない")
+            elif any(sorted(r[1]) != PLASTIC or any(r[1][c] != base[c] for c in PLASTIC) for r in rows):
+                o5.append(f"{where}：{name} の FREEZE の区間で、ある Pulse の可塑的な重みが基準と違う")
+        if isinstance(sy["F_CF"]["baseline_weights"], dict) and sy["F_CF"]["baseline_weights"] != sy["N_CF"]["baseline_weights"]:
             o5.append(f"{where}：F_CF と N_CF の分岐の時点の重みが違う")
         for name in ("F_FB", "N_FB"):
-            mw = sy[name]["masked_weights"]
-            if mw is None or len(mw) != sy[name]["stopped_at"] - t or any(w != 0.0 for w in mw):
-                o5.append(f"{where}：{name} で 受 → 源 の伝達に渡す重みが 0 になっていない")
+            mw, stop = sy[name]["masked_weights"], sy[name]["stopped_at"]
+            if not isinstance(mw, list) or [r[0] for r in mw] != list(range(t + 1, stop + 1)) or any(r[1] != 0.0 for r in mw):
+                o5.append(f"{where}：{name} で、t + 1 から止まった Pulse までのどこかで、受 → 源 の伝達に渡す重みが 0 でない・記録が欠けた")
+        for name in ("N", "F_FB", "N_FB"):
+            if sy[name]["baseline_weights"] is not None or sy[name]["pulse_weights"] is not None:
+                o5.append(f"{where}：{name} に CF の系の記録の欄がある")
+        for name in ("N", "F_CF", "N_CF"):
+            if sy[name]["masked_weights"] is not None:
+                o5.append(f"{where}：{name} に FB の系の記録の欄がある")
 
 
 def _o6(seed, mode, out) -> None:
@@ -378,31 +401,136 @@ def verify_records(out: Path, mode: str, seeds: list[int]) -> dict:
             "measurement_commit": commit if G.SHA_RE.match(str(commit)) else None}
 
 
-def analyze_runs(runs: Mapping[int, dict], mode: str, plan: "M.Plan | None" = None) -> dict:
-    """生の記録（seed → raw）から、確認と（本番・合成で、すべて成り立てば）判定の report の中身を作る。"""
+def check_blinded(data: Mapping, seed: int, mode: str = "smoke") -> dict[str, str]:
+    """smoke の盲検の記録の確かめ。確認の名前 → ok・fail。形が違えば structure を fail にする（理由の文は書かない）。
+    O6（seed の範囲と、これまでの seed）は、記録に頼らずここで確かめ直す。"""
+    status = {k: "fail" for k in CHECK_NAMES}
+    try:
+        meta, blind = data["meta"], data["blind"]
+        ok_shape = (set(data) == {"meta", "blind"} and set(blind) == BLIND_KEYS
+                    and set(blind["checks"]) == set(CHECK_NAMES)
+                    and all(v in ("ok", "fail") for v in blind["checks"].values())
+                    and bool(SHA256_RE.match(str(blind["raw_sha256"])))
+                    and all(meta.get(k) == v for k, v in (("experiment", EXPERIMENT), ("kind", KIND), ("mode", mode),
+                                                          ("seed", seed)))
+                    and meta.get("blind") is True
+                    and meta.get("manifest") == M.manifest_raw())
+    except (KeyError, TypeError, AttributeError):
+        ok_shape = False
+    if not ok_shape:
+        return status
+    status = dict(blind["checks"])
+    o6: list[str] = []
+    _o6(seed, mode, o6)
+    if o6:
+        status["O6"] = "fail"
+    return status
+
+
+def o1_check(out: Path, commit: str | None) -> list[str]:
+    """O1 の証拠（README §7）：run.py が測定の commit で契約テストを実際に走らせた記録を確かめる。成り立たない理由の列（空なら成り立つ）。
+    テストのファイルの SHA-256 は、解析の道具の HEAD（＝ 測定の commit。main で先に確かめる）のファイルと照らす。"""
+    path = out / O1_FILE
+    if not path.exists():
+        return [f"{O1_FILE} がない（測定の commit で契約テストを走らせた記録がない）"]
+    try:
+        rec = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        return [f"{O1_FILE} を読めない（{e!r}）"]
+    problems = []
+    if not isinstance(rec, dict) or set(rec) != O1_KEYS:
+        return [f"{O1_FILE} の欄が違う"]
+    if rec["measurement_commit"] != commit:
+        problems.append("契約テストを走らせた commit が測定の commit と違う")
+    if rec["exit_code"] != 0:
+        problems.append(f"契約テストの終了コードが {rec['exit_code']}")
+    summary = str(rec["summary"])
+    if " passed" not in summary or any(w in summary for w in (" failed", " error")):
+        problems.append(f"契約テストの結果の行が、すべて通ったことを示していない（{summary}）")
+    if list(rec["command"])[-len(CONTRACT_TESTS):] != list(CONTRACT_TESTS):
+        problems.append("走らせた契約テストの組が違う")
+    files = rec["test_files_sha256"]
+    if not isinstance(files, dict) or set(files) != set(CONTRACT_TESTS):
+        problems.append("テストのファイルの SHA-256 の組が違う")
+    else:
+        for f, sha in files.items():
+            if sha != G.sha256_file(REPO / f):
+                problems.append(f"{f} の SHA-256 が、測定の commit のものと違う")
+    return problems
+
+
+def analyze_runs(runs: Mapping[int, dict], mode: str, plan: "M.Plan | None" = None, *, o1: list[str]) -> dict:
+    """記録（seed → 本番・合成なら生の記録、smoke なら盲検の記録）と O1 の確かめの結果（o1_check）から、確認と
+    （本番・合成で、すべて成り立てば）判定の report の中身を作る。"""
+    o1_status = "fail" if o1 else "ok"
+    if mode == "smoke":                                      # 盲検：確認ごとの ok・fail だけ（理由の文・数値は書かない）
+        checks = {str(s): check_blinded(data, s) for s, data in sorted(runs.items())}
+        return {"mode": "smoke", "O1": o1_status, "checks": checks,
+                "valid": not o1 and all(v == "ok" for c in checks.values() for v in c.values())}
     checks = {s: check_seed(data, mode, s, plan) for s, data in sorted(runs.items())}
     failed = {s: {k: v for k, v in c.items() if v} for s, c in checks.items() if any(c.values())}
-    if mode == "smoke":                                      # 盲検：確認の ok・fail と、成り立たなかった確認の名前だけ
-        return {"mode": "smoke", "checks": {str(s): {k: ("fail" if v else "ok") for k, v in c.items()} for s, c in checks.items()},
-                "valid": not failed}
-    if failed:
-        return {"mode": mode, "valid": False, "failed_checks": {str(s): v for s, v in failed.items()},
-                "judgment": None}
+    if failed or o1:
+        return {"mode": mode, "valid": False, "O1": {"status": o1_status, "problems": o1},
+                "failed_checks": {str(s): v for s, v in failed.items()}, "judgment": None}
     individuals = {str(s): individual(data["run"]) for s, data in sorted(runs.items())}
     weights = {str(s): {p: {"weights": {c: v["weight"] for c, v in st.items()}, "pair_sums": {"-".join(k): v for k, v in
                                                                                              A.pair_sums(st).items()}}
                         for p, st in data["run"]["body"]["checkpoints"].items()}
                for s, data in sorted(runs.items())}
-    return {"mode": mode, "valid": True, "judgment": {"J_A": judge(individuals)},
-            "individuals": individuals, "R5_weights": weights,
-            "O1": "the contract tests at the measurement commit (not re-run by analyze.py)"}
+    return {"mode": mode, "valid": True, "O1": {"status": o1_status, "problems": o1},
+            "judgment": {"J_A": judge(individuals)}, "individuals": individuals, "R5_weights": weights}
+
+
+# ---- 結果の写し（protocol の records.save「results/<seed>.json」と guard の形の対応） ---------------------------
+#
+# 本番の記録は guard の形（data/experiments/0034/seeds/<seed>/raw.json.gz ほか）で保存する。結果の PR では、出力先の全体を
+# experiments/0034_as1_feedback_next_intent/results/ にバイトのまま写す（results/seeds/<seed>/raw.json.gz が、protocol の
+# results/<seed>.json に当たる：中身は R1〜R6 を計算する元と O2〜O5 の生の記録で、同じ）。写した後、verify_results_copy で、
+# ファイルの組とすべての SHA-256 が元と同じこと、各 seed の raw が終了の記録の raw_file_sha256 と同じこと、report の測定の
+# commit が記録の commit と同じことを確かめてから commit する（取り違え・書き換えを止める）。
+
+def verify_results_copy(src: Path, dst: Path) -> list[str]:
+    """出力先 src と写し dst の照合。成り立たない理由の列（空なら成り立つ）。鍵のファイル（run.lock）は写さない。"""
+    def files(root: Path) -> dict[str, str]:
+        return {str(p.relative_to(root)): G.sha256_file(p) for p in sorted(root.rglob("*"))
+                if p.is_file() and p.name != G.LOCK}
+    problems = []
+    a, b = files(src), files(dst)
+    if set(a) != set(b):
+        problems.append(f"ファイルの組が違う（元だけ：{sorted(set(a) - set(b))}、写しだけ：{sorted(set(b) - set(a))}）")
+    problems += [f"{f} の SHA-256 が元と違う" for f in sorted(set(a) & set(b)) if a[f] != b[f]]
+    found = G.scan(dst)
+    problems += found["anomalies"]
+    commits = set()
+    for s, (st, _) in sorted(found["seeds"].items()):
+        rec = G.read_seed(dst, s)
+        if st != "completed":
+            problems.append(f"写しの seed {s} が {st}")
+            continue
+        commits.add(rec["start"].get("measurement_commit"))
+        if G.sha256_file(G.seed_dir(dst, s) / G.RAW) != rec["finish"].get("raw_file_sha256"):
+            problems.append(f"写しの seed {s} の raw が終了の記録の SHA-256 と違う")
+    if (dst / REPORT).exists():
+        rep = json.loads((dst / REPORT).read_text(encoding="utf-8"))
+        if commits != {rep.get("measurement_commit")}:
+            problems.append("report の測定の commit が、記録の測定の commit と違う")
+    else:
+        problems.append("写しに report がない")
+    return problems
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("out", nargs="?", type=Path, default=None)
     parser.add_argument("--smoke", action="store_true")
+    parser.add_argument("--verify-copy", type=Path, default=None, help="本番の出力先とその写し（results/）を照合するだけ")
     args = parser.parse_args()
+    if args.verify_copy is not None:
+        problems = verify_results_copy(REPO / OUT_DIR, args.verify_copy)
+        if problems:
+            raise SystemExit("写しが元と違う：\n- " + "\n- ".join(problems))
+        print(f"写しは元と同じ：{args.verify_copy}")
+        return
     ALIGN.check(PROTOCOL)
     mode = "smoke" if args.smoke else "formal"
     out = (args.out if args.smoke else REPO / OUT_DIR)
@@ -428,10 +556,13 @@ def main() -> None:
             runs[s] = read_raw(raw)
     with open(out / LOG, "a", encoding="utf-8") as f:
         f.write(json.dumps({"event": "start", "at": G.now_iso(), "inputs": shas}) + "\n")
+    o1 = o1_check(out, records["measurement_commit"])
     if records["state"] == "failed":
-        report = {"mode": mode, "valid": False, "record_problems": records["problems"], "judgment": None}
+        report = {"mode": mode, "valid": False, "record_problems": records["problems"],
+                  "O1": ("fail" if o1 else "ok") if mode == "smoke" else {"status": "fail" if o1 else "ok", "problems": o1},
+                  "judgment": None}
     else:
-        report = analyze_runs(runs, mode)
+        report = analyze_runs(runs, mode, o1=o1)
     G.verify_clean_commit(REPO, records["measurement_commit"])
     report["measurement_commit"] = records["measurement_commit"]
     G.write_once(out / REPORT, json.dumps(report, ensure_ascii=False, indent=1).encode("utf-8"))

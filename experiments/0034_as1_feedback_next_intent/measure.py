@@ -91,18 +91,23 @@ def _jsonable(x):
 
 
 def _run_branch(system, t: int, horizon: int, *, masked_key=None, record_weights: bool = False) -> dict:
-    """t の処理の後から、最初の意図か t ＋ H まで 1 Pulse ずつ進め、記録を返す（τ の検知は道具の advance_until_first_intent）。"""
+    """t の処理の後から、最初の意図か t ＋ H まで 1 Pulse ずつ進め、記録を返す（τ の検知は道具の advance_until_first_intent）。
+
+    介入の証拠は Pulse ごとに残す（監査 026、#150 のレビューの必須 2）：
+    - FB の系：Pulse p の冒頭に伝達へ渡した 受 → 源 の重みを [p, w] で、t ＋ 1 から止まった Pulse まで欠けなく
+    - CF の系：分岐の時点（t の末尾）の 6 本の重み（baseline_weights）と、Pulse p の末尾の 6 本の重みを [p, {接続: w}] で、
+      t ＋ 1 から止まった Pulse まで欠けなく
+    """
     tau = None
-    masked_weights: list[float] = []
-    weight_changes: list[list] = [[t, _plastic_weights(system)]] if record_weights else []
+    masked_weights: list[list] = []
+    baseline = _plastic_weights(system) if record_weights else None
+    pulse_weights: list[list] = []
     for p in range(t, t + horizon):
         found = A.advance_until_first_intent(system, p, p + 1)
         if masked_key is not None:
-            masked_weights.append(system.connections.last_returned[masked_key])
+            masked_weights.append([p + 1, system.connections.last_returned[masked_key]])
         if record_weights:
-            w = _plastic_weights(system)
-            if w != weight_changes[-1][1]:
-                weight_changes.append([p + 1, w])
+            pulse_weights.append([p + 1, _plastic_weights(system)])
         if found is not None:
             tau = found
             break
@@ -114,7 +119,8 @@ def _run_branch(system, t: int, horizon: int, *, masked_key=None, record_weights
         "history": [[b, label, [[iv.kind, sorted(iv.targets), iv.trace_policy] for iv in active]]
                     for b, label, active in system.connections.history],
         "masked_weights": masked_weights if masked_key is not None else None,
-        "weight_changes": weight_changes if record_weights else None,
+        "baseline_weights": baseline,
+        "pulse_weights": pulse_weights if record_weights else None,
     }
 
 

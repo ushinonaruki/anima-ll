@@ -51,7 +51,7 @@ def _repo_root(monkeypatch) -> None:
 
 def _raw(run: dict, mode: str = "synthetic") -> dict:
     return {"meta": {"experiment": "0034", "kind": PROTOCOL["kind"], "mode": mode, "seed": run["seed"],
-                     "manifest": M.manifest_raw()}, "run": run}
+                     "manifest": M.manifest_raw(), "blind": mode == "smoke"}, "run": run}
 
 
 @functools.lru_cache(maxsize=None)
@@ -161,13 +161,46 @@ def test_o4_detects_wrong_cancellation_or_sensory() -> None:
 
 
 def test_o5_detects_a_broken_intervention() -> None:
-    _tampered(lambda r: r["events"][0]["systems"]["F_FB"]["masked_weights"].__setitem__(0, 0.004), "O5")
-    _tampered(lambda r: r["events"][0]["systems"]["N_CF"]["weight_changes"].append(
-        [r["events"][0]["t"] + 1, r["events"][0]["systems"]["N_CF"]["weight_changes"][0][1]]), "O5")
+    _tampered(lambda r: r["events"][0]["systems"]["F_FB"]["masked_weights"][0].__setitem__(1, 0.004), "O5")   # 値
+    _tampered(lambda r: r["events"][0]["systems"]["N_FB"]["masked_weights"].pop(), "O5")              # 最後の Pulse の欠け
     _tampered(lambda r: r["events"][0]["systems"]["F_CF"]["interventions"]["active"].clear(), "O5")
     _tampered(lambda r: r["events"][0]["systems"]["N"]["history"].append([0, "x", []]), "O5")
     _tampered(lambda r: next(iter(r["events"][0]["systems"]["F_CF"]["interventions"]["frozen"].values())).update(weight=0.0042), "O5")
-    _tampered(lambda r: r["events"][0]["systems"]["N_FB"]["masked_weights"].pop(), "O5")    # Pulse ごとの証拠の欠け
+    _tampered(lambda r: r["events"][0]["systems"]["N_CF"].update(baseline_weights={}), "O5")
+    _tampered(lambda r: r["events"][0]["systems"]["F_CF"]["baseline_weights"].update({AN.PLASTIC[0]: 0.0047}), "O5")   # 基準の改ざん
+    _tampered(lambda r: [r["events"][0]["systems"][n]["baseline_weights"].update({AN.PLASTIC[0]: 0.0047})
+                         for n in ("F_CF", "N_CF")], "O5")                       # 両方の基準を同じに書き換えても、凍結の参照・Pulse ごとの値と合わない
+
+
+def _longest_cf_event(run) -> int:
+    """CF の系の Pulse ごとの記録がいちばん長い出来事の番号（中間の Pulse の欠けを作るため。決定的に選ぶ）。"""
+    lengths = [len(ev["systems"]["F_CF"]["pulse_weights"]) for ev in run["events"]]
+    return max(range(len(lengths)), key=lambda i: (lengths[i], -i))
+
+
+def test_o5_detects_a_missing_middle_pulse_or_a_changed_value_in_freeze() -> None:
+    seed = first_with_events()
+    base = measured(seed)
+    k = _longest_cf_event(base["run"])
+    assert len(base["run"]["events"][k]["systems"]["F_CF"]["pulse_weights"]) >= 3   # 中間の Pulse がある
+    for f in (lambda rows: rows.pop(len(rows) // 2),                                  # 中間の Pulse の欠け
+              lambda rows: rows[len(rows) // 2][1].update({next(iter(rows[0][1])): 0.0049}),   # 値の変更
+              lambda rows: rows[len(rows) // 2][1].pop(next(iter(rows[0][1]))),       # 接続の欠け
+              lambda rows: rows.__setitem__(len(rows) // 2, [rows[len(rows) // 2][0] + 1000, rows[len(rows) // 2][1]])):
+        data = measured(seed)
+        f(data["run"]["events"][k]["systems"]["N_CF"]["pulse_weights"])
+        assert "O5" in failures(data, seed)
+
+
+def test_o5_detects_a_missing_middle_pulse_in_fb1() -> None:
+    seed = first_with_events()
+    data = measured(seed)
+    lengths = [len(ev["systems"]["F_FB"]["masked_weights"]) for ev in data["run"]["events"]]
+    k = max(range(len(lengths)), key=lambda i: (lengths[i], -i))
+    rows = data["run"]["events"][k]["systems"]["F_FB"]["masked_weights"]
+    assert len(rows) >= 3
+    rows.pop(len(rows) // 2)
+    assert "O5" in failures(data, seed)
 
 
 def test_o4_compares_only_the_post_branch_slice() -> None:
@@ -247,24 +280,30 @@ def test_clopper_pearson_known_values() -> None:
     assert AN.clopper_pearson(0, 10)[0] == 0.0 and AN.clopper_pearson(10, 10)[1] == 1.0
 
 
-def test_analysis_of_the_synthetic_individuals_runs_through_and_smoke_is_blind() -> None:
+def test_analysis_of_the_synthetic_individuals_runs_through() -> None:
     runs = {s: measured(s) for s in SYN}
-    report = AN.analyze_runs(runs, "synthetic", SMALL)
+    report = AN.analyze_runs(runs, "synthetic", SMALL, o1=[])
     assert report["valid"] is True and set(report["judgment"]["J_A"]) >= {"m", "count_P_i", "status"}
-    assert set(report["individuals"]) == {str(s) for s in SYN}
-    smoke = AN.analyze_runs({s: dict(measured(s), meta=dict(measured(s)["meta"], mode="smoke")) for s in SYN[:2]}, "smoke", SMALL)
-    text = json.dumps(smoke)
-    assert set(smoke) == {"mode", "checks", "valid"}
-    for name in ("events", "tau", "d_e", "n_plus", "P_i", "weights", "judgment"):
-        assert name not in text, name
+    assert set(report["individuals"]) == {str(s) for s in SYN} and report["O1"]["status"] == "ok"
 
 
-def test_an_invalid_individual_blocks_the_judgment() -> None:
+def test_an_invalid_individual_or_a_failed_o1_blocks_the_judgment() -> None:
     runs = {s: measured(s) for s in SYN}
+    report = AN.analyze_runs(runs, "synthetic", SMALL, o1=["x"])
+    assert report["valid"] is False and report["judgment"] is None and report["O1"]["status"] == "fail"
     s = first_with_events()
     runs[s]["run"]["events"][0]["n_pending"] = copy.deepcopy(runs[s]["run"]["events"][0]["body_pending"])
-    report = AN.analyze_runs(runs, "synthetic", SMALL)
+    report = AN.analyze_runs(runs, "synthetic", SMALL, o1=[])
     assert report["valid"] is False and report["judgment"] is None and str(s) in report["failed_checks"]
+
+
+def test_meta_blind_must_match_the_mode() -> None:
+    s = SYN[0]
+    data = measured(s)
+    data["meta"]["blind"] = "no"
+    assert "structure" in failures(data, s)
+    assert AN.check_seed(dict(measured(s), meta=dict(measured(s)["meta"], blind=True)), "synthetic", s, SMALL)["structure"] == []
+    assert AN.check_seed(dict(measured(s), meta=dict(measured(s)["meta"], blind=True)), "formal", s, SMALL)["structure"]
 
 
 # ---- 一度限りの実行（guard と run.execute。dummy の計算） -------------------------------------------------
@@ -356,5 +395,195 @@ def test_records_state_and_the_synthetic_pipeline_through_run_and_analyze(repo, 
     records = AN.verify_records(out, "synthetic", seeds)
     assert records["state"] == "complete" and records["measurement_commit"] == _git(repo, "rev-parse", "HEAD")
     runs = {s: AN.read_raw(R.G.seed_dir(out, s) / R.G.RAW) for s in seeds}
-    report = AN.analyze_runs(runs, "synthetic", SMALL)
+    report = AN.analyze_runs(runs, "synthetic", SMALL, o1=[])
     assert report["valid"] is True and report["judgment"]["J_A"]["status"] == "inconclusive"   # 3 個体なので m ＜ 10
+
+
+# ---- smoke の盲検（#150 のレビューの必須 1）：現象の数値を保存しない -------------------------------------------
+
+# 盲検の記録・実行の記録に現れてはいけない欄（生の記録の欄と、判定の量）
+FORBIDDEN_KEYS = ((AN.RUN_KEYS - {"seed", "plan", "roles"}) | AN.BODY_KEYS | AN.EVENT_KEYS | AN.SYSTEM_KEYS
+                  | {"run", "s_e", "d_e", "n_plus", "n_minus", "P_i", "J_A", "judgment", "individuals", "R5_weights"})
+META_KEYS = {"experiment", "kind", "mode", "seed", "measurement_commit", "protocol_sha256", "protocol", "manifest", "blind"}
+
+
+def _keys(x, path=()):
+    """JSON の値の中の、すべての (経路, 欄の名前)。meta の protocol・manifest（実行の前に決まっている定数）は見ない。"""
+    if isinstance(x, dict):
+        for k, v in x.items():
+            yield path, k
+            if path == ("meta",) and k in ("protocol", "manifest"):
+                continue
+            yield from _keys(v, path + (k,))
+    elif isinstance(x, list):
+        for v in x:
+            yield from _keys(v, path)
+
+
+def _blind_exec(repo, out, seeds):
+    return R.execute("synthetic", seeds, out, repo, _git(repo, "rev-parse", "HEAD"),
+                     runner=functools.partial(M.measure_seed, PROTOCOL, plan=SMALL),
+                     executor_factory=SerialExecutor, blind=True, check_plan=SMALL)
+
+
+def test_blind_execution_stores_no_phenomenon_values(repo, tmp_path, monkeypatch, capsys) -> None:
+    """smoke と同じ盲検の実行を合成の seed で行い、出力先のすべてのファイルに、現象の数値・判定の量が無いことを確かめる。"""
+    monkeypatch.setattr(R, "REPO", repo)
+    out = tmp_path / "out"
+    seeds = [first_with_events(), next(s for s in SYN if not measured(s)["run"]["events"]), SYN[-1]]
+    done = _blind_exec(repo, out, seeds)
+    assert done["completed"] == sorted(seeds)
+    printed = capsys.readouterr().out
+    assert all(line.endswith(f"/{len(seeds)})") for line in printed.splitlines() if line.startswith("seed "))   # 時間を表示しない
+    files = sorted(p for p in out.rglob("*") if p.is_file() and p != out / R.G.LOCK)
+    assert (out / R.G.LOCK).read_bytes() == b""                 # 同時の実行を止める鍵のファイル（空）
+    assert {p.name for p in files} == {R.G.START, R.G.FINISH, R.G.RAW} and len(files) == 3 * len(seeds)
+    for p in files:
+        data = json.loads(gzip.decompress(p.read_bytes()) if p.name.endswith(".gz") else p.read_bytes())
+        bad = {k for _, k in _keys(data) if k in FORBIDDEN_KEYS}
+        assert not bad, (p, bad)
+        if p.name == R.G.FINISH:
+            assert data["seconds"] is None                      # 実行の時間（出来事の多さの手がかり）も残さない
+        if p.name == R.G.RAW:
+            s = data["meta"]["seed"]
+            assert set(data) == {"meta", "blind"} and set(data["meta"]) == META_KEYS and set(data["blind"]) == AN.BLIND_KEYS
+            assert data["meta"]["protocol"] == json.loads(json.dumps(PROTOCOL)) and data["meta"]["manifest"] == M.manifest_raw()
+            assert data["blind"]["checks"] == {k: "ok" for k in AN.CHECK_NAMES}
+            # 整合の記録：メモリの中の生の記録（同じ計算をし直したもの）の SHA-256 と一致する（中身は戻せない）
+            again = {"meta": data["meta"], "run": M.measure_seed(PROTOCOL, s, SMALL)}
+            canonical = json.dumps(json.loads(json.dumps(again)), separators=(",", ":"), sort_keys=True).encode("utf-8")
+            assert data["blind"]["raw_sha256"] == R.G.sha256_bytes(canonical)
+            assert AN.check_blinded(data, s, "synthetic") == {k: "ok" for k in AN.CHECK_NAMES}
+
+
+def test_blinded_record_marks_a_failed_check_without_reasons() -> None:
+    s = first_with_events()
+    data = measured(s)
+    data["meta"]["blind"] = True
+    data["run"]["events"][0]["n_pending"] = copy.deepcopy(data["run"]["events"][0]["body_pending"])
+    rec = R.blinded(data, "synthetic", s, SMALL)
+    assert set(rec) == {"meta", "blind"} and set(rec["blind"]) == AN.BLIND_KEYS
+    assert rec["blind"]["checks"]["O4"] == "fail" and set(rec["blind"]["checks"].values()) <= {"ok", "fail"}
+
+
+def test_smoke_report_reads_blinded_records_and_rechecks_o6() -> None:
+    s = SYN[0]
+    data = measured(s)
+    data["meta"]["blind"] = True
+    rec = R.blinded(data, "synthetic", s, SMALL)
+    rec["meta"]["mode"] = "smoke"
+    report = AN.analyze_runs({s: rec}, "smoke", o1=[])
+    assert set(report) == {"mode", "O1", "checks", "valid"} and report["O1"] == "ok"
+    assert report["checks"][str(s)]["O6"] == "fail" and report["valid"] is False        # 合成の seed は smoke の範囲の外
+    assert {v for k, v in report["checks"][str(s)].items() if k != "O6"} == {"ok"}
+    broken = copy.deepcopy(rec)
+    broken["blind"]["extra"] = 1
+    assert AN.check_blinded(broken, s, "smoke") == {k: "fail" for k in AN.CHECK_NAMES}
+    leaked = dict(copy.deepcopy(rec), run=data["run"])                                    # 生の記録を混ぜた記録は通さない
+    assert AN.check_blinded(leaked, s, "smoke") == {k: "fail" for k in AN.CHECK_NAMES}
+    assert AN.analyze_runs({s: rec}, "smoke", o1=["x"])["O1"] == "fail"
+
+
+def test_smoke_must_be_blind_and_formal_must_not(repo, tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(R, "REPO", repo)
+    commit = _git(repo, "rev-parse", "HEAD")
+    for mode, kw in (("smoke", {"blind": False}), ("formal", {"blind": True}), ("smoke", {"check_plan": SMALL}),
+                     ("formal", {"check_plan": SMALL})):
+        out = tmp_path / f"o_{mode}_{len(kw)}_{sorted(kw)[0]}"
+        with pytest.raises(R.G.GuardError):                     # seed に触れる前に止まる（seed は合成の範囲のもの）
+            R.execute(mode, GUARD_SEEDS[:1], out, repo, commit, runner=_dummy, executor_factory=SerialExecutor, **kw)
+        assert not out.exists()
+
+
+# ---- O1 の証拠（測定の commit で契約テストを実際に走らせた記録） ---------------------------------------------
+
+class _Proc:
+    def __init__(self, code: int, stdout: str) -> None:
+        self.returncode, self.stdout = code, stdout
+
+
+def _o1_repo(repo: Path) -> str:
+    for f in AN.CONTRACT_TESTS:
+        (repo / f).parent.mkdir(parents=True, exist_ok=True)
+        (repo / f).write_text(f"# {f}\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "tests")
+    return _git(repo, "rev-parse", "HEAD")
+
+
+def test_o1_records_the_real_contract_test_run_once(repo, tmp_path, monkeypatch) -> None:
+    commit = _o1_repo(repo)
+    monkeypatch.setattr(AN, "REPO", repo)
+    calls = []
+
+    def ok(cmd, **kw):
+        calls.append((cmd, kw["cwd"]))
+        return _Proc(0, "....\n150 passed in 9.0s\n")
+    out = tmp_path / "out"
+    rec = R.record_contract_tests(repo, out, commit, run=ok)
+    assert rec["exit_code"] == 0 and rec["summary"] == "150 passed in 9.0s" and calls[0][1] == repo
+    assert calls[0][0][1:] == ["-m", "pytest", "-q", *AN.CONTRACT_TESTS]
+    assert AN.o1_check(out, commit) == []
+    R.record_contract_tests(repo, out, commit, run=lambda *a, **k: pytest.fail("走らせ直さない"))
+    assert AN.o1_check(out, "0" * 40)                                  # 別の commit の記録としては通らない
+    with pytest.raises(R.G.GuardError):
+        R.record_contract_tests(repo, out, "0" * 40, run=ok)
+
+
+def test_o1_failure_or_tampering_is_detected(repo, tmp_path, monkeypatch) -> None:
+    commit = _o1_repo(repo)
+    monkeypatch.setattr(AN, "REPO", repo)
+    out = tmp_path / "out"
+    assert AN.o1_check(out, commit)                                    # 記録がない
+    with pytest.raises(R.G.GuardError):
+        R.record_contract_tests(repo, out, commit, run=lambda *a, **k: _Proc(1, "1 failed, 149 passed in 9.0s\n"))
+    assert AN.o1_check(out, commit)                                    # 通らなかった記録
+    with pytest.raises(R.G.GuardError):
+        R.record_contract_tests(repo, out, commit, run=lambda *a, **k: _Proc(0, "150 passed\n"))   # 書き直さない
+    out2 = tmp_path / "out2"
+    R.record_contract_tests(repo, out2, commit, run=lambda *a, **k: _Proc(0, "150 passed in 9.0s\n"))
+    path = out2 / AN.O1_FILE
+    good = json.loads(path.read_text(encoding="utf-8"))
+    for tamper in (lambda r: r.update(exit_code=2), lambda r: r.update(summary="2 failed, 148 passed"),
+                   lambda r: r["test_files_sha256"].update({AN.CONTRACT_TESTS[0]: "0" * 64}),
+                   lambda r: r.update(command=["python", "-m", "pytest", "-q"]), lambda r: r.pop("at")):
+        bad = copy.deepcopy(good)
+        tamper(bad)
+        path.write_text(json.dumps(bad), encoding="utf-8")
+        assert AN.o1_check(out2, commit), bad
+    (repo / AN.CONTRACT_TESTS[1]).write_text("# changed\n", encoding="utf-8")         # テストのファイルが測定の commit と違う
+    path.write_text(json.dumps(good), encoding="utf-8")
+    assert AN.o1_check(out2, commit)
+    with pytest.raises(R.G.GuardError):                                # 作業ツリーが汚れていれば走らせない
+        R.record_contract_tests(repo, tmp_path / "out3", commit, run=lambda *a, **k: _Proc(0, "1 passed\n"))
+
+
+# ---- 結果の写し（guard の形 → results/）の照合 ------------------------------------------------------------
+
+def test_results_copy_is_verified_byte_for_byte(repo, tmp_path, monkeypatch) -> None:
+    import shutil
+    monkeypatch.setattr(R, "REPO", repo)
+    out = tmp_path / "out"
+    _exec(repo, out, GUARD_SEEDS[:2])
+    (out / AN.REPORT).write_text(json.dumps({"measurement_commit": _git(repo, "rev-parse", "HEAD")}), encoding="utf-8")
+
+    def copy_to(name: str) -> Path:
+        dst = tmp_path / name
+        shutil.copytree(out, dst, ignore=shutil.ignore_patterns(R.G.LOCK))
+        return dst
+    assert AN.verify_results_copy(out, copy_to("ok")) == []
+    swap = copy_to("swap")
+    a, b = (R.G.seed_dir(swap, s) / R.G.RAW for s in GUARD_SEEDS[:2])
+    da, db = a.read_bytes(), b.read_bytes()
+    a.write_bytes(db)
+    b.write_bytes(da)
+    assert AN.verify_results_copy(out, swap)                              # seed の取り違え
+    gone = copy_to("gone")
+    (R.G.seed_dir(gone, GUARD_SEEDS[1]) / R.G.RAW).unlink()
+    assert AN.verify_results_copy(out, gone)                              # 欠け
+    extra = copy_to("extra")
+    (extra / "note.txt").write_text("x", encoding="utf-8")
+    assert AN.verify_results_copy(out, extra)                             # 余分なファイル
+    rep = copy_to("rep")
+    (rep / AN.REPORT).write_text(json.dumps({"measurement_commit": "0" * 40}), encoding="utf-8")
+    assert AN.verify_results_copy(out, rep)
