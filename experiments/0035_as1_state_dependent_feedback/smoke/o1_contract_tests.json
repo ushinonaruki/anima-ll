@@ -1,0 +1,18 @@
+{
+ "measurement_commit": "0a3f64ad216e0d40bd7f6832b33940bdac90935d",
+ "command": [
+  "python",
+  "-m",
+  "pytest",
+  "-q",
+  "tests/integration/test_as1_contract.py",
+  "tests/integration/test_as1_state_dependent_feedback_0035.py"
+ ],
+ "exit_code": 0,
+ "summary": "214 passed in 51.84s",
+ "test_files_sha256": {
+  "tests/integration/test_as1_contract.py": "af788b73f4766d77535d764667cf10e212a7c204ec44e1450a6303098885e60b",
+  "tests/integration/test_as1_state_dependent_feedback_0035.py": "fc657da0def863a63c19f0cf2d135025ddf2c8852d6fd0240fb19446719dc6a7"
+ },
+ "at": "2026-10-30T11:48:58.020191+00:00"
+}
