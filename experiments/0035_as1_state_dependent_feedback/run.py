@@ -26,7 +26,8 @@ seed を単位にした一度限りの実行（guard.py）：
 非公開の値（BLINDED_TIME）を明示して入れ、seed を 1 つずつ順に実行し（終わる順を残さない）、seed ごとの進み具合を表示せず、実行の
 最後に出力先のすべてのファイル・フォルダの時刻を揃える（conceal_times）。開始・終了の記録そのものと一度限りの実行の保護は、本番と同じ。
 **O1**：seed に触れる前に、測定の commit で契約テスト（AS1 の道具の契約テストと、この実験の道具の契約テスト）を走らせ、その結果を
-出力先の o1_contract_tests.json に一度だけ残す（record_contract_tests。通らなければ実行しない）。
+出力先の o1_contract_tests.json に一度だけ残す（record_contract_tests。通らなければ実行しない）。既にある記録を使うときも、
+analyze.o1_check と同じ全項目で確かめ、成り立たなければ seed の開始の記録を作らずに止まる（start。PR #157 のレビュー 5707285287）。
 **結果の写し**：本番の出力先（data/experiments/0035）は、解析の後の結果の PR で experiments/0035_as1_state_dependent_feedback/results/
 にバイトのまま写し、analyze.py --verify-copy で照合してから commit する（0034 と同じ）。
 
@@ -272,16 +273,24 @@ def execute(mode: str, seeds: list[int], out: Path, repo: Path, expected_commit:
             conceal_times(out)
 
 
+def _o1_problems_or_stop(repo: Path, out: Path, commit: str) -> dict:
+    """O1 の記録を、analyze.o1_check と同じ全項目（欄の組・測定の commit・終了コード・結果の行・走らせたテストの組・
+    テストのファイルの SHA-256）で確かめる。成り立たなければ GuardError（seed の開始の記録を作る前に止まる。PR #157 のレビュー
+    5707285287 の修正必須 2）。成り立てば記録を返す。"""
+    problems = AN.o1_check(out, commit, repo)
+    if problems:
+        raise G.GuardError(f"{O1_FILE} が O1 の記録として成り立たない。実行しない：\n- " + "\n- ".join(problems))
+    return json.loads((out / O1_FILE).read_text(encoding="utf-8"))
+
+
 def record_contract_tests(repo: Path, out: Path, commit: str, run=subprocess.run) -> dict:
     """O1 の証拠：測定の commit のきれいな作業ツリーで、契約テストを実際に走らせ、その結果を出力先に一度だけ書く。
-    既にあれば、同じ commit で通った記録であることだけを確かめて使う（走らせ直さない）。通らなければ実行しない。"""
+    既にあれば走らせ直さず、analyze.o1_check と同じ全項目で確かめてから使う（壊れた・改ざんされた記録では実行しない）。
+    新しく書いたときも、同じ確かめを通す。通らなければ実行しない。"""
+    G.verify_clean_commit(repo, commit)
     path = out / O1_FILE
     if path.exists():
-        rec = json.loads(path.read_text(encoding="utf-8"))
-        if rec.get("measurement_commit") != commit or rec.get("exit_code") != 0:
-            raise G.GuardError(f"{O1_FILE} が別の commit のものか、契約テストが通っていない")
-        return rec
-    G.verify_clean_commit(repo, commit)
+        return _o1_problems_or_stop(repo, out, commit)
     cmd = [sys.executable, "-m", "pytest", "-q", *CONTRACT_TESTS]
     proc = run(cmd, cwd=repo, capture_output=True, text=True)
     lines = [ln for ln in (proc.stdout or "").splitlines() if ln.strip()]
@@ -292,7 +301,17 @@ def record_contract_tests(repo: Path, out: Path, commit: str, run=subprocess.run
     G.write_once(path, json.dumps(rec, ensure_ascii=False, indent=1).encode("utf-8"))
     if proc.returncode != 0:
         raise G.GuardError(f"測定の commit で契約テストが通らない（{rec['summary']}）。実行しない")
-    return rec
+    return _o1_problems_or_stop(repo, out, commit)
+
+
+def start(mode: str, seeds: list[int], out: Path, repo: Path, expected_commit: str | None, *, run=subprocess.run,
+          runner: Callable[[int], dict] = measure,
+          executor_factory: Callable[[int], object] = lambda n: ProcessPoolExecutor(max_workers=n)) -> dict:
+    """main の本体：commit を確かめ、O1 を記録・確かめ（seed に触れる前）、それが成り立ったときだけ execute に進む。
+    run・runner・executor_factory は契約テストで差し替えるためにある（main は既定のまま）。"""
+    commit = G.verify_clean_commit(repo, expected_commit)
+    record_contract_tests(repo, out, commit, run=run)                  # O1：seed に触れる前に。成り立たなければここで止まる
+    return execute(mode, seeds, out, repo, expected_commit, runner=runner, executor_factory=executor_factory)
 
 
 def main() -> None:
@@ -318,9 +337,7 @@ def main() -> None:
         mode, out = "smoke", args.out
     seeds = args.seeds if args.seeds is not None else list(allowed_seeds(mode))
     try:
-        commit = G.verify_clean_commit(REPO, args.measurement_commit)
-        record_contract_tests(REPO, out, commit)                       # O1：seed に触れる前に
-        result = execute(mode, seeds, out, REPO, args.measurement_commit)
+        result = start(mode, seeds, out, REPO, args.measurement_commit)   # O1 を確かめてから seed に触れる
     except G.GuardError as e:
         raise SystemExit(f"実行しない・失敗：{e}") from e
     print(f"completed: {result['completed']}")

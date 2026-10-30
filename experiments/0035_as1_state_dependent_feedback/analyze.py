@@ -292,11 +292,14 @@ def auxiliary(individuals: Mapping[str, Mapping], runs: Mapping[int, dict]) -> d
     misses = {s: [{"t": e["t"], "s_hat": e["s_hat"], "s_e": e["s_e"], "other_fired": e["other_fired"]}
                   for e in v["events"] if e["s_e"] != "?" and e["s_hat"] != e["s_e"]] for s, v in individuals.items()}
 
+    def part(es):
+        correct = sum(1 for e in es if e["s_hat"] == e["s_e"])
+        return {"events": len(es), "correct": correct, "accuracy": _rate(correct, len(es))}   # 出来事が 0 なら null
+
     def split(es):
-        quiet = [e for e in es if not e["other_fired"]]
-        fired = [e for e in es if e["other_fired"]]
-        return {"other_quiet": {"events": len(quiet), "correct": sum(1 for e in quiet if e["s_hat"] == e["s_e"])},
-                "other_fired": {"events": len(fired), "correct": sum(1 for e in fired if e["s_hat"] == e["s_e"])}}
+        """R8：評価できる出来事を、(t, u_e] で本体と N のどちらでも他の Unit が発火しなかったものと、それ以外に分けた当たりの割合。"""
+        return {"other_quiet": part([e for e in es if not e["other_fired"]]),
+                "other_fired": part([e for e in es if e["other_fired"]])}
 
     applicable = [s for s, v in individuals.items() if v["applicable"]]
     outside = {s: {"reason": "no_evaluable" if not individuals[s]["evaluable"] else "single_class",
@@ -309,7 +312,8 @@ def auxiliary(individuals: Mapping[str, Mapping], runs: Mapping[int, dict]) -> d
                for s, data in sorted(runs.items())}
     return {
         "R3_alternative_Q_like_counts": {"over_decision_individuals": len(decision), **alt},
-        "R4_misses": {"per_individual": misses,
+        "R4_misses": {"scope": "evaluable events only (s_e != ?) with s_hat != s_e; s_hat never outputs ?",
+                      "per_individual": misses,
                       "pooled": {"misses": sum(len(x) for x in misses.values()),
                                  "other_fired": sum(1 for x in misses.values() for y in x if y["other_fired"])}},
         "R5_pooled_confusion": pooled,
@@ -592,8 +596,11 @@ def check_blinded(data: Mapping, seed: int, mode: str = "smoke") -> dict[str, st
     return status
 
 
-def o1_check(out: Path, commit: str | None) -> list[str]:
-    """O1 の証拠：run.py が測定の commit で契約テストを実際に走らせた記録を確かめる。成り立たない理由の列（空なら成り立つ）。"""
+def o1_check(out: Path, commit: str | None, repo: Path | None = None) -> list[str]:
+    """O1 の証拠：run.py が測定の commit で契約テストを実際に走らせた記録を確かめる。成り立たない理由の列（空なら成り立つ）。
+    テストのファイルの SHA-256 は repo（省略したときは、呼んだ時点のこのモジュールの REPO）のものと比べる。
+    run.py は、seed に触れる前に同じ確かめをする。"""
+    repo = REPO if repo is None else repo
     path = out / O1_FILE
     if not path.exists():
         return [f"{O1_FILE} がない（測定の commit で契約テストを走らせた記録がない）"]
@@ -618,7 +625,7 @@ def o1_check(out: Path, commit: str | None) -> list[str]:
         problems.append("テストのファイルの SHA-256 の組が違う")
     else:
         for f, sha in files.items():
-            if sha != G.sha256_file(REPO / f):
+            if sha != G.sha256_file(repo / f):
                 problems.append(f"{f} の SHA-256 が、測定の commit のものと違う")
     return problems
 

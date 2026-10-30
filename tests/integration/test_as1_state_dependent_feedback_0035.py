@@ -612,10 +612,11 @@ def test_past_rhythm_uses_the_whole_history_up_to_t() -> None:
 # ---- 個体の量・判定の算術（合成の入力） ------------------------------------------------------------
 
 def _individual(monkeypatch, pairs):
-    """出来事ごとの (s_e, ŝ) だけを与えて、個体の量を計算する（ほかの欄は固定の値）。"""
+    """出来事ごとの (s_e, ŝ[, 他の Unit の発火]) だけを与えて、個体の量を計算する（ほかの欄は固定の値）。"""
     def fake(run, ev):
-        s_e, s_hat = pairs[ev["k"]]
-        return {"t": ev["k"], "s_e": s_e, "s_hat": s_hat, "s_direct": "0", "s_rhythm": "0", "other_fired": False}
+        s_e, s_hat, *other = pairs[ev["k"]]
+        return {"t": ev["k"], "s_e": s_e, "s_hat": s_hat, "s_direct": "0", "s_rhythm": "0",
+                "other_fired": bool(other and other[0])}
     monkeypatch.setattr(AN, "event_quantities", fake)
     run = {"roles": {"source": "s1", "receiver": "s2", "other": "s3"}, "body": {"birth_units": {}, "activity": []},
            "events": [{"k": k} for k in range(len(pairs))]}
@@ -732,6 +733,10 @@ def test_auxiliary_records_are_consistent_with_the_individuals() -> None:
     assert sum(aux["R5_pooled_confusion"].values()) == evaluable
     pooled = aux["R8_by_other_unit"]["pooled"]
     assert pooled["other_quiet"]["events"] + pooled["other_fired"]["events"] == evaluable
+    for split in [pooled, *aux["R8_by_other_unit"]["per_individual"].values()]:
+        for part in split.values():
+            assert set(part) == {"events", "correct", "accuracy"}
+            assert part["accuracy"] == (part["correct"] / part["events"] if part["events"] else None)
     assert sum(len(x) for x in aux["R4_misses"]["per_individual"].values()) == aux["R4_misses"]["pooled"]["misses"]
     assert aux["R4_misses"]["pooled"]["misses"] == evaluable - sum(v["correct_rule"] for v in inds.values())
     applicable = {s for s, v in inds.items() if v["applicable"]}
@@ -749,6 +754,29 @@ def test_auxiliary_records_are_consistent_with_the_individuals() -> None:
         for p, st in run["body"]["checkpoints"].items():
             r7 = aux["R7_weights"][s][p]
             assert r7["weights"] == {c: x["weight"] for c, x in st.items()} and set(r7) == {"weights", "traces", "pair_sums"}
+
+
+def test_r8_records_the_accuracy_of_each_part_and_null_for_an_empty_part(monkeypatch) -> None:
+    """R8（README §6）：他の Unit が発火しなかった出来事と、それ以外のそれぞれで、当たりの割合を全体・個体ごとに記録する。
+    区分の出来事が 0 なら null（0 ではない）。評価できない出来事（s_e ＝ ？）は数えない。PR #157 のレビュー 5707285287 の修正必須 1。"""
+    a = _individual(monkeypatch, [("+", "+", False), ("0", "+", False), ("0", "0", True), ("?", "0", True)])
+    b = _individual(monkeypatch, [("+", "+", False), ("-", "-", False)])
+    r8 = AN.auxiliary({"a": a, "b": b}, {})["R8_by_other_unit"]
+    assert r8["per_individual"]["a"] == {"other_quiet": {"events": 2, "correct": 1, "accuracy": 0.5},
+                                         "other_fired": {"events": 1, "correct": 1, "accuracy": 1.0}}
+    assert r8["per_individual"]["b"] == {"other_quiet": {"events": 2, "correct": 2, "accuracy": 1.0},
+                                         "other_fired": {"events": 0, "correct": 0, "accuracy": None}}
+    assert r8["pooled"] == {"other_quiet": {"events": 4, "correct": 3, "accuracy": 0.75},
+                            "other_fired": {"events": 1, "correct": 1, "accuracy": 1.0}}
+    empty = AN.auxiliary({"n": _individual(monkeypatch, [])}, {})["R8_by_other_unit"]
+    assert empty["pooled"]["other_quiet"] == empty["pooled"]["other_fired"] == {"events": 0, "correct": 0, "accuracy": None}
+
+
+def test_r4_states_that_it_covers_evaluable_events_only(monkeypatch) -> None:
+    a = _individual(monkeypatch, [("+", "0", True), ("0", "0", False), ("?", "+", True)])
+    r4 = AN.auxiliary({"a": a}, {})["R4_misses"]
+    assert r4["scope"].startswith("evaluable events only (s_e != ?)")
+    assert r4["per_individual"]["a"] == [{"t": 0, "s_hat": "0", "s_e": "+", "other_fired": True}]   # ？ の出来事は入れない
 
 
 def test_u_e_and_other_unit_come_from_the_saved_firings() -> None:
@@ -1105,6 +1133,83 @@ def test_o1_failure_or_tampering_is_detected(repo, tmp_path, monkeypatch) -> Non
     assert AN.o1_check(out2, commit)
     with pytest.raises(R.G.GuardError):
         R.record_contract_tests(repo, tmp_path / "out3", commit, run=lambda *a, **k: _Proc(0, "1 passed\n"))
+
+
+def _good_o1(repo: Path, out: Path) -> str:
+    commit = _o1_repo(repo)
+    R.record_contract_tests(repo, out, commit, run=lambda *a, **k: _Proc(0, "199 passed in 50.0s\n"))
+    return commit
+
+
+def _never(*a, **k):
+    raise AssertionError("O1 が成り立たないのに、契約テストの実行か seed の計算に進んだ")
+
+
+O1_TAMPERS = (
+    ("終了コード", lambda r: r.update(exit_code=1)),
+    ("結果の行", lambda r: r.update(summary="1 failed, 198 passed in 50.0s")),
+    ("結果の行（passed なし）", lambda r: r.update(summary="no tests ran")),
+    ("テストのファイルの SHA-256", lambda r: r["test_files_sha256"].update({AN.CONTRACT_TESTS[1]: "0" * 64})),
+    ("テストのファイルの組", lambda r: r["test_files_sha256"].pop(AN.CONTRACT_TESTS[0])),
+    ("走らせたコマンド", lambda r: r.update(command=["python", "-m", "pytest", "-q", AN.CONTRACT_TESTS[0]])),
+    ("欄の欠け", lambda r: r.pop("at")),
+    ("余分な欄", lambda r: r.update(note="x")),
+    ("測定の commit", lambda r: r.update(measurement_commit="0" * 40)),
+)
+
+
+@pytest.mark.parametrize("name,tamper", O1_TAMPERS, ids=[n for n, _ in O1_TAMPERS])
+def test_a_broken_o1_record_stops_before_any_seed_is_started(repo, tmp_path, monkeypatch, name, tamper) -> None:
+    """既にある O1 の記録が壊れていれば、走らせ直さず、seed の開始の記録も作らずに止まる（PR #157 のレビュー 5707285287 の
+    修正必須 2）。analyze.o1_check と同じ全項目で確かめる。"""
+    monkeypatch.setattr(R, "REPO", repo)
+    out = tmp_path / "out"
+    commit = _good_o1(repo, out)
+    path = out / AN.O1_FILE
+    rec = json.loads(path.read_text(encoding="utf-8"))
+    tamper(rec)
+    path.write_text(json.dumps(rec), encoding="utf-8")
+    assert AN.o1_check(out, commit, repo)                                     # analyze でも成り立たない記録
+    with pytest.raises(R.G.GuardError):
+        R.start("synthetic", GUARD_SEEDS[:2], out, repo, commit, run=_never, runner=_never, executor_factory=SerialExecutor)
+    assert not (out / R.G.SEEDS_DIR).exists()                                 # seed の開始の記録を 1 つも作っていない
+    with pytest.raises(R.G.GuardError):
+        R.record_contract_tests(repo, out, commit, run=_never)
+
+
+def test_a_broken_o1_record_also_stops_when_the_test_file_differs(repo, tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(R, "REPO", repo)
+    out = tmp_path / "out"
+    commit = _good_o1(repo, out)
+    (repo / AN.CONTRACT_TESTS[1]).write_text("# changed\n", encoding="utf-8")
+    _git(repo, "commit", "-q", "-am", "change the contract test")             # きれいな作業ツリーでも、記録のファイルと違う
+    with pytest.raises(R.G.GuardError):
+        R.start("synthetic", GUARD_SEEDS[:1], out, repo, _git(repo, "rev-parse", "HEAD"), run=_never, runner=_never,
+                executor_factory=SerialExecutor)
+    assert not (out / R.G.SEEDS_DIR).exists() and commit != _git(repo, "rev-parse", "HEAD")
+
+
+def test_a_valid_o1_record_lets_start_run_the_seeds(repo, tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(R, "REPO", repo)
+    out = tmp_path / "out"
+    commit = _good_o1(repo, out)
+    done = R.start("synthetic", GUARD_SEEDS[:2], out, repo, commit, run=_never, runner=_dummy, executor_factory=SerialExecutor)
+    assert done["completed"] == GUARD_SEEDS[:2] and AN.o1_check(out, commit, repo) == []
+
+
+def test_a_fresh_o1_run_that_fails_stops_before_any_seed(repo, tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(R, "REPO", repo)
+    out = tmp_path / "out"
+    commit = _o1_repo(repo)
+    with pytest.raises(R.G.GuardError):
+        R.start("synthetic", GUARD_SEEDS[:1], out, repo, commit, run=lambda *a, **k: _Proc(1, "1 failed in 1.0s\n"),
+                runner=_never, executor_factory=SerialExecutor)
+    assert not (out / R.G.SEEDS_DIR).exists()
+
+
+def test_main_goes_through_start() -> None:
+    src = inspect.getsource(R.main)
+    assert "start(mode, seeds, out, REPO, args.measurement_commit)" in src and "execute(" not in src
 
 
 # ---- 結果の写し（guard の形 → results/）の照合 ------------------------------------------------------------
