@@ -1,0 +1,217 @@
+# 実験 0036 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT・Gemini のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
+#
+# AS1（自発の 1 つの行動、L = 2、外の刺激なし）の閉ループで、区間 W のすべての結果の刺激 e について、0034・0035 と同じ反実仮想
+# （本体 F と、Pulse t の後の複製から e の予約だけを取り消した系 N）に加えて、同じ Σ_t から介入した系を作る（README §2）。
+# 主の対比は、F の中で他の Unit の発火の時刻だけを N のものに固定した系 F^{o:=N} の符号 s_fix（τ_N − τ_{F^{o:=N}}）と、s_e の違い。
+# W に出来事が 10 以上ある個体（判定の母集団。本体だけで決まる）ごとに、評価できる出来事のうち s_fix != s_e の割合が 1 割以上か（P_i）を
+# 数え、母集団の個体の数 m に対する二項の上側の閾値で判定する（README §4・§5）。2 × 2（伝達の遮断 × e）は必ず報告する対照（README §6.1）。
+# 研究設計メモ docs/as1-feedback-pathway-design.md（v0.3、#161 merge 9e5cf52）を具体にしたもの。
+#
+# この案の段階では、この実験の道具の実装・smoke・本番の測定・どの seed の実行もしない（README の Status・§14）。
+# 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を
+# 開示し、新しい版・新しい seed の範囲で行う。
+#
+# 種別：事前登録した検証。主の判定は J_P の 1 つ。
+# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。新しく選んだ値とその理由は README §1.1・§4.3・§5.2。
+
+experiment: "0036"
+kind: preregistered_test
+seeds: {first: 29001, last: 29080}            # 本番。80 個体を全件記録・全件報告する。以後どの実験にも使わない
+smoke_seeds: {first: 29101, last: 29106}      # 操作の確認だけ。盲検。判定の量・現象の数値は計算・表示・保存しない
+synthetic_seeds: {first: 29201, last: 29299}  # 合成の契約テスト専用
+
+tools:
+  base: experiments/as1_closed_loop/as1.py    # #148。FB-1・FREEZE・clone・sigma・advance_until_first_intent をそのまま使う
+  base_change_policy: "only an opt-in hook that does nothing by default, if the forced-firing component needs one (README §2.3); decided in the tool PR, with all AS1 contract tests passing"
+  contract_tests: tests/integration/test_as1_contract.py
+  previous_experiment: experiments/0035_as1_state_dependent_feedback   # 道具の作り（guard・盲検の smoke・O1 の記録・結果の写し・二経路近似）を引き継ぐ
+
+brain:                                  # C0 のまま（0034・0035 と同じ）
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml
+  added_by_tool: {effector: effector.y1, intent_port: intent, intent_projections: "sK.intent -> effector.y1 (K = 1, 2, 3)"}
+  sensory_units: [s1, s2, s3]
+  receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+  receptor_weight: 1.0
+  refractory_pulses: 0
+  plastic_connections: six_s_to_s
+  adaptation_tau_pulses: 300
+
+roles:                                  # 0034・0035 と同じ
+  stream: "as1-roles-{seed}"
+  rule: "random.Random(stream).shuffle([s1, s2, s3]) -> (source, receiver, other)"
+  consequence_receptor: "receptor of receiver"
+
+world:                                  # 0034・0035 と同じ
+  delay_L: 2
+  multiplicity: per_reservation
+  respond: true
+  exogenous: []
+  payload: none
+
+timeline:                               # 0034・0035 と同じ（1 Pulse = 1 秒）
+  pulse_interval_seconds: 1.0
+  event_window:
+    first: "adaptation_tau_pulses + 1"                  # 301
+    last: "6 * adaptation_tau_pulses"                   # 1800
+  branch_pulse: "e.pulse - (delay_L - 1)"
+  horizon_H: "adaptation_tau_pulses"                    # 300
+  body_runs_to: "event_window.last - (delay_L - 1) + horizon_H"   # 2099
+
+events:                                 # 0034・0035 と同じ
+  definition: "all intents at t with consequence reservation e (origin = intent delta id) and e.pulse in event_window"
+  sampling: none
+  pre_branch_state:
+    record: "as1.sigma(body) at the end of pulse t"
+    contents: [units, connections, drives, world, runtime]
+
+systems:                                # README §2.2。すべて clone(body at end of t) から。介入は境界 t で一度だけ宣言し、解除しない
+  F:          {e: delivered, other: natural, plasticity: rule, stop: "tau_F from body.world.intents, else t + H"}
+  N:          {e: cancelled, other: natural, plasticity: rule, stop: "first intent or t + H"}
+  F_fixN:     {e: delivered, other: "forced to N's other firings in (t, stop_N]", plasticity: rule, stop: "first intent or c = stop_N", role: main_contrast}
+  N_fixF:     {e: cancelled, other: "forced to F's other firings in (t, stop_F]", plasticity: rule, stop: "first intent or c = stop_F", role: reverse_order}
+  F_fixF:     {e: delivered, other: "forced to F's own other firings in (t, stop_F]", plasticity: rule, stop: "first intent or c = stop_F", role: identity_check}
+  F_prime:    {e: delivered, other: natural, plasticity: rule, stop: "stop_F", role: "identity reference (no intervention clone)"}
+  F_blk:      {e: delivered, other: "fires; transmission masked", plasticity: rule, stop: "first intent or t + H", role: two_by_two}
+  N_blk:      {e: cancelled, other: "fires; transmission masked", plasticity: rule, stop: "first intent or t + H", role: two_by_two}
+  F_none:     {e: delivered, other: "forced to no firing in (t, t + H]", plasticity: rule, stop: "first intent or t + H", role: suppression_variant}
+  N_none:     {e: cancelled, other: "forced to no firing in (t, t + H]", plasticity: rule, stop: "first intent or t + H", role: suppression_variant}
+  F_cf:       {e: delivered, other: natural, plasticity: "FREEZE six, advance", stop: "first intent or t + H", role: estimand_B}
+  N_cf:       {e: cancelled, other: natural, plasticity: "FREEZE six, advance", stop: "first intent or t + H", role: estimand_B}
+  F_blk_cf:   {e: delivered, other: "fires; transmission masked", plasticity: "FREEZE six, advance", stop: "first intent or t + H", role: two_path_check}
+  N_blk_cf:   {e: cancelled, other: "fires; transmission masked", plasticity: "FREEZE six, advance", stop: "first intent or t + H", role: two_path_check}
+  F_none_cf:  {e: delivered, other: "forced to no firing", plasticity: "FREEZE six, advance", stop: "first intent or t + H", role: two_path_check}
+  N_none_cf:  {e: cancelled, other: "forced to no firing", plasticity: "FREEZE six, advance", stop: "first intent or t + H", role: two_path_check}
+  N_prime:    {e: cancelled, other: natural, plasticity: rule, stop: "same as N", role: "non-interference (0035 O7 b)"}
+  first_intent: "advance_until_first_intent (source fire_count); tau also recomputed from the saved source firings (O5)"
+  reference_not_extended: true          # 参照の系は最初の意図か t + H で止め、延ばさない（README §1.2 の 1）
+
+forced_firing:                          # README §2.3（設計メモ §4.1・§4.2）
+  target: other
+  interval: "(t, stop of the forced system]"
+  state: "Core SimpleActivityDynamics.advance computes the natural state; only the fire decision is taken from the schedule (no reimplementation of the formula)"
+  schedule_fire: "same update as the firing branch of advance (activity 0, refractory_pulses, adaptation + increment, fire_count + 1)"
+  schedule_no_fire: "same update as the non-firing branch of advance, even above threshold"
+  refractory: "refractory_pulses = 0 in C0; a scheduled firing during refractory stops the tool and invalidates the run (O8)"
+  output: "drives created at the firing pulse with that system's weights fixed at the start of the pulse; delivered at the next pulse"
+  plasticity: "scheduled firings are passed in `fired`; the rule uses only whether sender and receiver fired"
+  not_fixed: "other->source and other->receiver weights (they follow that system's plasticity)"
+  identity: "own natural schedule reproduces the natural system over the whole interval where the schedule is defined"
+  delivered_drive_copy_option_b: not_included   # README §1.2 の 3
+  core_change: none
+
+transmission_block:                     # README §2.4
+  mechanism: "AS1 InterventionConnections FB1 (weights() returns 0 for the targets; inner weights follow the rule)"
+  targets: ["{other}.main->{source}", "{other}.main->{receiver}"]
+  declared_at_boundary: t               # Pulse t + 1 の冒頭の重みの固定から効く
+  drives_in_sigma_t: delivered          # Pulse t に作られた駆動（Pulse t の他の Unit の発火によるものを含む）はそのまま届く
+  other_unit: "keeps firing; plasticity follows the rule"
+  same_as_suppression: false
+
+sign:                                   # README §3.2（設計メモ §3.4）。Y − X の符号
+  both_known: "sign(tau_Y - tau_X)"
+  X_known_Y_censored: "'+' if c_Y >= tau_X else '?'"
+  Y_known_X_censored: "'-' if c_X >= tau_Y else '?'"
+  both_censored: "?"
+  value: "only when both are known"
+  censor_pulse: {F: "t + H", N: "t + H", blk: "t + H", none: "t + H", cf: "t + H", F_fixN: "stop_N", N_fixF: "stop_F", F_fixF: "stop_F"}
+
+quantities:                             # README §3.3（X -> Y の順で tau_Y - tau_X）
+  d_e: [F, N]
+  d_fix: [F_fixN, N]                    # 主の対比
+  d_chg: [F, F_fixN]
+  d_fix_rev: [F, N_fixF]
+  d_chg_rev: [N_fixF, N]
+  d_blk: [F_blk, N_blk]
+  d_none: [F_none, N_none]
+  d_cf: [F_cf, N_cf]
+  identity_sum: "d_e = d_fix + d_chg (and d_e = d_fix_rev + d_chg_rev) only when all three tau are known"
+  shortcut_chg_zero: "(1) tau_F known and stop_N >= tau_F, and (2) other firings equal in F and N over (t, tau_F]; then F_fixN = F is checked (O10), never substituted"
+
+judgment:
+  per_individual:
+    applicable: "body F has at least one consequence reservation e with e.pulse in event_window"   # 本体だけで決まる（A3）
+    not_applicable: "no event in event_window"
+    decision_population: "applicable and at least 10 events in event_window (body only; 10 = 1 / c)"   # A3 を満たす。例外を置かない
+    evaluable_events: "s_e != ? and s_fix != ?"
+    n_i: "number of evaluable events"
+    k_i: "number of evaluable events with s_fix != s_e"
+    r_i: "k_i / n_i (null if n_i == 0)"
+    event_P_i: "n_i >= 1 and 10 * k_i >= n_i"   # r_i >= c を整数で比べる
+    zero_evaluable: "kept in the population; P_i is false"
+    c: 0.1
+    direction: "not rare (r_i >= c)"    # README §4.3（設計メモ §0.1 の 5 の見込みの訂正）
+  J_P:
+    min_population: 10
+    m: "number of individuals in the decision population"
+    below_min: inconclusive
+    rule: "count(P_i over the decision population) >= k(m)"
+    k_of_m: {10: 9, 11: 9, 12: 10, 13: 10, 14: 11, 15: 12, 16: 12, 17: 13, 18: 13, 19: 14, 20: 15,
+             21: 15, 22: 16, 23: 16, 24: 17, 25: 18, 26: 18, 27: 19, 28: 19, 29: 20, 30: 20, 31: 21,
+             32: 22, 33: 22, 34: 23, 35: 23, 36: 24, 37: 24, 38: 25, 39: 26, 40: 26, 41: 27, 42: 27,
+             43: 28, 44: 28, 45: 29, 46: 30, 47: 30, 48: 31, 49: 31, 50: 32, 51: 32, 52: 33, 53: 33,
+             54: 34, 55: 35, 56: 35, 57: 36, 58: 36, 59: 37, 60: 37, 61: 38, 62: 38, 63: 39, 64: 40,
+             65: 40, 66: 41, 67: 41, 68: 42, 69: 42, 70: 43, 71: 43, 72: 44, 73: 45, 74: 45, 75: 46,
+             76: 46, 77: 47, 78: 47, 79: 48, 80: 48}
+    k_definition: "smallest k with P(Binomial(m, 1/2) >= k) <= 0.05"
+    alpha: 0.05
+    direction: one_sided
+  null: "H0_P: P(P_i) <= 1/2 for iid Birth States whose body has at least 10 events in W"
+  conditional_inference: "the population depends only on the body; P_i depends only on each individual's own data; the count is dominated by Bin(m, 1/2) under H0_P"
+  model_assumption: "the 0.05 bound holds within a model of iid Birth States; sequential deterministic seeds do not by themselves establish independence"
+  a7_frozen: "individuals where P_i is structurally false (e.g. the other unit never fires) are included (A7 (a)); this side is against establishment"
+  not_a_test_of: "pathway contribution or mechanism (README §0.2・§0.3)"
+
+reported_control:                       # README §6.1。必ず報告する。検定はしない
+  two_by_two:
+    per_event: [d_blk, s_blk, "d_e - d_blk (both values known)", "s_e != s_blk"]
+    per_individual: ["n_blk_i: s_e != ? and s_blk != ?", "k_blk_i: s_e != s_blk", "10 * k_blk_i >= n_blk_i"]
+    pooled: ["count of individuals with 10 * k_blk_i >= n_blk_i, and m", "distribution of d_e - d_blk (min, quartiles, max)"]
+  suppression_variant: "same form with s_none / d_none in place of s_blk / d_blk"
+  expectation: "the blocked systems may be close to the two-path approximation plus plasticity [expectation only, not tested]"
+
+auxiliary:                              # 判定に使わない（README §6.2）
+  R1_event: [t, e_pulse, "tau, stop pulse and censor pulse of every system", "all quantities with values and signs"]
+  R2_individual: [roles, birth_units, events_in_window, in_population, n_i, k_i, r_i, P_i, n_unevaluable, "count of d_chg != 0 (values known)", "count of s_chg != 0"]
+  R4_reverse_order: [d_fix_rev, d_chg_rev, "signs", "count of s_fix_rev != s_e (incl. per-individual counts in the same form as P_i)", "agreement of s_fix and s_fix_rev"]
+  R5_sign_patterns:
+    comparison_A: "s_blk vs s_fix"
+    comparison_B: "s_fix vs s_e"
+    observable: "s_blk, s_fix and s_e are all != ?"
+    categories:
+      no_change: "s_blk == s_fix == s_e"
+      only_B_differs: "s_blk == s_fix != s_e"
+      only_A_differs: "s_blk != s_fix == s_e"
+      both_differ: "s_blk != s_fix != s_e and s_e != s_blk"
+      sign_return: "s_blk != s_fix, s_fix != s_e, s_e == s_blk"
+    also_with: "s_none in place of s_blk"
+    report: [counts, denominator, unobservable_count]
+    reading: "sign patterns only; not attributed to mechanisms or to whether the other unit fired"
+  R6_interval: {method: clopper_pearson, level: 0.95, of: "#{P_i} / m (same denominator as J_P)", below_min: not_computed}
+  R7_two_path: "tau_hat and s_hat from saved Sigma_t (0035 README §3); agreement of s_hat with s_e, s_blk and s_none; a description of this experiment's events only"
+  R8_estimand_B: ["count of d_e - d_cf != 0 (both values known)", "count of s_e != s_cf"]
+  R9_shortcut_and_other: ["events with shortcut (1) and (2)", "events where (1) fails (reference stopped first)", "events where the other unit's firings are equal in F and N over (t, min(stop_F, stop_N)]"]
+  R10_weights:
+    pulses: [300, 600, 900, 1200, 1500, 1800, 2099]
+    record: [six_weights_and_traces, pair_sums]
+
+operation_checks:                       # README §7。生の記録から再検証。一つでも満たさなければ無効
+  O1: contract tests (AS1 and this experiment) pass at the measurement commit (recorded by run.py before any seed; existing records fully checked)
+  O2: same as 0034 (IC-1, WC-2, K1, W-2)
+  O3: same as 0034 (no-intervention clone equals the body in sigma from 300 to 600)
+  O4: "e-cancelling systems: pending and sensory equal the body minus e up to min(tau_F, stop of that system); e-delivering systems: equal the body over the same range"
+  O5: "saved Sigma_t equals sigma of N at the branch except reservation e; for every system, tau recomputed from the saved source firings equals the record"
+  O6: seeds do not overlap previously run seeds
+  O7:
+    a: "same as 0035 O7 (a): body rerun without Sigma_t recording and without branching"
+    b: "same as 0035 O7 (b): N' without the added firing record"
+    c: "one per new intervention kind (F_fixN, F_blk, F_cf): a rerun from the same branch without the added per-pulse records gives the same tau, stop pulse and all-unit firings"
+  O8: "forced systems (F_fixN, N_fixF, F_fixF, F_none, N_none, F_none_cf, N_none_cf): other firings in (t, stop] equal the schedule (empty for none); stop <= censor pulse; no scheduled firing during refractory"
+  O9: "masked systems (F_blk, N_blk, F_blk_cf, N_blk_cf): for every pulse from t + 1 to stop, the weights returned for other->source and other->receiver are 0 and the other four equal the inner weights (per-pulse record)"
+  O10: "F_fixF equals F_prime (tau, stop, all-unit firings, SHA-256 of sigma at stop excluding the forced-firing component's schedule); F_prime equals the body record (tau, all-unit firings); where shortcut (1) and (2) hold, F_fixN equals F (tau, all-unit firings)"
+  O11: "tau of F_blk_cf, N_blk_cf, F_none_cf and N_none_cf (censoring included) equal tau_hat_F / tau_hat_N of the two-path approximation from the saved Sigma_t, for every event"
+  O12: "cf systems: the six weights stay at the branch values from t + 1 to stop (per-pulse record; same form as 0034 O5 FREEZE)"
+
+records:
+  body_log_keep: [RUN, SENSORY, ACTIVITY, DELTA, EFFECT]
+  per_event: [sigma_t, "per system: tau, stop, censor pulse, all-unit firings, sensory, pending", "schedules of forced systems", "per-pulse weights of masked and cf systems", "SHA-256 of sigma at stop for F_prime and F_fixF"]
+  save: "guard layout (seeds/<seed>/raw.json.gz), copied byte for byte to results/ in the results PR (as in 0034 and 0035)"
