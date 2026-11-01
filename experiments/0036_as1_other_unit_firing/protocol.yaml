@@ -1,4 +1,4 @@
-# 実験 0036 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT・Gemini のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
+# 実験 0036 の実行条件と記録項目（事前登録の案 v0.2。ChatGPT・Gemini のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
 #
 # AS1（自発の 1 つの行動、L = 2、外の刺激なし）の閉ループで、区間 W のすべての結果の刺激 e について、0034・0035 と同じ反実仮想
 # （本体 F と、Pulse t の後の複製から e の予約だけを取り消した系 N）に加えて、同じ Σ_t から介入した系を作る（README §2）。
@@ -6,6 +6,8 @@
 # W に出来事が 10 以上ある個体（判定の母集団。本体だけで決まる）ごとに、評価できる出来事のうち s_fix != s_e の割合が 1 割以上か（P_i）を
 # 数え、母集団の個体の数 m に対する二項の上側の閾値で判定する（README §4・§5）。2 × 2（伝達の遮断 × e）は必ず報告する対照（README §6.1）。
 # 研究設計メモ docs/as1-feedback-pathway-design.md（v0.3、#161 merge 9e5cf52）を具体にしたもの。
+# v0.2：レビュー 5726675107。reported_control の個体の指標に n >= 1 を足し、n = 0 を「評価できる出来事なし」として別に数える（必須 1）。
+#       O4 を (a) 分岐の時点の予約、(b) 止まる Pulse までの感覚の出来事、(c) 最初の意図で新しく作られる予約は比べない、に分けた（必須 2）。
 #
 # この案の段階では、この実験の道具の実装・smoke・本番の測定・どの seed の実行もしない（README の Status・§14）。
 # 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を
@@ -138,6 +140,7 @@ judgment:
     r_i: "k_i / n_i (null if n_i == 0)"
     event_P_i: "n_i >= 1 and 10 * k_i >= n_i"   # r_i >= c を整数で比べる
     zero_evaluable: "kept in the population; P_i is false"
+    boundary_tests: {"n=0,k=0": false, "n=10,k=0": false, "n=10,k=1": true, "n=11,k=1": false}   # 契約テスト（README §14）
     c: 0.1
     direction: "not rare (r_i >= c)"    # README §4.3（設計メモ §0.1 の 5 の見込みの訂正）
   J_P:
@@ -164,9 +167,14 @@ judgment:
 reported_control:                       # README §6.1。必ず報告する。検定はしない
   two_by_two:
     per_event: [d_blk, s_blk, "d_e - d_blk (both values known)", "s_e != s_blk"]
-    per_individual: ["n_blk_i: s_e != ? and s_blk != ?", "k_blk_i: s_e != s_blk", "10 * k_blk_i >= n_blk_i"]
-    pooled: ["count of individuals with 10 * k_blk_i >= n_blk_i, and m", "distribution of d_e - d_blk (min, quartiles, max)"]
-  suppression_variant: "same form with s_none / d_none in place of s_blk / d_blk"
+    per_individual:
+      n_blk_i: "events with s_e != ? and s_blk != ?"
+      k_blk_i: "of those, events with s_e != s_blk"
+      P_blk_i: "n_blk_i >= 1 and 10 * k_blk_i >= n_blk_i"   # 主の P_i と同じ形
+      zero_evaluable: "n_blk_i == 0: P_blk_i is false; counted separately as 'no evaluable event'"
+    pooled: ["m (decision population)", "count of individuals with n_blk_i == 0", "count of individuals with P_blk_i (denominator m, including the no-evaluable ones)", "distribution of d_e - d_blk (min, quartiles, max)"]
+    boundary_tests: {"n=0,k=0": false, "n=10,k=0": false, "n=10,k=1": true, "n=11,k=1": false}
+  suppression_variant: "same form with s_none / d_none in place of s_blk / d_blk (P_none_i = n_none_i >= 1 and 10 * k_none_i >= n_none_i)"
   expectation: "the blocked systems may be close to the two-path approximation plus plasticity [expectation only, not tested]"
 
 auxiliary:                              # 判定に使わない（README §6.2）
@@ -198,7 +206,11 @@ operation_checks:                       # README §7。生の記録から再検�
   O1: contract tests (AS1 and this experiment) pass at the measurement commit (recorded by run.py before any seed; existing records fully checked)
   O2: same as 0034 (IC-1, WC-2, K1, W-2)
   O3: same as 0034 (no-intervention clone equals the body in sigma from 300 to 600)
-  O4: "e-cancelling systems: pending and sensory equal the body minus e up to min(tau_F, stop of that system); e-delivering systems: equal the body over the same range"
+  O4:                                   # README §7 の O4 の詳細。stop_X = その系の止まった Pulse、stop_F = tau_F か t + H
+    a_branch_pending: "at the branch only: e-delivering systems' pending equals the body's pending in Sigma_t; e-cancelling systems' pending equals it minus e (e in cancelled); pending after the branch is not compared"
+    b_sensory_until_stop: "X's sensory in (t, stop_X] (stop pulse's collection included) equals the list implied by X's pending at the branch (one per reservation with pulse in (t, stop_X]); the body's sensory in (t, stop_F] equals the list implied by the body's pending at the branch; over (t, min(stop_X, stop_F)], X's sensory equals the body's (minus the one e for e-cancelling systems)"
+    c_new_reservations: "reservations created by the first intent at stop_X (pulse stop_X + 1), and by the body's intent at tau_F, are natural differences: recorded, not compared, never a violation"
+    contract_tests: ["intervention makes the next intent earlier (stop_X < stop_F) and later (stop_X > stop_F): O4 holds", "tampered branch pending or sensory: O4 reports a violation"]
   O5: "saved Sigma_t equals sigma of N at the branch except reservation e; for every system, tau recomputed from the saved source firings equals the record"
   O6: seeds do not overlap previously run seeds
   O7:
@@ -213,5 +225,5 @@ operation_checks:                       # README §7。生の記録から再検�
 
 records:
   body_log_keep: [RUN, SENSORY, ACTIVITY, DELTA, EFFECT]
-  per_event: [sigma_t, "per system: tau, stop, censor pulse, all-unit firings, sensory, pending", "schedules of forced systems", "per-pulse weights of masked and cf systems", "SHA-256 of sigma at stop for F_prime and F_fixF"]
+  per_event: [sigma_t, "per system: tau, stop, censor pulse, all-unit firings, sensory, pending at the branch (O4 a), pending at stop (recorded only; O4 c)", "schedules of forced systems", "per-pulse weights of masked and cf systems", "SHA-256 of sigma at stop for F_prime and F_fixF"]
   save: "guard layout (seeds/<seed>/raw.json.gz), copied byte for byte to results/ in the results PR (as in 0034 and 0035)"
