@@ -10,12 +10,15 @@ Effector 1 つと、出力路 `intent` から Effector への投射だけを足�
 - WorldEffector・WorldReceptor：世界への入口と、世界に問い合わせるだけの Receptor（予定を持たない。WC-1b）
 - InterventionConnections：接続の状態の口を包み、FB-1（伝達に渡す重みを 0）・FREEZE（重みの更新を止める）を行う（§5）
 - clone・sigma：個体と世界の丸ごとの複製（M1）と、比べる状態 Σ の書き出し（§4）
+- build の unit_wrappers：受・他の Unit を、組み立ての時に研究用の部品で包む口（実験 0036 の README §2.3）。既定（None）では何も
+  包まず、#148 の組み立てと同じ。Core には組み立てた後に Unit を差し替える公開の口がないので、源の IntentSourceUnit と同じく、
+  build_application の unit_overrides を使う
 """
 
 import asyncio
 import copy
 import random
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from types import MappingProxyType
@@ -471,15 +474,25 @@ def _birth(seed: int, tag: str):
     return parse_birth_state({"individual_id": f"anima-{tag}-{seed}", "seed": seed})
 
 
+WRAPPABLE_ROLES = ("receiver", "other")   # unit_wrappers で包める役（源は IntentSourceUnit が包む）
+
+
 def build(seed: int, *, delay: int = 2, multiplicity: str = PER_RESERVATION, respond: bool = True,
           exogenous: Iterable[tuple[PulseNumber, ComponentId]] = (), outlet: bool = True,
-          interventions: bool = True, log: AS1Log | None = None, state_sample_interval: int = 0) -> AS1System:
+          interventions: bool = True, log: AS1Log | None = None, state_sample_interval: int = 0,
+          unit_wrappers: Mapping[str, Callable[[CognitiveUnit], CognitiveUnit]] | None = None) -> AS1System:
     """AS1 の個体と世界を組み立てる。
 
     - outlet が偽なら、源を包まない（出口を外した個体：WC-6・CT-G1a）
     - interventions が偽なら、接続の状態の口を包まない（CT-I1 の比べる相手）
     - exogenous：行動に依らない刺激の予定 [(Pulse, Receptor)]（C0 への還元の参照の入力など）
+    - unit_wrappers：役の名前（"receiver"・"other"）→ その役の Unit を包む関数。包む Unit の中身は、源と同じく、同じ設計図・
+      同じ seed で組み立てた個体のものを使う（初期の状態とばらつきが同じ）。既定（None・空）では何も包まない
     """
+    wrappers = dict(unit_wrappers or {})
+    unknown = set(wrappers) - set(WRAPPABLE_ROLES)
+    if unknown:
+        raise ValueError(f"unit_wrappers で包めるのは {WRAPPABLE_ROLES} だけ（{sorted(unknown)}）")
     roles = assign_roles(seed)
     world = AS1World(consequence_receptor=roles.consequence_receptor, delay=delay, multiplicity=multiplicity,
                      respond=respond, exogenous=exogenous)
@@ -488,11 +501,15 @@ def build(seed: int, *, delay: int = 2, multiplicity: str = PER_RESERVATION, res
     log = log if log is not None else AS1Log()
 
     unit_overrides = {}
-    if outlet:
-        # 源の Unit の中身は、同じ設計図・同じ seed で組み立てた個体のものをそのまま使う（初期の状態とばらつきが同じ）
+    if outlet or wrappers:
+        # 源（と包む Unit）の中身は、同じ設計図・同じ seed で組み立てた個体のものをそのまま使う（初期の状態とばらつきが同じ）
         scratch = build_application(manifest, env, _birth(seed, "as1-scratch"), clock=FixedStepClock(PULSE_INTERVAL_SECONDS),
                                     event_log=AS1Log(keep=()))
-        unit_overrides = {roles.source: IntentSourceUnit(scratch.units.get(roles.source))}
+        if outlet:
+            unit_overrides[roles.source] = IntentSourceUnit(scratch.units.get(roles.source))
+        for role in sorted(wrappers):
+            uid = getattr(roles, role)
+            unit_overrides[uid] = wrappers[role](scratch.units.get(uid))
 
     holder: dict[str, InterventionConnections] = {}
 
