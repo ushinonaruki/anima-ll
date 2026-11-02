@@ -627,3 +627,58 @@ def test_g1c_the_compared_and_the_not_compared_fields(seed) -> None:
     assert {k: wa[k] for k in wb} == wb
     # 比べない欄 3：意図・Effector・世界の記録（C0 にはない）
     assert system.world.intents and b["world"] is None
+
+
+# ---- build の unit_wrappers（実験 0036 の README §2.3 の口。既定では何も包まない） ---------------------------------
+
+class _PassThrough:
+    """中の Unit の口をそのまま渡すだけの包み（口の非干渉の確かめ用）。"""
+
+    def __init__(self, inner) -> None:
+        self.inner = inner
+
+    @property
+    def unit_id(self):
+        return self.inner.unit_id
+
+    def tick(self, view, context):
+        return self.inner.tick(view, context)
+
+    def handle_kernel_result(self, task, result, context):
+        return self.inner.handle_kernel_result(task, result, context)
+
+    def export_state(self):
+        return self.inner.export_state()
+
+    def import_state(self, state) -> None:
+        self.inner.import_state(state)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_unit_wrappers_default_is_the_148_build(seed) -> None:
+    """unit_wrappers の既定（None）と空は、口を足す前と同じ組み立て。中を渡すだけの包みでも、Σ・発火・意図・感覚が同じ。"""
+    plain = run(seed, 1500)
+    for kw in ({"unit_wrappers": None}, {"unit_wrappers": {}}, {"unit_wrappers": {"other": _PassThrough}},
+               {"unit_wrappers": {"receiver": _PassThrough, "other": _PassThrough}}):
+        other = run(seed, 1500, **kw)
+        assert A.sigma(other) == A.sigma(plain), kw
+        assert other.log.activity() == plain.log.activity() and other.log.sensory() == plain.log.sensory()
+        assert other.world.intents == plain.world.intents
+
+
+@pytest.mark.parametrize("seed", ALL_SOURCE_ROLES)
+def test_unit_wrappers_keep_the_c0_birth_states(seed) -> None:
+    system = A.build(seed, unit_wrappers={"receiver": _PassThrough, "other": _PassThrough})
+    c0, _ = A.build_c0(seed, exogenous=())
+    assert {u.unit_id: u.export_state() for u in system.app.units.all()} == \
+           {u.unit_id: u.export_state() for u in c0.units.all()}
+    for role in ("receiver", "other"):
+        assert isinstance(system.app.units.get(getattr(system.roles, role)), _PassThrough)
+    assert isinstance(system.app.units.get(system.roles.source), A.IntentSourceUnit)
+    assert not isinstance(A.build(seed).app.units.get(system.roles.other), _PassThrough)
+
+
+def test_unit_wrappers_accept_only_the_receiver_and_the_other() -> None:
+    for bad in ({"source": _PassThrough}, {"s1": _PassThrough}):
+        with pytest.raises(ValueError):
+            A.build(SEEDS[0], unit_wrappers=bad)
