@@ -1,0 +1,227 @@
+# 実験 0037 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
+#
+# AS1（自発の 1 つの行動、L = 2、外の刺激なし）で、本体 M を出生から Pulse P_E = 1800 まで経験させる（経験の区間 E）。
+# P_E の境界で、M の複製に、可塑的な 6 本の重みだけを経験の前の値 W_0（出生時の値）に戻した系 M[W_0] を作る（PC-4）。
+# M と M[W_0] を同じ試しの区間 U = [1801, 2100]（同じ閉ループの規則、6 本の FREEZE）に置き、U の意図の列 I_U の一致・不一致を比べる。
+# E に結果の刺激を 1 つ以上受けた個体（適格。M だけで決まる）のうち、I_U(M) != I_U(M[W_0]) の個体（P_i）の数を、
+# 適格な個体の数 m に対する二項の上側の閾値で判定する（J_C。README §4・§5）。
+# 再生の系 Y（PC-3）・逆の順の移植 Y[W_M]・可塑性を止めた閉ループの系 K との比べは、必ず報告する記述の対照（README §6.1）。
+# 研究設計メモ docs/as1-plasticity-contribution-design.md（Q2 の設計メモ v0.3、#167 merge f010d83）を具体にしたもの。
+#
+# この案の段階では、この実験の道具の実装・smoke・本番の測定・どの seed の実行もしない（README の Status・§14）。
+# 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を
+# 開示し、新しい版・新しい seed の範囲で行う。
+#
+# 種別：事前登録した検証。主の判定は J_C の 1 つ。
+# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。新しく選んだ値とその理由は README §1.1・§4.4・§5.3。
+
+experiment: "0037"
+kind: preregistered_test
+seeds: {first: 30001, last: 30100}            # 本番。100 個体を全件記録・全件報告する。以後どの実験にも使わない
+smoke_seeds: {first: 30101, last: 30106}      # 操作の確認だけ。盲検。判定の量・現象の数値は計算・表示・保存しない
+synthetic_seeds: {first: 30201, last: 30299}  # 合成の契約テスト専用
+
+tools:
+  base: experiments/as1_closed_loop/as1.py    # build・clone・sigma・transplant・InterventionConnections（FREEZE・clear・declare）をそのまま使う
+  base_additions: "world-rule switch at a boundary (recorded; default unchanged); extraction of the realized sensory sequence and carry-over; boundary-sequence assembly S0-S6; sigma difference inventory (README §14). All AS1 contract tests must pass"
+  no_change: "transplant keeps refusing frozen connections; no API that allows transplanting under FREEZE"
+  contract_tests: tests/integration/test_as1_contract.py
+  previous_experiment: experiments/0036_as1_other_unit_firing   # 道具の作り（guard・盲検の smoke・O1 の記録・結果の写し）を引き継ぐ
+  design_memo: docs/as1-plasticity-contribution-design.md
+
+brain:                                  # C0 のまま（0034〜0036 と同じ）
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml
+  added_by_tool: {effector: effector.y1, intent_port: intent, intent_projections: "sK.intent -> effector.y1 (K = 1, 2, 3)"}
+  sensory_units: [s1, s2, s3]
+  receptors: {receptor.x1: s1, receptor.x2: s2, receptor.x3: s3}
+  receptor_weight: 1.0
+  refractory_pulses: 0
+  plastic_connections: six_s_to_s
+  initial_weight_w0: 0.005               # = w_max / 2。W_0 はこの値（6 本とも）
+  w_max: 0.01
+  adaptation_tau_pulses: 300
+
+roles:                                  # 0034〜0036 と同じ
+  stream: "as1-roles-{seed}"
+  rule: "random.Random(stream).shuffle([s1, s2, s3]) -> (source, receiver, other)"
+  consequence_receptor: "receptor of receiver"
+
+world:
+  closed_loop:                          # E の M・K と、U のすべての系（0034〜0036 と同じ規則）
+    delay_L: 2
+    multiplicity: per_reservation
+    respond: true
+    exogenous: []
+    payload: none
+  replay:                               # E の Y・Y_on（README §2.3）
+    respond: false                      # 意図は記録するが、予約を作らない
+    exogenous: "S_ext of M (realized sensory events in E: pulse, receptor, count) plus carry-over (M's pending at the end of P_E)"
+  switch:                               # README §2.4 の S4
+    systems: [Y, Y_WM]
+    at_boundary: P_E
+    to: closed_loop
+    effective: "intents at pulse >= P_E + 1 are answered; intents <= P_E are not"
+
+timeline:                               # 1 Pulse = 1 秒
+  pulse_interval_seconds: 1.0
+  experience_E: {first: 1, last: "P_E"}
+  P_E: "6 * adaptation_tau_pulses"      # 1800。0034〜0036 の出来事の区間の終わりと同じ
+  trial_U: {first: "P_E + 1", last: "P_E + U_length"}
+  U_length: "adaptation_tau_pulses"     # 300。0034〜0036 の H と同じ
+  runs_to: "P_E + U_length"             # 2100
+  values: {P_E: 1800, U_length: 300, runs_to: 2100}
+
+systems:                                # README §2.2
+  M:      {build: "build(seed)", E_plasticity: rule, E_world: closed_loop, at_P_E: "S5 FREEZE six", role: body}
+  Y:      {build: "build(seed, respond=False, exogenous=S_ext + carry_over) after M reaches P_E", E_plasticity: "FREEZE six from boundary 0 (advance)", E_world: replay, at_P_E: "S1 clear, S4 switch, S5 FREEZE six", role: "PC-3"}
+  K:      {build: "build(seed)", E_plasticity: "FREEZE six from boundary 0 (advance)", E_world: closed_loop, at_P_E: "S1 clear, S5 FREEZE six", role: "PC-1 off"}
+  M_W0:   {build: "S2 clone of M", at_P_E: "S3 transplant six to W_0, S5 FREEZE six", role: main_contrast}
+  Y_WM:   {build: "S2 clone of Y after S1", at_P_E: "S3 transplant six to W_M, S4 switch, S5 FREEZE six", role: reverse_transplant}
+  M_WM:   {build: "S2 clone of M", at_P_E: "S3 transplant six to W_M (own values), S5 FREEZE six", role: "transplant identity check (O10)"}
+  Y_on:   {build: "build(seed, respond=False, exogenous=S_ext + carry_over), no intervention", runs: "E only", role: "G-2 check (O4)"}
+  M_rerun: {build: "build(seed) without the added E records", runs: "E only", role: "non-interference check (O13)"}
+  run_in_U: [M, M_W0, M_WM, Y, Y_WM, K]
+  W_M: "M's six weights at the end of P_E (after S0)"
+  W_0: "birth values (w0 for all six)"
+  trace_policy: advance                 # 全 6 本を止めている区間では軌道に効かない（SE-5）
+
+boundary_sequence:                      # README §2.4（設計メモ §3.2 の B-3）
+  S0: "advance M, then (after extracting S_ext and carry-over) Y, Y_on, K and M_rerun, to the end of pulse P_E"
+  S1: "clear the E FREEZE in Y and K (boundary P_E recorded); every system's intervention state becomes empty"
+  S2: "clone M -> M_W0, M_WM; clone Y -> Y_WM (M1)"
+  S3: "transplant: M_W0 <- W_0 (six), M_WM <- W_M (six), Y_WM <- W_M (six); intervention state is empty, so transplant's frozen check does not fire"
+  S4: "switch the world rule of Y and Y_WM to closed_loop"
+  S5: "declare the U interventions once per system: FREEZE six (advance); frozen values = weights at declaration"
+  S6: "advance the six U systems to P_E + U_length"
+  no_pulse_between: [S1, S5]            # この間に Pulse を進めない
+  effective_from: "pulse P_E + 1 (transmission at its start, update at its end)"
+  in_flight_drives: "drives created at pulse P_E keep the pre-transplant weights and are the same in the transplanted and original systems (AS1 contract §4.4)"
+  carry_over: "M's pending at the end of P_E is delivered identically in M, M_W0, M_WM, Y and Y_WM; K keeps its own"
+  compare_sigma_at: [after_S3_before_S4, after_S5]
+
+quantities:                             # README §3
+  I_U: "pulses in U at which the source fired (from source fire_count; checked against world intents, O11)"
+  T0: "I_U itself (equal / not equal)"
+  T1: "|I_U|"
+  T2: "min(I_U) - P_E; censored (> U_length) if I_U is empty"
+  T3: "median of successive differences of I_U; defined if |I_U| >= 2"
+  T2_sign: {both_known: "sign(T2(a) - T2(b))", one_censored: "the censored one is larger", both_censored: "?"}
+  contrasts:                            # (a, b)。数の量は T(a) - T(b)。存在は I_U(a) != I_U(b)
+    C_tr: [M, M_W0]                     # 主の比べ
+    C_tr_rev: [Y_WM, Y]
+    C_rep: [M, Y]
+    H_ext: [Y, K]
+    C_PC1: [M, K]
+    S_WM: [M, Y_WM]
+    S_W0: [M_W0, Y]
+  identities: "C_rep = C_tr + S_W0 = S_WM + C_tr_rev and C_PC1 = C_rep + H_ext for numeric T; neither order is called the true decomposition (U5)"
+
+judgment:
+  per_individual:
+    n_E_M: "number of sensory events M received in E (= length of S_ext = number of M's intents at pulses 1..P_E-1)"
+    eligible: "n_E_M >= m_E"
+    m_E: 1
+    ineligible: "excluded from the denominator (research-purpose exclusion fixed in advance); counted and reported; contrasts listed descriptively"
+    structural_identity: "eligible and W_M == W_0 bitwise for all six"
+    structural_identity_rule: "kept in the denominator with P_i = 0; labelled 'no weight difference, undetectable by construction' and counted separately"
+    no_post_hoc_exclusion: "W_M == W_0 is never used to remove an individual from the denominator"
+    source_silence: "ineligible (n_E_M = 0), not unobservable; not the same label as six-connection structural identity (the receiver-other pair can change)"
+    P_i: "I_U(M) != I_U(M_W0)"
+    unobservable: none                  # T0 は意図が空でも定まる
+  J_C:
+    min_population: 10
+    m: "number of eligible individuals (structural identities included)"
+    below_min: inconclusive
+    rule: "count(P_i over eligible) >= k(m)"
+    k_of_m: {10: 9, 11: 9, 12: 10, 13: 10, 14: 11, 15: 12, 16: 12, 17: 13, 18: 13, 19: 14, 20: 15,
+             21: 15, 22: 16, 23: 16, 24: 17, 25: 18, 26: 18, 27: 19, 28: 19, 29: 20, 30: 20, 31: 21,
+             32: 22, 33: 22, 34: 23, 35: 23, 36: 24, 37: 24, 38: 25, 39: 26, 40: 26, 41: 27, 42: 27,
+             43: 28, 44: 28, 45: 29, 46: 30, 47: 30, 48: 31, 49: 31, 50: 32, 51: 32, 52: 33, 53: 33,
+             54: 34, 55: 35, 56: 35, 57: 36, 58: 36, 59: 37, 60: 37, 61: 38, 62: 38, 63: 39, 64: 40,
+             65: 40, 66: 41, 67: 41, 68: 42, 69: 42, 70: 43, 71: 43, 72: 44, 73: 45, 74: 45, 75: 46,
+             76: 46, 77: 47, 78: 47, 79: 48, 80: 48, 81: 49, 82: 49, 83: 50, 84: 51, 85: 51, 86: 52,
+             87: 52, 88: 53, 89: 53, 90: 54, 91: 54, 92: 55, 93: 55, 94: 56, 95: 57, 96: 57, 97: 58,
+             98: 58, 99: 59, 100: 59}
+    k_definition: "smallest k with P(Binomial(m, 1/2) >= k) <= 0.05 (exact fractions)"
+    alpha: 0.05
+    direction: one_sided
+  null: "H0_C: P(P_i = 1) <= 1/2 for iid Birth States whose M received at least one consequence in E"
+  conditional_inference: "eligibility depends only on M's E record (before every contrast); P_i depends only on each individual's own data; the count is dominated by Bin(m, 1/2) under H0_C"
+  model_assumption: "the 0.05 bound holds within a model of iid Birth States; sequential deterministic seeds do not by themselves establish independence"
+  a7_frozen: "individuals whose source never fires in U, and structural identities, are included (A7 (a)); this side is against establishment"
+  outcomes:
+    invalid: "any operation check fails: no judgment quantity is computed or shown"
+    inconclusive: "valid and m < 10"
+    established: "valid, m >= 10, count >= k(m)"
+    not_established: "valid, m >= 10, count < k(m): only 'the pre-specified majority claim was not established'"
+  low_rate_claim: not_tested            # 割合が低いことを主張する判定は置かない。不成立の陰性の読みは記述だけ（README §4.6）
+  interval:
+    method: clopper_pearson
+    level: 0.95
+    sides: two
+    of: "#{P_i} / m (same denominator as J_C)"
+    computed_when: "m >= 1, regardless of the J_C outcome"
+    numeric: "bisection on binomial sums (difference from the checker < 1e-12)"
+    role: "auxiliary; not used for the judgment (checklist D6)"
+  power_expectation: {individuals: 100, expected_eligible_fraction: "about 0.8 [expectation, from R4 §4: 30 of 160 silent]", target: "power > 0.8 at pi = 0.65"}
+
+descriptive_controls:                   # README §6.1。検定しない
+  required: [C_tr_rev, C_rep, H_ext]
+  also: [C_PC1, S_WM, S_W0]
+  per_individual: "P_X_i = I_U(a) != I_U(b) on the eligible individuals"
+  pooled: ["m", "count of P_X_i", "proportion with Clopper-Pearson 95% (same method)"]
+  structural_identity_label: "only where defined by the contrast (C_tr_rev: Y_WM == Y when W_M == W_0)"
+  horizontal_pattern: ["equal under both states", "differs only under M's state", "differs only under Y's state", "differs under both states"]   # (P_tr_i, P_tr_rev_i)。観測した一致の名前で、機構の名前を付けない
+  ineligible: "same quantities in a separate table, outside every pooled count"
+
+auxiliary:                              # README §6.2。判定に使わない
+  R1_individual: [roles, birth_units, n_E_M, n_E_Y, n_E_K, "intent counts in E for M, Y, K", eligible, structural_identity]
+  R2_weights:
+    at_P_E: [W_M, "delta_w = W_M - W_0", pair_sums]
+    M_checkpoints: {pulses: [300, 600, 900, 1200, 1500, 1800], record: [six_weights_and_traces, pair_sums]}
+  R3_intents: ["I_U of the six U systems", T1, T2, T3]
+  R4_direction: "for every contrast, counts of signs (+, -, 0, ?) of the T1 and T2 differences; no test"
+  R5_magnitude: "for every contrast, min / quartiles / max of the T1 difference (all), T2 difference (both known), T3 difference (both defined)"
+  R6_first_divergence: "for every contrast pair, the first pulse in U at which the set of firing units differs (none if never)"
+  R7_activity: "per U system, firing counts of the three units in U"
+  R8_interval: "Clopper-Pearson of #{P_i} / m (judgment.interval)"
+
+structural_equivalences:                # README §7。期待する結果と確かめ方
+  SE_1: {claim: "Y_on equals M through P_E", basis: "design memo Q2-1 (G-2)", check: O4}
+  SE_2: {claim: "Y and K weights are W_0 at every pulse of E", basis: "FREEZE definition", check: [O5, O9]}
+  SE_3: {claim: "M_WM equals M in U", basis: "transplant definition (CT-I4)", check: O10}
+  SE_4: {claim: "if W_M == W_0, M_W0 equals M and Y_WM equals Y in U", basis: "transplant definition", check: O10, judgment: "P_i = 0, kept in the denominator"}
+  SE_5: {claim: "while all six are frozen (Y, K in E; all systems in U), traces do not affect trajectories", basis: "design memo Q2-5", check: "tool contract test only"}
+  SE_6: {claim: "horizontal pairs (M/M_W0, M/M_WM, Y/Y_WM) have the same all-unit firings at pulse P_E + 1", basis: "runtime order (G-9 premises a, b)", check: O15}
+  SE_7: {claim: "if neither M nor K has an intent in E (P_E included), Y equals K through P_E and in U", basis: "no input, same birth state, same freeze, same rule after S4", check: "descriptive table (ineligible individuals)"}
+  SE_8: {claim: "if the source never fires in E, its four incident weights stay w0", basis: "design memo Q2-4", check: "R2 (ineligible individuals)"}
+
+operation_checks:                       # README §8。生の記録から再検証。一つでも満たさなければ無効
+  O1: contract tests (AS1 and this experiment) pass at the measurement commit (recorded by run.py before any seed; existing records fully checked)
+  O2: "closed-loop contract (as 0034 O2: IC-1, WC-2, K1, W-2) in M and K during E and in the six U systems during U"
+  O3: "Y and Y_on received in E exactly M's S_ext (pulse, receptor, count); their intents in E created no reservation"
+  O4: "Y_on equals M through P_E: all-unit firings in E, unit states, weights and traces at P_E (bitwise)"
+  O5: "Y and K: the six weights equal W_0 at every pulse of E (per-pulse record)"
+  O6: "boundary steps S0-S6 recorded in order; every system's pulse stays P_E during S1-S5; Y and K cleared at boundary P_E; transplants made with an empty intervention state; one U FREEZE declaration per system"
+  O7:
+    a_after_S3: "M vs M_W0, M vs M_WM, Y vs Y_WM differ only in the transplanted weights (M_WM: no difference); M vs Y differ only in weights, inner states, traces, world fields (response rule, intent / realized records, reservation kinds and ids) and issuer state"
+    b_after_S5: "frozen values equal each system's weights; the future-relevant world state (multiset of reservation pulse and receptor, and the rule) is the same in M, M_W0, M_WM, Y and Y_WM"
+  O8: "M's pending at the end of P_E is realized with the same pulse, receptor and count in M, M_W0, M_WM, Y and Y_WM; Y and Y_WM answer intents from P_E + 1 and none at or before P_E"
+  O9: "in the six U systems the six weights equal the declared values at every pulse of U (M, M_WM, Y_WM: W_M; M_W0, Y, K: W_0); the world rule is the same in all six"
+  O10: "M_WM equals M in U (all-unit firings, intents, SHA-256 of sigma at P_E + U_length without the log); for structural identities, M_W0 equals M and Y_WM equals Y"
+  O11: "for every U system, U intents recomputed from the saved source firings equal the world's intent record and the recorded I_U"
+  O12: seeds do not overlap previously run seeds
+  O13: "M_rerun gives the same all-unit firings in E and the same sigma at P_E as M"
+  O14: "M's pair sums at P_E equal w_max within floating rounding; M_W0's pair sums equal 2 * w0; Y_WM's and M_WM's equal M's"
+  O15: "horizontal pairs have the same all-unit firings at pulse P_E + 1 (SE-6)"
+
+records:
+  save: "guard layout (seeds/<seed>/raw.json.gz), copied byte for byte to results/ and checked by analyze.py --verify-copy (as in 0034-0036)"
+  per_individual:
+    - roles_and_birth_state
+    - "M in E: all-unit firings, intents, sensory (S_ext), pending at the end of P_E (carry-over), six weights and traces at 300..1800"
+    - "Y, Y_on, K, M_rerun in E: all-unit firings, intents, sensory; per-pulse six weights for Y and K; sigma at P_E for Y_on and M_rerun"
+    - "boundary log: per step S0-S6 and per system, the pulse number and the operation (intervention history, transplanted weights, world-rule switch)"
+    - "full sigma dumps of the six U systems after S3 and after S5"
+    - "U, six systems: all-unit firings, intents, sensory, world intent / realized records, per-pulse six weights, SHA-256 of sigma at P_E + U_length"
+  independent_recheck: "after the formal run, a stdlib-only script (no analyze.py, measure.py or anima_ll) recomputes from raw: n_E_M, eligibility, structural identity, I_U and T1-T3, every contrast, P_i, m, count, k(m) from exact fractions, the upper tail, status, Clopper-Pearson end points, the descriptive controls and R1-R8, and the main operation checks (O3-O5, O8-O11, O14, O15)"
