@@ -182,7 +182,7 @@ auxiliary:                              # README §6.2。判定に使わない
   R3_intents: ["I_U of the six U systems", T1, T2, T3]
   R4_direction: "for every contrast, counts of signs (+, -, 0, ?) of the T1 and T2 differences; no test"
   R5_magnitude: "for every contrast, min / quartiles / max of the T1 difference (all), T2 difference (both known), T3 difference (both defined)"
-  R6_first_divergence: "for every contrast pair, the first pulse in U at which the set of firing units differs (none if never)"
+  R6_first_divergence: "for every contrast pair, the first pulse in U at which (i) the set of firing units and (ii) the intents differ (none if never); >= P_E + 2 for horizontal pairs (SE_6); reported as a delay from that lower bound, and no divergence at P_E + 2 is not read as no effect of the weight difference"
   R7_activity: "per U system, firing counts of the three units in U"
   R8_interval: "Clopper-Pearson of #{P_i} / m (judgment.interval)"
 
@@ -192,7 +192,13 @@ structural_equivalences:                # README §7。期待する結果と確�
   SE_3: {claim: "M_WM equals M in U", basis: "transplant definition (CT-I4)", check: O10}
   SE_4: {claim: "if W_M == W_0, M_W0 equals M and Y_WM equals Y in U", basis: "transplant definition", check: O10, judgment: "P_i = 0, kept in the denominator"}
   SE_5: {claim: "while all six are frozen (Y, K in E; all systems in U), traces do not affect trajectories", basis: "design memo Q2-5", check: "tool contract test only"}
-  SE_6: {claim: "horizontal pairs (M/M_W0, M/M_WM, Y/Y_WM) have the same all-unit firings at pulse P_E + 1", basis: "runtime order (G-9 premises a, b)", check: O15}
+  SE_6:
+    claim: "horizontal pairs (M/M_W0, Y/Y_WM) have the same all-unit firings, intents and post-tick unit internal states at pulse P_E + 1 (M/M_WM are identical over U, SE_3)"
+    not_full_sigma: "connection weights and the in-flight drives created from the P_E + 1 firings differ"
+    basis: "PulseRuntime.run_pulse order (weights copied at the start; unit tick reads only drives integrated up to the previous pulse; drives created this pulse are integrated at its end and delivered next pulse; G-9 premises a, b); transplant changes connection weights only"
+    premises: "Y and Y_WM switched to the same rule at S4; carry-over pulse, receptor and count equal (O8)"
+    earliest_divergence: "P_E + 2 for firings and intents (R6 lower bound); divergence at P_E + 2 is not guaranteed (no difference reaches P_E + 2 if no sender of a weight-differing connection fires at P_E + 1)"
+    check: O15
   SE_7: {claim: "if neither M nor K has an intent in E (P_E included), Y equals K through P_E and in U", basis: "no input, same birth state, same freeze, same rule after S4", check: "descriptive table (ineligible individuals)"}
   SE_8: {claim: "if the source never fires in E, its four incident weights stay w0", basis: "design memo Q2-4", check: "R2 (ineligible individuals)"}
 
@@ -213,7 +219,7 @@ operation_checks:                       # README §8。生の記録から再検�
   O12: seeds do not overlap previously run seeds
   O13: "M_rerun gives the same all-unit firings in E and the same sigma at P_E as M"
   O14: "M's pair sums at P_E equal w_max within floating rounding; M_W0's pair sums equal 2 * w0; Y_WM's and M_WM's equal M's"
-  O15: "horizontal pairs have the same all-unit firings at pulse P_E + 1 (SE-6)"
+  O15: "horizontal pairs (M/M_W0, Y/Y_WM) have the same all-unit firings, intents and post-tick unit internal states at pulse P_E + 1, and their R6 first-divergence pulses (firings and intents) are >= P_E + 2 (SE-6)"
 
 records:
   save: "guard layout (seeds/<seed>/raw.json.gz), copied byte for byte to results/ and checked by analyze.py --verify-copy (as in 0034-0036)"
