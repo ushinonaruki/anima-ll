@@ -703,6 +703,24 @@ def test_switch_world_is_recorded_and_answers_only_later_intents(seed) -> None:
 
 
 @pytest.mark.parametrize("seed", SEEDS)
+def test_switch_world_keeps_the_rule_schema_and_a_clone_after_it_reproduces(seed) -> None:
+    opened = run(seed, 600, respond=False)
+    before = A.sigma(opened)["world"]
+    opened.switch_world(True, label="S4")
+    after = A.sigma(opened)["world"]
+    assert isinstance(after["rule"], dict) and set(after["rule"]) == set(before["rule"])     # 従来の形のまま
+    assert {k: v for k, v in after["rule"].items() if k != "respond"} == \
+           {k: v for k, v in before["rule"].items() if k != "respond"}
+    assert {k: v for k, v in after.items() if k != "rule"} == {k: v for k, v in before.items() if k != "rule"}
+    twin = A.clone(opened)                                              # 切り替えの後の複製
+    assert A.sigma(twin) == A.sigma(opened)
+    A.advance_to(opened.app, 900)
+    A.advance_to(twin.app, 900)
+    assert A.sigma(twin) == A.sigma(opened)
+    assert [x for x in opened.log.activity() if x[0] > 600] == [x for x in twin.log.activity() if x[0] > 600]
+
+
+@pytest.mark.parametrize("seed", SEEDS)
 def test_switch_world_to_the_same_rule_changes_nothing(seed) -> None:
     plain = run(seed, 900)
     switched = run(seed, 600)

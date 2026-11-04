@@ -264,6 +264,18 @@ def test_ct_pc2_the_carry_over_arrives_identically_although_its_origin_differs()
     assert AN._pending_pr(run["boundary"]["sigma_b"]["M"]["world"]) == AN._pending_pr(run["boundary"]["sigma_b"]["Y"]["world"])
 
 
+def test_ct_pc2_the_s4_switch_changes_only_respond_in_the_rule_dict() -> None:
+    run = measured(*_constructed("carry"))["run"]
+    sa, sb = run["boundary"]["sigma_a"], run["boundary"]["sigma_b"]
+    for name in M.SWITCHED:
+        before, after = sa[name]["world"]["rule"], sb[name]["world"]["rule"]
+        assert isinstance(after, dict) and before["respond"] is False and after["respond"] is True
+        assert {k: v for k, v in before.items() if k != "respond"} == {k: v for k, v in after.items() if k != "respond"}
+        for key in ("intents", "realized", "pending", "next_rid"):           # 履歴・既存の予約の来歴は変えない
+            assert sa[name]["world"][key] == sb[name]["world"][key], (name, key)
+    assert all(sb[n]["world"]["rule"] == sb["M"]["world"]["rule"] for n in M.U_SYSTEMS)
+
+
 def test_ct_pc2_y_answers_only_intents_after_the_switch() -> None:
     seed = acting_seed()
     run = measured(seed)["run"]
@@ -644,6 +656,19 @@ def _seed_with_first_drives() -> int:
     return next(s for s in SYN if measured(s)["run"]["U"]["Y_WM"]["sigma_after_first"]["drives"])
 
 
+@functools.lru_cache(maxsize=None)
+def weight_drive_seed() -> tuple[int, str, str]:
+    """横の対で、Pulse P_E ＋ 1 の後の届く途中の駆動の値が違う最初の合成の個体（重みの差がある接続の送り手が P_E ＋ 1 に
+    発火した構成。SMALL、30201〜30299 の最初から順に、構成の条件だけで選ぶ）。"""
+    for s in SYN_ALL:
+        run = measured(s)["run"]
+        for a, b in M.HORIZONTAL:
+            da, db = run["U"][a]["sigma_after_first"]["drives"], run["U"][b]["sigma_after_first"]["drives"]
+            if len(da) == len(db) and any(x[2] != y[2] for x, y in zip(da, db)):
+                return s, a, b
+    raise AssertionError("構成が見つからない")
+
+
 def test_o15_holds_on_the_records_and_detects_tampering() -> None:
     s = SYN[8]
     data = measured(s)
@@ -654,15 +679,52 @@ def test_o15_holds_on_the_records_and_detects_tampering() -> None:
     s = _seed_with_first_drives()
     data = measured(s)
     assert "O15" not in failures(data, s)
-    data["run"]["U"]["Y_WM"]["sigma_after_first"]["drives"][0][2] += 0.5
-    assert "O15" in failures(data, s)
-    data = measured(s)
     data["run"]["U"]["Y_WM"]["sigma_after_first"]["drives"].pop()
     assert "O15" in failures(data, s)
     s = SYN[8]
     data = measured(s)
     data["run"]["U"]["M_W0"]["activity"].append([SMALL.p_e + 1, "s1"])
     data["run"]["U"]["M_W0"]["activity"].sort()
+    assert "O15" in failures(data, s)
+
+
+def test_o15_receptor_drives_are_in_sigma_and_must_match_without_a_lookup_error() -> None:
+    # Receptor の感覚から作られた駆動も sigma の drives に入る（connections は Unit 間の可塑的な 6 本だけ）。
+    # 横の対では一致を求め、違えば無効にする（接続の鍵で引いて KeyError にしない）
+    for seed, plan in (_constructed("carry"), (_seed_with_first_drives(), SMALL)):
+        data = measured(seed, plan)
+        run = data["run"]
+        cons = run["roles"]["consequence_receptor"]
+        drives = run["U"]["Y_WM"]["sigma_after_first"]["drives"]
+        i = next(i for i, x in enumerate(drives) if x[0] == cons)            # 持ち越しの感覚から作られた駆動
+        assert f"{cons}.main->{drives[i][1]}" not in run["boundary"]["sigma_b"]["Y_WM"]["connections"]
+        assert "O15" not in failures(data, seed, plan)
+        drives[i][2] += 0.5
+        assert "O15" in failures(data, seed, plan)
+
+
+def test_o15_without_carry_over_has_no_receptor_drive_at_the_first_pulse() -> None:
+    s = SYN[8]
+    run = measured(s)["run"]
+    assert not run["M_E"]["pending_at_p_e"]                                  # 持ち越しのない構成
+    for name in M.U_SYSTEMS:
+        assert all(not x[0].startswith("receptor.") for x in run["U"][name]["sigma_after_first"]["drives"])
+
+
+def test_o15_accepts_only_the_drive_difference_of_a_weight_differing_connection_whose_sender_fired() -> None:
+    s, a, b = weight_drive_seed()
+    data = measured(s)
+    assert failures(data, s) == {}
+    run = data["run"]
+    da, db = run["U"][a]["sigma_after_first"]["drives"], run["U"][b]["sigma_after_first"]["drives"]
+    wa, wb = AN._weights_of(run["boundary"]["sigma_b"][a]), AN._weights_of(run["boundary"]["sigma_b"][b])
+    fired = {u for p, u in run["U"][a]["activity"] if p == SMALL.p_e + 1}
+    for x, y in zip(da, db):
+        if x[2] != y[2]:
+            cid = f"{x[0]}.main->{x[1]}"
+            assert wa[cid] != wb[cid] and x[0] in fired and (x[2], y[2]) == (wa[cid], wb[cid])
+    i = next(i for i, (x, y) in enumerate(zip(da, db)) if x[2] != y[2])
+    db[i][2] = da[i][2] + 1e-6                                                  # 重みの差の分の外の違い
     assert "O15" in failures(data, s)
 
 
