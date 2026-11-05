@@ -13,6 +13,9 @@ Effector 1 つと、出力路 `intent` から Effector への投射だけを足�
 - build の unit_wrappers：受・他の Unit を、組み立ての時に研究用の部品で包む口（実験 0036 の README §2.3）。既定（None）では何も
   包まず、#148 の組み立てと同じ。Core には組み立てた後に Unit を差し替える公開の口がないので、源の IntentSourceUnit と同じく、
   build_application の unit_overrides を使う
+- AS1System.switch_world・replay_schedule・sigma_diff（実験 0037 の README §2.4・§14）：世界が意図に応じるかどうかを境界で
+  切り替えて記録する口、再生の予定（成立した感覚の出来事と持ち越し）の取り出し、二つの Σ の違う欄の書き出し。どれも呼ばなければ
+  何も変えない（既定の動作は #148 のまま）
 """
 
 import asyncio
@@ -468,6 +471,56 @@ class AS1System:
 
     def transplant(self, weights: Mapping[str, float]) -> None:
         transplant(self.app, weights, wrapper=self.connections)
+
+    def switch_world(self, respond: bool, label: str = "") -> None:
+        """今の Pulse の境界（Pulse self.pulse の処理の後）で、世界が意図に応じるかどうかを切り替え、その境界を記録する
+        （実験 0037 の S4：開いたループの再生から、閉ループの規則へ）。
+
+        世界の規則そのもの（L・多重度・結果の Receptor）は変えない。切り替えた後の Pulse に来た意図から効く（`receive_intent` は
+        意図が来た時点の respond を読む）。既にある予約（再生の予定・持ち越し）は変えない。記録は meta["world_switches"] に
+        (境界の Pulse, 札, respond) で残す（Σ には入れない。介入の history と同じ扱い）。呼ばなければ何も変わらない。
+        """
+        self.world.respond = bool(respond)
+        self.meta.setdefault("world_switches", []).append((self.pulse, label, bool(respond)))
+
+
+def replay_schedule(system: "AS1System") -> list[tuple[PulseNumber, ComponentId]]:
+    """PC-3 の再生の予定（実験 0037 の S^ext と持ち越し）を、行動に依らない刺激の予定の形 [(Pulse, Receptor)] で返す。
+
+    - これまでに成立した感覚の出来事（世界の成立の記録。1 出来事に 1 つ。個数を保つ）
+    - 今の時点の予約（持ち越し：まだ成立していない結果・予定。Pulse の順）
+    読むだけで、系を変えない。`build(..., respond=False, exogenous=replay_schedule(system))` で組み立てた同じ個体は、
+    この時点まで元の系と同じ感覚の出来事を受ける（命題 G-2。契約テストで確かめる）。
+    """
+    state = system.world.export_state()
+    realized = [(pulse, receptor) for pulse, receptor, _rids, n in state["realized"] for _ in range(n)]
+    pending = sorted((row[3], row[2]) for row in state["pending"])
+    return realized + pending
+
+
+def sigma_diff(a, b, path: tuple = ()) -> list[tuple]:
+    """二つの Σ の書き出し（sigma の値。JSON に通した形でもよい）の、値が違う欄の道を返す（実験 0037 の差の目録）。
+
+    道は、辞書の鍵と列の位置の組。辞書は鍵の和で比べ、片方にしかない鍵も違いとして返す。列は長さが違えば、その列の道を返す。
+    タプルと列は同じものとして比べる（JSON に通すと列になるため）。
+    """
+    if isinstance(a, Mapping) and isinstance(b, Mapping):
+        out: list[tuple] = []
+        for key in sorted(set(a) | set(b), key=str):
+            if key not in a or key not in b:
+                out.append(path + (key,))
+            else:
+                out += sigma_diff(a[key], b[key], path + (key,))
+        return out
+    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+        if len(a) != len(b):
+            return [path]
+        out = []
+        for i, (x, y) in enumerate(zip(a, b)):
+            out += sigma_diff(x, y, path + (i,))
+        return out
+    same_kind = isinstance(a, bool) == isinstance(b, bool)      # True == 1 を同じ値としない
+    return [] if same_kind and a == b else [path]
 
 
 def _birth(seed: int, tag: str):

@@ -682,3 +682,83 @@ def test_unit_wrappers_accept_only_the_receiver_and_the_other() -> None:
     for bad in ({"source": _PassThrough}, {"s1": _PassThrough}):
         with pytest.raises(ValueError):
             A.build(SEEDS[0], unit_wrappers=bad)
+
+
+# ---- 実験 0037 の口：世界の規則の切り替え・再生の予定・Σ の差（README §2.4・§14） --------------------------------
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_switch_world_is_recorded_and_answers_only_later_intents(seed) -> None:
+    boundary, end = 600, 900
+    opened = run(seed, boundary, respond=False)
+    assert "world_switches" not in opened.meta                         # 呼ばなければ記録もない
+    opened.switch_world(True, label="S4")
+    A.advance_to(opened.app, end)
+    assert opened.meta["world_switches"] == [(boundary, "S4", True)]
+    intents = [p for p, _ in opened.world.intents]
+    assert any(p <= boundary for p in intents) and any(p > boundary for p in intents)
+    realized = [(p, r) for p, r, _rids, _n in opened.world.realized]
+    want = [(p + 1, opened.roles.consequence_receptor) for p in intents if boundary < p < end]
+    assert realized == want                                          # 境界より前の意図には応じない
+    assert A.sigma(opened)["world"]["rule"]["respond"] is True
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_switch_world_keeps_the_rule_schema_and_a_clone_after_it_reproduces(seed) -> None:
+    opened = run(seed, 600, respond=False)
+    before = A.sigma(opened)["world"]
+    opened.switch_world(True, label="S4")
+    after = A.sigma(opened)["world"]
+    assert isinstance(after["rule"], dict) and set(after["rule"]) == set(before["rule"])     # 従来の形のまま
+    assert {k: v for k, v in after["rule"].items() if k != "respond"} == \
+           {k: v for k, v in before["rule"].items() if k != "respond"}
+    assert {k: v for k, v in after.items() if k != "rule"} == {k: v for k, v in before.items() if k != "rule"}
+    twin = A.clone(opened)                                              # 切り替えの後の複製
+    assert A.sigma(twin) == A.sigma(opened)
+    A.advance_to(opened.app, 900)
+    A.advance_to(twin.app, 900)
+    assert A.sigma(twin) == A.sigma(opened)
+    assert [x for x in opened.log.activity() if x[0] > 600] == [x for x in twin.log.activity() if x[0] > 600]
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_switch_world_to_the_same_rule_changes_nothing(seed) -> None:
+    plain = run(seed, 900)
+    switched = run(seed, 600)
+    switched.switch_world(True)
+    A.advance_to(switched.app, 900)
+    assert A.sigma(switched) == A.sigma(plain)
+    assert switched.log.activity() == plain.log.activity() and switched.log.sensory() == plain.log.sensory()
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_replay_schedule_reproduces_the_closed_loop_including_the_carry_over(seed) -> None:
+    probe = run(seed, 1500)
+    t = next(p for p, _ in probe.world.intents if p >= 300)            # 境界に意図があるとき（持ち越しがある）
+    closed = run(seed, t)
+    schedule = A.replay_schedule(closed)
+    assert schedule[-1] == (t + 1, closed.roles.consequence_receptor)   # 持ち越し
+    assert schedule[:-1] == closed.log.sensory()                        # これまでに成立した感覚の出来事
+    assert A.replay_schedule(closed) == schedule                        # 読むだけで、系を変えない
+    opened = A.build(seed, respond=False, exogenous=schedule)
+    A.advance_to(opened.app, t)
+    assert opened.log.activity() == closed.log.activity()
+    assert opened.app.connections.export_state() == closed.app.connections.export_state()
+    assert {u.unit_id: u.export_state() for u in opened.app.units.all()} == \
+           {u.unit_id: u.export_state() for u in closed.app.units.all()}
+    A.advance_to(opened.app, t + 1)
+    A.advance_to(closed.app, t + 1)
+    assert opened.log.sensory() == closed.log.sensory()                 # 持ち越しが同じ Pulse に届く
+
+
+def test_sigma_diff_lists_the_differing_paths() -> None:
+    assert A.sigma_diff({"a": 1, "b": [1, 2]}, {"a": 1, "b": [1, 2]}) == []
+    assert A.sigma_diff({"a": 1, "b": [1, 2]}, {"a": 2, "b": [1, 3], "c": 0}) == [("a",), ("b", 1), ("c",)]
+    assert A.sigma_diff({"a": [1]}, {"a": [1, 2]}) == [("a",)]
+    assert A.sigma_diff({"a": (1, 2)}, {"a": [1, 2]}) == []
+    assert A.sigma_diff({"a": True}, {"a": 1}) == [("a",)]
+    system = run(SEEDS[0], 400)
+    twin = A.clone(system)
+    assert A.sigma_diff(A.sigma(system), A.sigma(twin)) == []
+    target = f"{system.roles.receiver}.main->{system.roles.source}"
+    twin.transplant({target: 0.002})
+    assert A.sigma_diff(A.sigma(system), A.sigma(twin)) == [("connections", target, "weight")]
