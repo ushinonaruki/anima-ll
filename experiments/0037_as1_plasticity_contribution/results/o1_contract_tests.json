@@ -1,0 +1,18 @@
+{
+ "measurement_commit": "004fd8d63c5d6e28873d0058761509ee2145d08e",
+ "command": [
+  "python",
+  "-m",
+  "pytest",
+  "-q",
+  "tests/integration/test_as1_contract.py",
+  "tests/integration/test_as1_plasticity_contribution_0037.py"
+ ],
+ "exit_code": 0,
+ "summary": "230 passed in 42.44s",
+ "test_files_sha256": {
+  "tests/integration/test_as1_contract.py": "66c57388a5f71ec66113a8eda70bd962c0e5f1f7357daffa01cf8cfad08f5a52",
+  "tests/integration/test_as1_plasticity_contribution_0037.py": "4c8a450efe2af43446400c85f7aec3774a1d66294b58e1104f7815617803791a"
+ },
+ "at": "2026-11-05T08:38:26.276026+00:00"
+}
