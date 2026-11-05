@@ -577,6 +577,48 @@ def test_first_divergence_helpers() -> None:
     assert AN.first_intent_divergence([11, 15], [11, 16], 11, 20) == 15
 
 
+@functools.lru_cache(maxsize=None)
+def u_event_seed() -> int:
+    """U に世界の成立の出来事がある最初の合成の個体（SYN の中、構成の条件だけで選ぶ）。"""
+    return next(s for s in SYN if measured(s)["run"]["U"]["M"]["sensory"])
+
+
+def test_o2_matches_the_world_realized_record_with_the_saved_sensory() -> None:
+    s = u_event_seed()
+    p_e = SMALL.p_e
+    assert failures(measured(s), s) == {}
+    for name in M.U_SYSTEMS:
+        data = measured(s)
+        rows = data["run"]["U"][name]["world_end"]["realized"]
+        i = next(i for i, row in enumerate(rows) if row[0] > p_e)               # U の中の出来事（予約の識別子 1 つ・n ＝ 1）
+        assert len(rows[i][2]) == 1 and rows[i][3] == 1
+        rows[i][0] += 1                                                          # Pulse だけを替える
+        assert _world_failure(failures(data, s)), name
+        data = measured(s)
+        row = next(r for r in data["run"]["U"][name]["world_end"]["realized"] if r[0] > p_e)
+        row[1] = data["run"]["roles"]["source_receptor"]                         # Receptor だけを替える
+        assert _world_failure(failures(data, s)), name
+
+
+def _world_failure(f: dict) -> bool:
+    return any("世界の成立の記録" in msg or "世界の意図の記録" in msg or "P_E の世界" in msg for msg in f.get("O2", []))
+
+
+def test_o2_matches_the_world_records_in_e_and_the_intents() -> None:
+    s = u_event_seed()
+    data = measured(s)
+    rows = data["run"]["U"]["Y"]["world_end"]["realized"]
+    rows[0][0] += 1                                                              # E の側（再生された S^ext）
+    assert _world_failure(failures(data, s))
+    data = measured(s)
+    data["run"]["U"]["K"]["world_end"]["intents"][-1][0] += 1                     # 世界の意図の記録
+    assert _world_failure(failures(data, s))
+    for name in ("Y_on", "M_rerun"):
+        data = measured(s)
+        data["run"]["E"][name]["sigma_p_e"]["world"]["realized"][0][0] += 1
+        assert _world_failure(failures(data, s)), name
+
+
 def test_o11_and_o2_detect_tampering() -> None:
     s = SYN[7]
     data = measured(s)
@@ -781,8 +823,52 @@ def test_descriptive_controls_and_the_horizontal_patterns() -> None:
     assert dc["m"] == 4 and set(dc["contrasts"]) == set(AN.REQUIRED_CONTROLS + AN.ALSO_CONTROLS)
     assert dc["horizontal_pattern"] == {"equal under both states": 1, "differs only under M's state": 1,
                                         "differs only under Y's state": 1, "differs under both states": 1}
-    assert dc["ineligible"]["a"]["count"] == 1 and dc["ineligible"]["b"]["count"] == 1
+    assert dc["ineligible"]["a"]["denominator"] == 1 and dc["ineligible"]["b"]["denominator"] == 1
+    assert dc["ineligible"]["a"]["individuals"] == ["c"] and dc["ineligible"]["b"]["individuals"] == ["d"]
     assert all(v["interval"]["computed"] for v in dc["contrasts"].values())
+
+
+def test_the_ineligible_tables_carry_the_same_quantities_as_the_eligible_table() -> None:
+    inds = {"e": _fake(True, True), "a1": _fake(False, True, kind="a"), "a2": _fake(False, False, kind="a")}
+    dc = AN.descriptive_controls(inds)
+    eligible_row = set(dc["contrasts"]["C_rep"])
+    a = dc["ineligible"]["a"]
+    assert a["denominator"] == 2 and a["individuals"] == ["a1", "a2"]
+    assert set(a["contrasts"]) == set(AN.CONTRASTS)                          # 主の比べ C^tr も記述として並べる
+    for name, row in a["contrasts"].items():
+        assert set(row) >= eligible_row, name
+        assert row["count"] == 1 and row["proportion"] == 0.5                  # a1 だけが、どの対比でも違う
+        assert row["interval"] == AN.interval(1, 2) and row["interval"]["computed"] is True
+    assert "structural_identity_label" in a["contrasts"]["C_tr_rev"]
+    assert sum(a["horizontal_pattern"].values()) == 2 and set(a["horizontal_pattern"]) == set(AN.HORIZONTAL_PATTERNS)
+    assert "a1" not in [s for s, v in inds.items() if v["eligible"]] and dc["m"] == 1   # 全体の数には入れない
+    assert AN.judge(inds)["J_C"]["m"] == 1
+
+
+def test_an_empty_ineligible_group_has_null_proportions_and_no_interval() -> None:
+    dc = AN.descriptive_controls({"e": _fake(True, True)})
+    for kind in ("a", "b"):
+        t = dc["ineligible"][kind]
+        assert t["denominator"] == 0 and t["individuals"] == []
+        for row in t["contrasts"].values():
+            assert row["count"] == 0 and row["proportion"] is None and row["interval"]["computed"] is False
+        assert set(t["horizontal_pattern"].values()) == {0}
+    empty = AN.descriptive_controls({})
+    assert empty["m"] == 0 and all(r["proportion"] is None for r in empty["contrasts"].values())
+
+
+def test_the_ineligible_tables_on_synthetic_raw_of_kinds_a_and_b() -> None:
+    seed_a, plan_a = _constructed("silent")
+    seed_b, plan_b = _constructed("carry")
+    inds = {str(seed_a): AN.individual(measured(seed_a, plan_a)["run"]),
+            "b" + str(seed_b): AN.individual(measured(seed_b, plan_b)["run"])}
+    dc = AN.descriptive_controls(inds)
+    assert dc["m"] == 0 and dc["ineligible"]["a"]["individuals"] == [str(seed_a)]
+    assert dc["ineligible"]["b"]["individuals"] == ["b" + str(seed_b)]
+    for kind in ("a", "b"):
+        t = dc["ineligible"][kind]
+        assert t["denominator"] == 1 and set(t["contrasts"]) == set(AN.CONTRASTS)
+        assert all(r["interval"]["computed"] and r["proportion"] is not None for r in t["contrasts"].values())
 
 
 def test_r2_reports_the_m_checkpoints_by_role() -> None:
@@ -792,6 +878,49 @@ def test_r2_reports_the_m_checkpoints_by_role() -> None:
     last = ind["M_checkpoints"][str(SMALL.p_e)]
     assert last["weights"] == ind["W_M"] and set(last["traces"]) == set(ind["W_M"])
     assert last["pair_sums"] == ind["pair_sums_W_M"]
+
+
+def _with_activity(run: dict, other: str, extra: list) -> dict:
+    """解析の算術を確かめるための、記録の書き換え（有効な raw ではない）：other の系の U の発火を M のものにそろえ、extra を足す。"""
+    run = copy.deepcopy(run)
+    base = [list(x) for x in run["U"]["M"]["activity"]]
+    run["U"][other]["activity"] = sorted(base + extra)
+    return run
+
+
+def test_r6_reports_the_delay_from_p_e_plus_2_only_for_the_horizontal_pairs() -> None:
+    run = measured(SYN[2])["run"]
+    lower = SMALL.p_e + 2
+    for extra, want in (([[lower, "s9"]], 0), ([[lower + 1, "s9"]], 1), ([], None)):
+        row = AN.individual(_with_activity(run, "M_W0", extra))["contrasts"]["C_tr"]
+        assert row["horizontal"] is True and row["lower_bound_pulse"] == lower
+        assert row["first_divergence_firing"] == (None if want is None else lower + want)       # 絶対の Pulse も残す
+        assert row["first_divergence_firing_delay"] == want
+    ind = AN.individual(run)
+    assert set(AN.HORIZONTAL_CONTRASTS) == {"C_tr", "C_tr_rev"}
+    assert ind["contrasts"]["C_tr_rev"]["lower_bound_pulse"] == lower
+    for name in set(AN.CONTRASTS) - set(AN.HORIZONTAL_CONTRASTS):            # ほかの対に下限を当てない
+        row = ind["contrasts"][name]
+        assert row["horizontal"] is False
+        assert not {"lower_bound_pulse", "first_divergence_firing_delay", "first_divergence_intent_delay"} & set(row)
+
+
+def test_r6_summary_has_the_delays_for_the_horizontal_pairs() -> None:
+    run = measured(SYN[2])["run"]
+    lower = SMALL.p_e + 2
+    inds = {}
+    for i, extra in enumerate(([[lower, "s9"]], [[lower + 3, "s9"]], [])):
+        inds[str(i)] = AN.individual(_with_activity(run, "M_W0", extra))
+        inds[str(i)]["eligible"] = True                                        # 算術の確かめのための書き換え
+    r6 = AN.auxiliary(inds)["R6"]
+    c = r6["C_tr"]
+    assert c["horizontal"] is True and c["lower_bound_pulse"] == lower
+    assert c["first_divergence_firing"]["none"] == 1
+    assert c["first_divergence_firing"]["pulses"]["min"] == lower and c["first_divergence_firing"]["delays"]["max"] == 3
+    assert c["first_divergence_firing"]["delays"]["count"] == 2 and c["first_divergence_firing"]["delays"]["min"] == 0
+    for name in set(AN.CONTRASTS) - set(AN.HORIZONTAL_CONTRASTS):
+        assert r6[name]["horizontal"] is False and "lower_bound_pulse" not in r6[name]
+        assert "delays" not in r6[name]["first_divergence_firing"] and "delays" not in r6[name]["first_divergence_intent"]
 
 
 def test_five_numbers() -> None:
@@ -846,6 +975,24 @@ def test_o13_detects_a_different_rerun() -> None:
     data = measured(s)
     data["run"]["E"]["M_rerun"]["sigma_p_e_sha256"] = "0" * 64
     assert "O13" in failures(data, s)
+
+
+def test_o13_compares_the_saved_full_sigma_of_m_rerun_by_value() -> None:
+    s = SYN[9]
+    data = measured(s)
+    r = data["run"]["E"]["M_rerun"]
+    assert r["sigma_p_e"] == data["run"]["boundary"]["sigma_a"]["M"]                  # 全体を保存している
+    assert r["sigma_p_e_sha256"] == M.sigma_sha256(r["sigma_p_e"])                     # SHA-256 は補助
+    roles = data["run"]["roles"]
+    cid = sorted(data["run"]["W_0"])[0]
+    for tamper in (lambda x: x["units"][roles["other"]].update(activity=x["units"][roles["other"]]["activity"] + 1e-9),
+                   lambda x: x["connections"][cid].update(pre_trace=x["connections"][cid]["pre_trace"] + 1e-9),
+                   lambda x: x["world"].update(next_rid=x["world"]["next_rid"] + 1)):
+        data = measured(s)
+        sig = data["run"]["E"]["M_rerun"]["sigma_p_e"]
+        tamper(sig)
+        data["run"]["E"]["M_rerun"]["sigma_p_e_sha256"] = M.sigma_sha256(sig)          # SHA-256 も合わせた改ざん
+        assert "O13" in failures(data, s)
 
 
 def test_meta_blind_must_match_the_mode() -> None:

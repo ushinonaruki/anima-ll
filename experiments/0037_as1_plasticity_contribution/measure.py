@@ -182,7 +182,7 @@ def measure_seed(protocol: dict, seed: int, plan: Plan | None = None) -> dict:
         "Y": _e_record(y, p_e) | {"pulse_weights": y_weights},
         "K": _e_record(k, p_e) | {"pulse_weights": k_weights},
         "Y_on": _e_record(y_on, p_e) | {"sigma_p_e": _sigma(y_on)},
-        "M_rerun": _e_record(m_rerun, p_e) | {"sigma_p_e_sha256": sigma_sha256(_sigma(m_rerun))},
+        "M_rerun": _e_record(m_rerun, p_e) | {"sigma_p_e": _sigma(m_rerun), "sigma_p_e_sha256": sigma_sha256(_sigma(m_rerun))},
     }
 
     # ---- S1〜S5（このあいだに Pulse を進めない） ----

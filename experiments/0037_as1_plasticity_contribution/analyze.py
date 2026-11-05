@@ -11,7 +11,9 @@
    - 個体ごと：適格（n_E(M) ≥ m_E。M の E の記録だけで決まる）、適格外の札（(a) E で源の発火が 0、(b) 源が P_E にだけ発火）、
      構造上の恒等（W_M ＝ W_0）、6 系の I_U と T1〜T3、§3.3 のすべての対比、P_i ＝ [I_U(M) ≠ I_U(M[W_0])]
    - J_C：m ＜ 10 なら判定不能。P_i の数 ≥ k(m) で成立。Clopper–Pearson の 95% は、J_C に依らず m ≥ 1 で計算する
-   - §6.1 の記述の対照と、§6.2 の R1〜R8（判定に使わない）
+   - §6.1 の記述の対照と、§6.2 の R1〜R8（判定に使わない）。適格外 (a)・(b) の表にも、適格な個体の表と同じ量（分母、
+     対比ごとの数・割合・Clopper–Pearson、恒等の札、横の型）を並べる。R6 は、横の対（C^tr・C^tr′）に限り、最初に分かれた
+     Pulse の下限 P_E ＋ 2 からの遅れも並べる（分かれなければ null。絶対の Pulse も残す）
 4. report は一度だけ書く（既にあれば上書きしない。analysis_log.jsonl に開始・完了と入力の SHA-256 を残す）
 
 使い方（リポジトリ直下で、測定の commit を checkout したきれいな作業ツリーで）:
@@ -72,6 +74,9 @@ REQUIRED_CONTROLS = ("C_tr_rev", "C_rep", "H_ext")
 ALSO_CONTROLS = ("C_PC1", "S_WM", "S_W0")
 HORIZONTAL_PATTERNS = ("equal under both states", "differs only under M's state", "differs only under Y's state",
                        "differs under both states")
+# 横の対（同じ内の状態・同じ世界の条件で、重みだけが違う。SE-6）。最初に分かれた Pulse の下限 P_E ＋ 2 は、この対にだけ当てる
+HORIZONTAL_CONTRASTS = tuple(name for name, pair in CONTRASTS.items()
+                             if frozenset(pair) in {frozenset(h) for h in (("M", "M_W0"), ("Y", "Y_WM"))})
 
 
 def expected_seeds(mode: str) -> list[int]:
@@ -159,6 +164,7 @@ def individual(run: Mapping) -> dict:
     identity = w_m == w_0
     i_u = {n: sorted(p for p, _ in run["U"][n]["intents"]) for n in M.U_SYSTEMS}
     tv = {n: t_values(i_u[n], p_e) for n in M.U_SYSTEMS}
+    lower = p_e + 2                                        # 横の対で、重みの差が発火・意図に最初に届きうる Pulse（SE-6）
     contrasts = {}
     for name, (a, b) in CONTRASTS.items():
         ta, tb = tv[a], tv[b]
@@ -170,7 +176,13 @@ def individual(run: Mapping) -> dict:
             "T3_diff": (ta["T3"] - tb["T3"]) if ta["T3"] is not None and tb["T3"] is not None else None,
             "first_divergence_firing": first_divergence(run["U"][a]["activity"], run["U"][b]["activity"], p_e + 1, end),
             "first_divergence_intent": first_intent_divergence(i_u[a], i_u[b], p_e + 1, end),
+            "horizontal": name in HORIZONTAL_CONTRASTS,
         }
+        if name in HORIZONTAL_CONTRASTS:                   # R6：下限 P_E ＋ 2 からの遅れ（分かれなければ null）。絶対の Pulse も残す
+            row = contrasts[name]
+            row["lower_bound_pulse"] = lower
+            for key in ("first_divergence_firing", "first_divergence_intent"):
+                row[f"{key}_delay"] = None if row[key] is None else row[key] - lower
     activity = {n: {names[u]: sum(1 for _, x in run["U"][n]["activity"] if x == u) for u in names} for n in M.U_SYSTEMS}
     role_cid = {cid: f"{names[_ends(cid)[0]]}->{names[_ends(cid)[1]]}" for cid in w_0}
     return {
@@ -261,28 +273,39 @@ def five_numbers(values: list) -> dict | None:
     return {"count": len(xs), "min": xs[0], "q1": q[0], "median": q[1], "q3": q[2], "max": xs[-1]}
 
 
-def descriptive_controls(individuals: Mapping[str, Mapping]) -> dict:
-    """README §6.1：記述の対照（検定しない）。分母は J_C と同じ適格な個体。適格外は (a)・(b) の別の表。"""
-    eligible = [v for v in individuals.values() if v["eligible"]]
-    m = len(eligible)
-    out = {"m": m, "contrasts": {}}
-    for name in REQUIRED_CONTROLS + ALSO_CONTROLS:
-        count = sum(1 for v in eligible if v["contrasts"][name]["exists"])
-        out["contrasts"][name] = {"required": name in REQUIRED_CONTROLS, "count": count,
-                                  "proportion": count / m if m else None, "interval": interval(count, m)}
-    out["contrasts"]["C_tr_rev"]["structural_identity_label"] = sum(1 for v in eligible if v["structural_identity"])
+def _control_table(group: list, names: tuple) -> dict:
+    """一つの群の記述の表：対比ごとの P^X_i の数・割合・Clopper–Pearson の 95% 区間、C^tr′ の構造上の恒等の札、横の 4 つの型。
+    群が空なら、割合は null、区間は計算できない（interval の m ＝ 0）、数と型はすべて 0。"""
+    n = len(group)
+    table = {"contrasts": {}}
+    for name in names:
+        count = sum(1 for v in group if v["contrasts"][name]["exists"])
+        table["contrasts"][name] = {"required": name in REQUIRED_CONTROLS, "count": count,
+                                    "proportion": count / n if n else None, "interval": interval(count, n)}
+    table["contrasts"]["C_tr_rev"]["structural_identity_label"] = sum(1 for v in group if v["structural_identity"])
     patterns = dict.fromkeys(HORIZONTAL_PATTERNS, 0)
-    for v in eligible:
+    for v in group:
         a, b = v["contrasts"]["C_tr"]["exists"], v["contrasts"]["C_tr_rev"]["exists"]
         key = {(False, False): 0, (True, False): 1, (False, True): 2, (True, True): 3}[(a, b)]
         patterns[HORIZONTAL_PATTERNS[key]] += 1
-    out["horizontal_pattern"] = patterns
+    table["horizontal_pattern"] = patterns
+    return table
+
+
+def descriptive_controls(individuals: Mapping[str, Mapping]) -> dict:
+    """README §6.1：記述の対照（検定しない）。分母は J_C と同じ適格な個体。
+
+    適格外は、(a)・(b) の別の表に、同じ量（分母、対比ごとの数・割合・区間、恒等の札、横の型）を並べる。判定にも、上の全体の数にも
+    入れない。適格外の表には、主の比べ C^tr も記述として並べる（適格外では判定をしないため。適格な個体の C^tr は judgment にある）。
+    個体ごとの値は report の individuals（seed ごと）にあり、表の individuals はその seed の一覧。群が空なら、割合は null、区間は
+    計算できない。"""
+    eligible = [v for v in individuals.values() if v["eligible"]]
+    out = {"m": len(eligible)} | _control_table(eligible, REQUIRED_CONTROLS + ALSO_CONTROLS)
     out["ineligible"] = {}
     for kind in ("a", "b"):
-        group = [v for v in individuals.values() if v["ineligible_kind"] == kind]
-        out["ineligible"][kind] = {"count": len(group),
-                                   "contrasts": {name: sum(1 for v in group if v["contrasts"][name]["exists"])
-                                                 for name in CONTRASTS}}
+        seeds = sorted((s for s, v in individuals.items() if v["ineligible_kind"] == kind), key=str)
+        out["ineligible"][kind] = {"denominator": len(seeds), "individuals": seeds} | \
+            _control_table([individuals[s] for s in seeds], tuple(CONTRASTS))
     return out
 
 
@@ -307,10 +330,14 @@ def auxiliary(individuals: Mapping[str, Mapping]) -> dict:
         out["R5"][name] = {"T1_diff": five_numbers([c["T1_diff"] for c in cs]),
                            "T2_diff": five_numbers([c["T2_diff"] for c in cs if c["T2_diff"] is not None]),
                            "T3_diff": five_numbers([c["T3_diff"] for c in cs if c["T3_diff"] is not None])}
-        out["R6"][name] = {}
+        out["R6"][name] = {"horizontal": name in HORIZONTAL_CONTRASTS}
+        if name in HORIZONTAL_CONTRASTS:
+            out["R6"][name]["lower_bound_pulse"] = cs[0]["lower_bound_pulse"] if cs else None
         for key in ("first_divergence_firing", "first_divergence_intent"):
             got = [c[key] for c in cs if c[key] is not None]
             out["R6"][name][key] = {"none": sum(1 for c in cs if c[key] is None), "pulses": five_numbers(got)}
+            if name in HORIZONTAL_CONTRASTS:               # 下限からの遅れ（横の対だけ。ほかの対には下限を当てない）
+                out["R6"][name][key]["delays"] = five_numbers([c[f"{key}_delay"] for c in cs if c[f"{key}_delay"] is not None])
     out["R7"] = {n: {role: five_numbers([v["activity_U"][n][role] for v in eligible]) for role in ("source", "receiver", "other")}
                  for n in M.U_SYSTEMS}
     return out
@@ -322,7 +349,7 @@ RUN_KEYS = {"seed", "plan", "roles", "birth_units", "W_0", "M_E", "E", "boundary
 M_E_KEYS = {"activity", "sensory", "intents", "schedule", "pending_at_p_e", "checkpoints"}
 E_BASE = {"activity", "sensory", "intents"}
 E_KEYS = {"Y": E_BASE | {"pulse_weights"}, "K": E_BASE | {"pulse_weights"}, "Y_on": E_BASE | {"sigma_p_e"},
-          "M_rerun": E_BASE | {"sigma_p_e_sha256"}}
+          "M_rerun": E_BASE | {"sigma_p_e", "sigma_p_e_sha256"}}
 BOUNDARY_KEYS = {"steps", "W_M", "sigma_a", "sigma_b"}
 U_KEYS = {"activity", "sensory", "intents", "pulse_weights", "sigma_after_first", "sigma_end_sha256", "world_end",
           "history", "world_switches", "pulse_end"}
@@ -406,8 +433,39 @@ def _ic1(activity, intents, source, lo, hi) -> bool:
     return [p for p, u in activity if u == source and lo <= p <= hi] == [p for p, _ in intents if lo <= p <= hi]
 
 
+LINEAGE = {"M": "M", "M_W0": "M", "M_WM": "M", "Y": "Y", "Y_WM": "Y", "K": "K"}   # U の系の E の記録（複製は元の系の E）
+
+
+def _expand_realized(world: Mapping) -> list:
+    """世界の成立の記録を、感覚の出来事の列 [Pulse, Receptor]（個数の分だけ並べる）にする。"""
+    return [[pulse, receptor] for pulse, receptor, _rids, n in world["realized"] for _ in range(n)]
+
+
+def _world_records(run, out) -> None:
+    """世界の正本（成立の記録・意図の記録）と、保存した感覚の出来事・意図の列が、Pulse・Receptor・個数で同じか（WC-2・IC-1）。
+    U の 6 系は、世界の終わりの記録を P_E で分け、E の側をその系の E の記録（複製は元の系）、U の側を U の記録と比べる。
+    Y^ON・M′ は、P_E の Σ の世界と E の記録を比べる。"""
+    p_e = run["plan"]["p_e"]
+    e_rec = {"M": run["M_E"], "Y": run["E"]["Y"], "K": run["E"]["K"]}
+    for name in M.U_SYSTEMS:
+        w, u, e = run["U"][name]["world_end"], run["U"][name], e_rec[LINEAGE[name]]
+        got = _expand_realized(w)
+        if [x for x in got if x[0] <= p_e] != e["sensory"] or [x for x in got if x[0] > p_e] != u["sensory"]:
+            out.append(f"{name}：世界の成立の記録が、保存した感覚の出来事（Pulse・Receptor・個数）と違う（WC-2）")
+        intents = [list(x) for x in w["intents"]]
+        if [x for x in intents if x[0] <= p_e] != e["intents"] or [x for x in intents if x[0] > p_e] != u["intents"]:
+            out.append(f"{name}：世界の意図の記録が、保存した意図の列と違う（IC-1）")
+    for name in ("Y_on", "M_rerun"):
+        rec = run["E"][name]
+        w = rec["sigma_p_e"]["world"]
+        if _expand_realized(w) != rec["sensory"] or [list(x) for x in w["intents"]] != rec["intents"]:
+            out.append(f"{name}：P_E の世界の成立・意図の記録が、保存した E の感覚の出来事・意図の列と違う")
+
+
 def _o2(run, out) -> None:
-    """閉ループの契約（0034 の O2：IC-1・WC-2・K1・W-2）。E の M・K と、U の 6 系。U の WC-2 は O8 で確かめる。"""
+    """閉ループの契約（0034 の O2：IC-1・WC-2・K1・W-2）。E の M・K と、U の 6 系。世界の正本の記録と、保存した感覚・意図の列の
+    一致も、ここで確かめる。U の WC-2（意図から求めた結果の列）は O8 で確かめる。"""
+    _world_records(run, out)
     roles, plan = run["roles"], run["plan"]
     p_e, end = plan["p_e"], plan["p_e"] + plan["u_length"]
     src, cons, src_r = roles["source"], roles["consequence_receptor"], roles["source_receptor"]
@@ -626,12 +684,15 @@ def _o12(seed, mode, out) -> None:
 
 
 def _o13(run, out) -> None:
-    """記録の非干渉：M′ の E が M と同じ。"""
+    """記録の非干渉：M′ の E が M と同じ。P_E の Σ は、保存した全体の値どうしで比べる（SHA-256 は補助）。"""
     r, m = run["E"]["M_rerun"], run["M_E"]
     if (r["activity"], r["intents"], r["sensory"]) != (m["activity"], m["intents"], m["sensory"]):
         out.append("M′ の E の発火・意図・感覚が M と違う")
-    if r["sigma_p_e_sha256"] != M.sigma_sha256(run["boundary"]["sigma_a"]["M"]):
-        out.append("M′ の P_E の Σ が M と違う")
+    diff = A.sigma_diff(r["sigma_p_e"], run["boundary"]["sigma_a"]["M"])
+    if diff:
+        out.append(f"M′ の P_E の Σ が M と違う（{[list(x) for x in diff[:3]]}）")
+    if r["sigma_p_e_sha256"] != M.sigma_sha256(r["sigma_p_e"]):
+        out.append("M′ の P_E の Σ の SHA-256 が、保存した Σ と合わない")
 
 
 def _o14(run, out) -> None:
