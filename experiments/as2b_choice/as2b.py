@@ -445,6 +445,12 @@ def build(seed: int, *, schedule: TrialSchedule, delay: int = 2, rule_c: str = A
     """
     schedule.check(delay)
     roles = assign_roles(seed)
+    exogenous = list(exogenous)
+    if world_cues:
+        doubled = sorted(set(exogenous) & {(c, roles.cue_receptor) for c in schedule.cues})
+        if doubled:
+            # 再生の予定（replay_schedule）は成立した手がかりを含む。それを入れるときは world_cues を偽にする
+            raise ScheduleConflict(f"手がかりを二重に予約する（{doubled[:3]}…）。再生の系では world_cues=False にする")
     world = AS2bWorld(cue_receptor=roles.cue_receptor, delay=delay, rule_c=rule_c,
                       cues=schedule.cues if world_cues else (), respond=respond, exogenous=exogenous)
     manifest = parse_neuroarchitecture(AS1.as1_manifest_raw())
@@ -523,12 +529,16 @@ def audit(system: AS2bSystem) -> dict:
 
     走らせた後に、研究用の外部の部品として呼ぶ。結果は記録と解析にだけ使い、脳にも世界の規則にも戻さない。
     来歴のログに Delta の出来事があれば、それも層 B の写しとして突き合わせる。
+    どの終了点でも「発行済みの意図の数（層 B）＋ 未発行の予定の数（層 A）＝ 勝ちの窓の数（層 A）」を確かめる。勝ちが
+    最後の Pulse に決まり、翌 Pulse の発行の前に止まった窓は、持ち越しとして数え、失敗や沈黙に数えない（#176 の申し送り ②）。
     """
     records = system.decider.records if system.decider is not None else []
     layer_a = [(r["emit_pulse"], r["winner_unit"], r["action"]) for r in records if r["emitted"]]
     carried = [r["window"] for r in records if r["winner_unit"] is not None and not r["emitted"]]
     layer_b = [(p, src, act) for p, _did, src, act in system.world.intents]
     ids = [did for _p, did, _src, _act in system.world.intents]
+    wins = sum(1 for r in records if r["winner_unit"] is not None)
+    identity = len(layer_b) + len(carried) == wins          # 発行済み（層 B）＋ 未発行の予定（層 A）＝ 勝ちの窓（層 A）
     ca, cb = Counter(layer_a), Counter(layer_b)
     only_a, only_b = sorted((ca - cb).elements()), sorted((cb - ca).elements())
     log_b = None
@@ -537,7 +547,8 @@ def audit(system: AS2bSystem) -> dict:
                        for e in system.log.of(RuntimeEventType.DELTA) if e.data["kind"] == DeltaKind.INTENT)
     world_b = sorted((p, src, act, did) for p, did, src, act in system.world.intents)
     ok = (not only_a and not only_b and len(ids) == len(set(ids)) and len(set(layer_a)) == len(layer_a)
-          and (log_b is None or log_b == world_b))
+          and (log_b is None or log_b == world_b) and identity and len(carried) <= 1)
     return {"ok": ok, "matched": len(layer_a) - len(only_a), "only_in_layer_a": only_a, "only_in_layer_b": only_b,
+            "win_windows": wins, "issued": len(layer_b), "identity_issued_plus_carried_equals_wins": identity,
             "duplicate_delta_ids": len(ids) - len(set(ids)), "carried_over_windows": carried,
             "log_matches_world": None if log_b is None else log_b == world_b}

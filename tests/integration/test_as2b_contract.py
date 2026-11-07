@@ -214,6 +214,21 @@ def test_ct_e2_swapping_the_two_sources_mirrors_the_outcomes() -> None:
     assert [(t, other[u], swap[p]) for t, u, p, _ in intents] == [(t, u, p) for t, u, p, _ in intents_m]
 
 
+@pytest.mark.parametrize("stop", [10, 11], ids=["P_end=b_k", "P_end=b_k+1"])
+def test_ct_e3_e10_a_win_on_the_last_pulse_is_carried_over_not_lost(stop) -> None:
+    """勝ちが窓の終わり b_k ＝ 10 に決まる台本。b_k で止めると未発行の予定、b_k ＋ 1 で止めると発行済み（申し送り ②）。"""
+    script = {"u1": {10}, "u2": {12}}
+    decider, intents, _ = drive(script, ((1, 5, 10),), stop)
+    wins = [r for r in decider.records if r["winner_unit"] is not None]
+    carried = [r for r in wins if not r["emitted"]]
+    assert len(wins) == 1 and wins[0]["decision_pulse"] == 10
+    assert len(intents) + len(carried) == len(wins)
+    if stop == 10:
+        assert intents == [] and decider.pending == {"unit": "u1", "action": "A1", "pulse": 11, "record": 0}
+    else:
+        assert [(t, u, p) for t, u, p, _ in intents] == [(11, "u1", "A1")] and decider.pending is None and carried == []
+
+
 def test_ct_e9_missing_or_duplicate_reports_and_a_missed_emission_stop_the_run() -> None:
     decider = M.I2Decider(WINDOWS, ACTION)
     taps = {u: M.CompetitionTap(StubUnit(u, SCRIPT[u]), decider) for u in ("u1", "u2")}
@@ -337,6 +352,18 @@ def test_ec1_ct_e10_layer_a_and_layer_b_match_one_to_one(seed) -> None:
     for r, (pulse, _did, src, act) in zip(emitted, system.world.intents):
         assert (pulse, src, act) == (r["emit_pulse"], r["winner_unit"], r["action"])     # 出どころは勝った源（EC-1）
     assert "delta_id" not in json.dumps(system.decider.export_state())                  # 層 A は識別子を持たない（EC-7）
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_ct_e10_issued_plus_carried_equals_wins_at_any_stop(seed) -> None:
+    probe = run(seed, N_TEST)
+    stops = sorted({r["decision_pulse"] for r in probe.decider.records if r["decision_pulse"]} | {137, 401, 777})
+    system = M.build(seed, schedule=TEST_SCHEDULE)
+    for stop in stops:
+        M.advance_to(system.app, stop)
+        a = M.audit(system)
+        assert a["ok"] and a["identity_issued_plus_carried_equals_wins"]
+        assert a["issued"] + len(a["carried_over_windows"]) == a["win_windows"]
 
 
 def test_ct_e10_a_decision_not_yet_emitted_is_counted_as_carried_over() -> None:
@@ -489,9 +516,23 @@ def test_ct_sigma_e3_replaying_the_external_history_gives_the_same_sensory_event
     replay = run(seed, branch, respond=False, world_cues=False, exogenous=schedule)
     assert replay.log.sensory() == original.log.sensory()
     assert brain_view(replay) == brain_view(original)
+    # 申し送り ①：手がかりを二重に予約しない。再生の予定は成立した手がかりを一度ずつ含み、世界は手がかりを足さない
+    assert not any(r.kind == M.CUE for r in replay.world.reserved)
+    cue_r = original.roles.cue_receptor
+    assert all(schedule.count((c, cue_r)) == 1 for c in TEST_SCHEDULE.cues if c <= branch)
+    assert all(n == 1 for _p, _r, _rids, n in replay.world.export_state()["realized"])
+    # 持ち越し（まだ成立していない手がかり・結果）は、再生の系に同じ (Pulse, Receptor) で残る
+    assert sorted((r.pulse, r.receptor_id) for r in replay.world.pending) == \
+           sorted((r.pulse, r.receptor_id) for r in original.world.pending)
     assert replay.decider.records == original.decider.records
     assert [(p, s, a) for p, _d, s, a in replay.world.intents] == [(p, s, a) for p, _d, s, a in original.world.intents]
     assert not any(r.kind == M.CONSEQUENCE for r in replay.world.reserved)
+
+
+def test_replaying_with_the_world_cues_on_is_refused_as_a_double_cue() -> None:
+    original = run(SEEDS[0], 700)
+    with pytest.raises(M.ScheduleConflict):
+        M.build(SEEDS[0], schedule=TEST_SCHEDULE, respond=False, exogenous=M.replay_schedule(original))
 
 
 @pytest.mark.parametrize("seed", SEEDS)
