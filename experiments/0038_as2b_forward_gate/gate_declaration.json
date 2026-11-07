@@ -1,0 +1,85 @@
+{
+  "declaration": "AS2b 前方の関門の組（docs/as2b-minimal-implementation-contract.md §7.2）",
+  "version": "0.1",
+  "contract": {
+    "path": "docs/as2b-minimal-implementation-contract.md",
+    "pr": 176,
+    "main": "6ccec47"
+  },
+  "status": "②a で宣言。②a の技術受理の後、②b で、この組を変えずに一度だけ走らせる。③はこの組を引き継いで変えない",
+  "schedule": {
+    "cue_pulses": {
+      "first": 41,
+      "spacing": 41,
+      "count": 50
+    },
+    "window_offset_o": 2,
+    "window_length_W": 19
+  },
+  "exit": {
+    "tie_rule": "close_window_without_intent"
+  },
+  "world": {
+    "delay_L": 2,
+    "consequence_receptor": "cue_receptor",
+    "multiplicity": "per_reservation",
+    "rule_c_assignment": "both_values_as_separate_bodies",
+    "lc3": null
+  },
+  "roles": {
+    "stream": "as2b-roles-{seed}",
+    "action_ids": {
+      "source1": "A1",
+      "source2": "A2"
+    }
+  },
+  "bodies": {
+    "per_individual": [
+      {
+        "rule_c": "A1"
+      },
+      {
+        "rule_c": "A2"
+      }
+    ],
+    "plasticity": "on",
+    "outlet": true,
+    "respond": true,
+    "interventions": "none",
+    "pulses": 2072
+  },
+  "synthetic_seeds": {
+    "first": 31001,
+    "last": 31040,
+    "count": 40
+  },
+  "evaluation": {
+    "per_body_quantities": [
+      "windows",
+      "decided",
+      "tie",
+      "none",
+      "A1_occurred",
+      "A2_occurred"
+    ],
+    "decided_means": "outcome is A1 or A2",
+    "population": "all 80 bodies (40 individuals x 2 rule_c values); no exclusion",
+    "q": 0.2,
+    "criterion_1": "fraction of bodies with decided / windows >= q is strictly greater than 1/2",
+    "criterion_2": "fraction of bodies with A1_occurred and A2_occurred is strictly greater than 1/2",
+    "pass": "criterion_1 and criterion_2"
+  },
+  "forbidden_outputs": [
+    "per-body or pooled counts of A1 and of A2 separately",
+    "any proportion of A1 (or A2) among decided windows",
+    "any change over windows or time",
+    "any difference between the rule_c = A1 and rule_c = A2 bodies",
+    "any S3 judgment quantity"
+  ],
+  "audit_records": [
+    "layer A: I2 decider records per body",
+    "layer B: world intent records per body (delta_id, source_id, created_pulse, action)",
+    "CT-E10 audit result per body",
+    "sha256 of this declaration"
+  ]
+}
