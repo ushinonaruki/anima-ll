@@ -12,6 +12,7 @@ docs/as2b-minimal-implementation-contract.md §7.3（②a）。seed・乱数・�
 import json
 import math
 import sys
+from itertools import pairwise
 from pathlib import Path
 
 import yaml
@@ -19,8 +20,10 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
-from anima_ll.unit.dynamics.activity_dynamics import ActivityState  # noqa: E402
-from anima_ll.unit.dynamics.simple_activity_dynamics import SimpleActivityDynamics  # noqa: E402
+from anima_ll.unit.dynamics.activity_dynamics import ActivityState
+from anima_ll.unit.dynamics.simple_activity_dynamics import (
+    SimpleActivityDynamics,
+)
 
 C0_MANIFEST = ROOT / "experiments" / "0012_passive_world" / "neuroarchitecture.yaml"
 RESIDUAL = 0.05          # 窓の長さの基準：1 回の駆動の残りが 5 % 以下になるまで
@@ -69,7 +72,7 @@ def isolated_intervals(p: dict, threshold: float, drive: float, horizon: int = H
         state, firing = dyn.advance(state, 0.0, 1.0)
         if firing is not None:
             fires.append(t)
-    return [b - a for a, b in zip(fires, fires[1:])], fires
+    return [b - a for a, b in pairwise(fires)], fires
 
 
 def reset_interval_lower_bound(p: dict) -> int:
@@ -112,6 +115,7 @@ def proposition() -> dict:
         "A_range": [c0 / (1 - p["decay"]), c1 / (1 - p["decay"])],
         "silent_probability_closed_form": silent_probability(p),
         "reset_interval_lower_bound": reset_interval_lower_bound(p),
+        "corner_late_intervals": isolated_intervals(p, t0, c1)[0][-LATE:],      # θ 最小・c 最大の角（最も短い）
         "grid": {"side": GRID, "horizon": HORIZON, "late_intervals_used": LATE,
                  "silent_fraction": silent / GRID ** 2,
                  "first_firing_min": min(first),
