@@ -1,0 +1,789 @@
+{
+ "seed": 31015,
+ "rule_c": "A1",
+ "layer_a": [
+  {
+   "window": 1,
+   "open": 43,
+   "close": 61,
+   "outcome": "A2",
+   "decision_pulse": 45,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 46,
+   "emitted": true
+  },
+  {
+   "window": 2,
+   "open": 84,
+   "close": 102,
+   "outcome": "A1",
+   "decision_pulse": 84,
+   "winner_unit": "s1",
+   "action": "A1",
+   "emit_pulse": 85,
+   "emitted": true
+  },
+  {
+   "window": 3,
+   "open": 125,
+   "close": 143,
+   "outcome": "A2",
+   "decision_pulse": 142,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 143,
+   "emitted": true
+  },
+  {
+   "window": 4,
+   "open": 166,
+   "close": 184,
+   "outcome": "A1",
+   "decision_pulse": 166,
+   "winner_unit": "s1",
+   "action": "A1",
+   "emit_pulse": 167,
+   "emitted": true
+  },
+  {
+   "window": 5,
+   "open": 207,
+   "close": 225,
+   "outcome": "A1",
+   "decision_pulse": 224,
+   "winner_unit": "s1",
+   "action": "A1",
+   "emit_pulse": 225,
+   "emitted": true
+  },
+  {
+   "window": 6,
+   "open": 248,
+   "close": 266,
+   "outcome": "A2",
+   "decision_pulse": 252,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 253,
+   "emitted": true
+  },
+  {
+   "window": 7,
+   "open": 289,
+   "close": 307,
+   "outcome": "A1",
+   "decision_pulse": 289,
+   "winner_unit": "s1",
+   "action": "A1",
+   "emit_pulse": 290,
+   "emitted": true
+  },
+  {
+   "window": 8,
+   "open": 330,
+   "close": 348,
+   "outcome": "A2",
+   "decision_pulse": 330,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 331,
+   "emitted": true
+  },
+  {
+   "window": 9,
+   "open": 371,
+   "close": 389,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 10,
+   "open": 412,
+   "close": 430,
+   "outcome": "A2",
+   "decision_pulse": 422,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 423,
+   "emitted": true
+  },
+  {
+   "window": 11,
+   "open": 453,
+   "close": 471,
+   "outcome": "A2",
+   "decision_pulse": 453,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 454,
+   "emitted": true
+  },
+  {
+   "window": 12,
+   "open": 494,
+   "close": 512,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 13,
+   "open": 535,
+   "close": 553,
+   "outcome": "A2",
+   "decision_pulse": 543,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 544,
+   "emitted": true
+  },
+  {
+   "window": 14,
+   "open": 576,
+   "close": 594,
+   "outcome": "A1",
+   "decision_pulse": 576,
+   "winner_unit": "s1",
+   "action": "A1",
+   "emit_pulse": 577,
+   "emitted": true
+  },
+  {
+   "window": 15,
+   "open": 617,
+   "close": 635,
+   "outcome": "A1",
+   "decision_pulse": 617,
+   "winner_unit": "s1",
+   "action": "A1",
+   "emit_pulse": 618,
+   "emitted": true
+  },
+  {
+   "window": 16,
+   "open": 658,
+   "close": 676,
+   "outcome": "A1",
+   "decision_pulse": 658,
+   "winner_unit": "s1",
+   "action": "A1",
+   "emit_pulse": 659,
+   "emitted": true
+  },
+  {
+   "window": 17,
+   "open": 699,
+   "close": 717,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 18,
+   "open": 740,
+   "close": 758,
+   "outcome": "A2",
+   "decision_pulse": 757,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 758,
+   "emitted": true
+  },
+  {
+   "window": 19,
+   "open": 781,
+   "close": 799,
+   "outcome": "A2",
+   "decision_pulse": 785,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 786,
+   "emitted": true
+  },
+  {
+   "window": 20,
+   "open": 822,
+   "close": 840,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 21,
+   "open": 863,
+   "close": 881,
+   "outcome": "A2",
+   "decision_pulse": 877,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 878,
+   "emitted": true
+  },
+  {
+   "window": 22,
+   "open": 904,
+   "close": 922,
+   "outcome": "A2",
+   "decision_pulse": 904,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 905,
+   "emitted": true
+  },
+  {
+   "window": 23,
+   "open": 945,
+   "close": 963,
+   "outcome": "A1",
+   "decision_pulse": 958,
+   "winner_unit": "s1",
+   "action": "A1",
+   "emit_pulse": 959,
+   "emitted": true
+  },
+  {
+   "window": 24,
+   "open": 986,
+   "close": 1004,
+   "outcome": "A2",
+   "decision_pulse": 994,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 995,
+   "emitted": true
+  },
+  {
+   "window": 25,
+   "open": 1027,
+   "close": 1045,
+   "outcome": "tie",
+   "decision_pulse": 1027,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 26,
+   "open": 1068,
+   "close": 1086,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 27,
+   "open": 1109,
+   "close": 1127,
+   "outcome": "A2",
+   "decision_pulse": 1120,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1121,
+   "emitted": true
+  },
+  {
+   "window": 28,
+   "open": 1150,
+   "close": 1168,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 29,
+   "open": 1191,
+   "close": 1209,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 30,
+   "open": 1232,
+   "close": 1250,
+   "outcome": "A2",
+   "decision_pulse": 1241,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1242,
+   "emitted": true
+  },
+  {
+   "window": 31,
+   "open": 1273,
+   "close": 1291,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 32,
+   "open": 1314,
+   "close": 1332,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 33,
+   "open": 1355,
+   "close": 1373,
+   "outcome": "A2",
+   "decision_pulse": 1363,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1364,
+   "emitted": true
+  },
+  {
+   "window": 34,
+   "open": 1396,
+   "close": 1414,
+   "outcome": "A1",
+   "decision_pulse": 1396,
+   "winner_unit": "s1",
+   "action": "A1",
+   "emit_pulse": 1397,
+   "emitted": true
+  },
+  {
+   "window": 35,
+   "open": 1437,
+   "close": 1455,
+   "outcome": "A1",
+   "decision_pulse": 1437,
+   "winner_unit": "s1",
+   "action": "A1",
+   "emit_pulse": 1438,
+   "emitted": true
+  },
+  {
+   "window": 36,
+   "open": 1478,
+   "close": 1496,
+   "outcome": "A1",
+   "decision_pulse": 1478,
+   "winner_unit": "s1",
+   "action": "A1",
+   "emit_pulse": 1479,
+   "emitted": true
+  },
+  {
+   "window": 37,
+   "open": 1519,
+   "close": 1537,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 38,
+   "open": 1560,
+   "close": 1578,
+   "outcome": "A2",
+   "decision_pulse": 1577,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1578,
+   "emitted": true
+  },
+  {
+   "window": 39,
+   "open": 1601,
+   "close": 1619,
+   "outcome": "A2",
+   "decision_pulse": 1606,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1607,
+   "emitted": true
+  },
+  {
+   "window": 40,
+   "open": 1642,
+   "close": 1660,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 41,
+   "open": 1683,
+   "close": 1701,
+   "outcome": "A2",
+   "decision_pulse": 1699,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1700,
+   "emitted": true
+  },
+  {
+   "window": 42,
+   "open": 1724,
+   "close": 1742,
+   "outcome": "A2",
+   "decision_pulse": 1727,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1728,
+   "emitted": true
+  },
+  {
+   "window": 43,
+   "open": 1765,
+   "close": 1783,
+   "outcome": "A1",
+   "decision_pulse": 1775,
+   "winner_unit": "s1",
+   "action": "A1",
+   "emit_pulse": 1776,
+   "emitted": true
+  },
+  {
+   "window": 44,
+   "open": 1806,
+   "close": 1824,
+   "outcome": "A1",
+   "decision_pulse": 1806,
+   "winner_unit": "s1",
+   "action": "A1",
+   "emit_pulse": 1807,
+   "emitted": true
+  },
+  {
+   "window": 45,
+   "open": 1847,
+   "close": 1865,
+   "outcome": "tie",
+   "decision_pulse": 1847,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 46,
+   "open": 1888,
+   "close": 1906,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 47,
+   "open": 1929,
+   "close": 1947,
+   "outcome": "A2",
+   "decision_pulse": 1941,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1942,
+   "emitted": true
+  },
+  {
+   "window": 48,
+   "open": 1970,
+   "close": 1988,
+   "outcome": "A2",
+   "decision_pulse": 1970,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1971,
+   "emitted": true
+  },
+  {
+   "window": 49,
+   "open": 2011,
+   "close": 2029,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 50,
+   "open": 2052,
+   "close": 2070,
+   "outcome": "A2",
+   "decision_pulse": 2063,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 2064,
+   "emitted": true
+  }
+ ],
+ "layer_b": [
+  [
+   46,
+   "d000001",
+   "s2",
+   "A2"
+  ],
+  [
+   85,
+   "d000002",
+   "s1",
+   "A1"
+  ],
+  [
+   143,
+   "d000003",
+   "s2",
+   "A2"
+  ],
+  [
+   167,
+   "d000004",
+   "s1",
+   "A1"
+  ],
+  [
+   225,
+   "d000005",
+   "s1",
+   "A1"
+  ],
+  [
+   253,
+   "d000006",
+   "s2",
+   "A2"
+  ],
+  [
+   290,
+   "d000007",
+   "s1",
+   "A1"
+  ],
+  [
+   331,
+   "d000008",
+   "s2",
+   "A2"
+  ],
+  [
+   423,
+   "d000009",
+   "s2",
+   "A2"
+  ],
+  [
+   454,
+   "d000010",
+   "s2",
+   "A2"
+  ],
+  [
+   544,
+   "d000011",
+   "s2",
+   "A2"
+  ],
+  [
+   577,
+   "d000012",
+   "s1",
+   "A1"
+  ],
+  [
+   618,
+   "d000013",
+   "s1",
+   "A1"
+  ],
+  [
+   659,
+   "d000014",
+   "s1",
+   "A1"
+  ],
+  [
+   758,
+   "d000015",
+   "s2",
+   "A2"
+  ],
+  [
+   786,
+   "d000016",
+   "s2",
+   "A2"
+  ],
+  [
+   878,
+   "d000017",
+   "s2",
+   "A2"
+  ],
+  [
+   905,
+   "d000018",
+   "s2",
+   "A2"
+  ],
+  [
+   959,
+   "d000019",
+   "s1",
+   "A1"
+  ],
+  [
+   995,
+   "d000020",
+   "s2",
+   "A2"
+  ],
+  [
+   1121,
+   "d000021",
+   "s2",
+   "A2"
+  ],
+  [
+   1242,
+   "d000022",
+   "s2",
+   "A2"
+  ],
+  [
+   1364,
+   "d000023",
+   "s2",
+   "A2"
+  ],
+  [
+   1397,
+   "d000024",
+   "s1",
+   "A1"
+  ],
+  [
+   1438,
+   "d000025",
+   "s1",
+   "A1"
+  ],
+  [
+   1479,
+   "d000026",
+   "s1",
+   "A1"
+  ],
+  [
+   1578,
+   "d000027",
+   "s2",
+   "A2"
+  ],
+  [
+   1607,
+   "d000028",
+   "s2",
+   "A2"
+  ],
+  [
+   1700,
+   "d000029",
+   "s2",
+   "A2"
+  ],
+  [
+   1728,
+   "d000030",
+   "s2",
+   "A2"
+  ],
+  [
+   1776,
+   "d000031",
+   "s1",
+   "A1"
+  ],
+  [
+   1807,
+   "d000032",
+   "s1",
+   "A1"
+  ],
+  [
+   1942,
+   "d000033",
+   "s2",
+   "A2"
+  ],
+  [
+   1971,
+   "d000034",
+   "s2",
+   "A2"
+  ],
+  [
+   2064,
+   "d000035",
+   "s2",
+   "A2"
+  ]
+ ],
+ "audit": {
+  "ok": true,
+  "matched": 35,
+  "only_in_layer_a": [],
+  "only_in_layer_b": [],
+  "win_windows": 35,
+  "issued": 35,
+  "identity_issued_plus_carried_equals_wins": true,
+  "duplicate_delta_ids": 0,
+  "carried_over_windows": [],
+  "log_matches_world": true
+ },
+ "roles": {
+  "cue": "s3",
+  "source1": "s1",
+  "source2": "s2",
+  "cue_receptor": "receptor.x3",
+  "source1_action": "A1",
+  "source2_action": "A2"
+ },
+ "reached_windows": 50
+}
