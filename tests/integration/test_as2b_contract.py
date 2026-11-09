@@ -760,12 +760,160 @@ def test_an_audit_mismatch_makes_the_attempt_invalid_not_a_pass(tmp_path, monkey
     assert invalid["valid"] is False and invalid["pass"] is None
 
 
+# ---- v0.3：対の完全性と、層 A からの独立な計算し直し（関門の seed を走らせない、作った入力だけ） --------
+
+ROLES = {"cue": "s3", "source1": "s1", "source2": "s2"}
+
+
+def _layer_a(decl, outcomes):
+    """窓ごとの結末の列から、整合した層 A の記録を作る（決定は窓の始まりの Pulse）。"""
+    out = []
+    for (k, a, b), o in zip(G.declared_windows(decl), outcomes, strict=True):
+        win = o in ("A1", "A2")
+        out.append({"window": k, "open": a, "close": b, "outcome": o,
+                    "decision_pulse": a if o != "none" else None,
+                    "winner_unit": {"A1": "s1", "A2": "s2"}[o] if win else None, "action": o if win else None,
+                    "emit_pulse": a + 1 if win else None, "emitted": win})
+    return out
+
+
+def _body(decl, seed, rule_c, outcomes):
+    layer_a = _layer_a(decl, outcomes)
+    counts, problems = G.recount_from_layer_a(layer_a, G.declared_windows(decl), ROLES)
+    assert problems == []
+    row = {"seed": seed, "rule_c": rule_c, **counts}
+    audit = {"seed": seed, "rule_c": rule_c, "layer_a": layer_a, "layer_b": [], "roles": ROLES,
+             "reached_windows": len(layer_a), "audit": {"ok": True, "carried_over_windows": []}}
+    return row, audit
+
+
+def _feasible_outcomes(decl):
+    n = decl["schedule"]["cue_pulses"]["count"]
+    return ["A1"] * 6 + ["A2"] * 6 + ["tie"] * 2 + ["none"] * (n - 14)          # 12/50 ≥ q、A1 と A2 の両方
+
+
+def _all_bodies(decl, outcomes_of=None):
+    rows, audits = [], []
+    for seed in G.declared_seeds(decl):
+        for body in decl["bodies"]["per_individual"]:
+            outcomes = outcomes_of(seed, body["rule_c"]) if outcomes_of else _feasible_outcomes(decl)
+            r, a = _body(decl, seed, body["rule_c"], outcomes)
+            rows.append(r)
+            audits.append(a)
+    return rows, audits
+
+
+def test_a_consistent_complete_set_is_valid_and_passes() -> None:
+    decl, _ = G.load_declaration()
+    rows, audits = _all_bodies(decl)
+    assert G.check_validity(rows, audits, decl) == {"valid": True, "problems": []}
+    ev = G.evaluate(rows, decl)
+    assert ev["individuals"] == 40 and ev["feasible_individuals"] == 40 and ev["pass"] is True
+
+
+@pytest.mark.parametrize("mutation", ["duplicate_A1_for_a_seed", "missing_A2_for_a_seed", "seed_out_of_range",
+                                      "row_and_audit_swapped", "extra_body"])
+def test_pairing_defects_make_the_attempt_invalid(mutation) -> None:
+    decl, _ = G.load_declaration()
+    rows, audits = _all_bodies(decl)
+    if mutation == "duplicate_A1_for_a_seed":          # seed 31001 の c ＝ A2 の本体を c ＝ A1 の重複に置き換える
+        r, a = _body(decl, 31001, "A1", _feasible_outcomes(decl))
+        rows[1], audits[1] = r, a
+    elif mutation == "missing_A2_for_a_seed":
+        del rows[1], audits[1]
+    elif mutation == "seed_out_of_range":               # 40 個体のうち 1 個体を、宣言の範囲外の seed に入れ替える
+        for i in (0, 1):
+            rows[i]["seed"] = audits[i]["seed"] = 31041
+    elif mutation == "row_and_audit_swapped":           # 行と記録の対応を入れ替える（多重集合は同じ）
+        audits[0], audits[1] = audits[1], audits[0]
+    elif mutation == "extra_body":
+        r, a = _body(decl, 31002, "A1", _feasible_outcomes(decl))
+        rows.append(r)
+        audits.append(a)
+    v = G.check_validity(rows, audits, decl)
+    assert v["valid"] is False and v["problems"]
+
+
+def test_evaluate_counts_an_individual_only_with_one_body_for_each_rule_c() -> None:
+    decl, _ = G.load_declaration()
+    rows, _ = _all_bodies(decl)
+    for i in range(0, 42, 2):                          # 21 個体で、c ＝ A2 の本体を c ＝ A1 の重複に置き換える
+        rows[i + 1] = dict(rows[i])
+    ev = G.evaluate(rows, decl)
+    assert ev["feasible_individuals"] == 19 and ev["pass"] is False
+
+
+def test_evaluate_uses_the_declared_number_of_individuals_as_the_denominator() -> None:
+    decl, _ = G.load_declaration()
+    rows, _ = _all_bodies(decl)
+    ev = G.evaluate(rows[:40], decl)                   # 20 個体の行だけ（どれも成立）：20/40 は過半でない
+    assert ev["individuals"] == 40 and ev["feasible_individuals"] == 20 and ev["pass"] is False
+
+
+def test_the_reviewers_counterexample_rows_claim_choices_that_layer_a_does_not_have() -> None:
+    """層 A は 50 窓すべて発火なし・層 B は空・監査は ok だが、報告の行だけが「10 窓で選択、A1 と A2 の両方」と書く。"""
+    decl, _ = G.load_declaration()
+    n = decl["schedule"]["cue_pulses"]["count"]
+    rows, audits = _all_bodies(decl, lambda seed, c: ["none"] * n)
+    for r in rows:
+        r.update(decided=10, tie=0, none=n - 10, A1_occurred=True, A2_occurred=True)
+    assert G.evaluate(rows, decl)["pass"] is True                     # 行だけを見ると合格に見える
+    v = G.check_validity(rows, audits, decl)
+    assert v["valid"] is False and any("層 A から計算し直した値と一致しない" in p for p in v["problems"])
+
+
+@pytest.mark.parametrize("mutation", ["flag_without_choice", "tie_none_offset", "decided_overstated",
+                                      "duplicate_window_id", "missing_window", "unexpected_outcome",
+                                      "window_bounds_differ", "winner_action_mismatch", "unissued_choice"])
+def test_layer_a_inconsistencies_make_the_attempt_invalid(mutation) -> None:
+    decl, _ = G.load_declaration()
+    rows, audits = _all_bodies(decl)
+    r, a = rows[0], audits[0]
+    la = a["layer_a"]
+    if mutation == "flag_without_choice":            # 層 A では A2 が出ていないのに、行は A2 が出たと書く
+        a["layer_a"] = la = _layer_a(decl, ["A1"] * 12 + ["none"] * 38)
+        r.update(decided=12, tie=0, none=38, A1_occurred=True, A2_occurred=True)
+    elif mutation == "tie_none_offset":              # 引き分けと発火なしを入れ替えて、合計は 50 のまま
+        r.update(tie=r["tie"] + 3, none=r["none"] - 3)
+    elif mutation == "decided_overstated":
+        r.update(decided=r["decided"] + 2, none=r["none"] - 2)
+    elif mutation == "duplicate_window_id":
+        la[1]["window"] = la[0]["window"]
+    elif mutation == "missing_window":
+        del la[-1]
+        a["reached_windows"] = len(la) + 1
+    elif mutation == "unexpected_outcome":
+        la[20]["outcome"] = "A3"
+    elif mutation == "window_bounds_differ":
+        la[5]["close"] += 1
+    elif mutation == "winner_action_mismatch":       # 源 1（s1）が勝ったのに行動 ID が A2
+        la[0]["action"] = la[0]["outcome"] = "A2"
+        la[0]["winner_unit"] = "s1"
+    elif mutation == "unissued_choice":
+        la[0]["emitted"] = False
+    v = G.check_validity(rows, audits, decl)
+    assert v["valid"] is False and v["problems"]
+
+
 def test_check_validity_flags_unreached_windows_and_carried_over() -> None:
     decl, _ = G.load_declaration()
-    rows = [_row(31001, "A1", 10, windows=49)]
-    audits = [{"audit": {"ok": True, "carried_over_windows": [50]}, "reached_windows": 49}]
-    v = G.check_validity(rows, audits, decl)
-    assert v["valid"] is False and len(v["problems"]) == 3       # 行の数・窓の到達・持ち越し
+    rows, audits = _all_bodies(decl)
+    audits[0]["reached_windows"] = 49
+    audits[1]["audit"]["carried_over_windows"] = [50]
+    audits[2]["audit"]["ok"] = False
+    problems = G.check_validity(rows, audits, decl)["problems"]
+    assert any("窓の到達" in p for p in problems) and any("未発行の予定" in p for p in problems) \
+        and any("CT-E10" in p for p in problems)
+
+
+def test_preflight_refuses_without_using_the_claim_when_old_records_remain(tmp_path) -> None:
+    decl, _path, digest = _test_declaration(tmp_path)
+    out = tmp_path / "out"
+    (out / "records").mkdir(parents=True)
+    (out / "records" / "old.json").write_text("{}\n", encoding="utf-8")
+    with pytest.raises(G.AttemptRefused):
+        G.run_gate(decl, digest, out, tmp_path / "attempts")
+    assert not (tmp_path / "attempts" / f"claim-{digest}.json").exists()      # 札は使っていない
 
 
 def test_main_exit_codes_for_done_refused_invalid_and_failed(tmp_path, monkeypatch, capsys) -> None:

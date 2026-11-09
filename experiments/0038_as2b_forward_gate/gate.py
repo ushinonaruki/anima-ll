@@ -21,9 +21,11 @@ import hashlib
 import importlib.util
 import json
 import os
+import platform
+import subprocess
 import sys
 import traceback
-from collections import defaultdict
+from collections import Counter, defaultdict
 from fractions import Fraction
 from pathlib import Path
 
@@ -33,6 +35,7 @@ DECLARATION = HERE / "gate_declaration.json"
 DECLARATION_SHA256 = "e612efc5e6b084e1712520de64a877e0dd477d737b88695252f4cc234a64e1cb"
 ATTEMPTS_DIR = HERE / "attempts"
 REPORT_KEYS = ("windows", "decided", "tie", "none", "A1_occurred", "A2_occurred")
+OUTCOMES = ("A1", "A2", "tie", "none")
 
 
 def _load_as2b():
@@ -64,12 +67,39 @@ def _write_exclusive(path: Path, data: dict) -> None:
         os.fsync(f.fileno())
 
 
+def _git_head() -> str | None:
+    try:
+        out = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=10, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out.stdout.strip() or None
+
+
+def preflight(out_dir: Path, attempts_dir: Path, digest: str) -> None:
+    """札を作る前の点検。出力先に前の報告・記録が残っている、またはこの宣言の札・結末がもうあるなら、札を使わずに止める。
+    既存のファイルを消したり上書きしたりして回避しない。"""
+    problems = []
+    if (out_dir / "report.json").exists():
+        problems.append(f"{out_dir / 'report.json'} がもうある")
+    records = out_dir / "records"
+    if records.exists() and any(records.iterdir()):
+        problems.append(f"{records} に前の記録が残っている")
+    if (attempts_dir / f"claim-{digest}.json").exists() or any(attempts_dir.glob(f"attempt-{digest}.*.json")):
+        problems.append(f"この宣言の試行の札・結末が {attempts_dir} にもうある")
+    if problems:
+        raise AttemptRefused("走らせる前の点検で止めた（札は使っていない）：" + "; ".join(problems))
+
+
 def claim_attempt(attempts_dir: Path, digest: str, out_dir: Path) -> Path:
-    """最初の seed の前に、宣言のハッシュに結び付いた試行の札を排他に作る。あれば AttemptRefused。"""
+    """最初の seed の前に、宣言のハッシュに結び付いた試行の札を排他に作る。あれば AttemptRefused。
+
+    札が排他になるのは、同じ attempts の場所を共有する一つの作業木の中だけである。②b は一つの作業木・一つのホストで
+    走らせ、札の原本と結果を記録の PR に入れる（README §4）。札には、ホスト・作業木・commit を書く。"""
     path = attempts_dir / f"claim-{digest}.json"
     try:
         _write_exclusive(path, {"declaration_sha256": digest, "status": "started", "started_at": _now(),
-                                "out_dir": str(out_dir), "pid": os.getpid()})
+                                "out_dir": str(out_dir), "pid": os.getpid(), "host": platform.node(),
+                                "checkout": str(ROOT), "git_head": _git_head()})
     except FileExistsError as exc:
         raise AttemptRefused(f"この宣言の試行の札 {path} がもうある。関門は一度だけ走らせる（--out を変えても走らない）") from exc
     return path
@@ -134,48 +164,135 @@ def body_feasible(row: dict, q: Fraction) -> bool:
     return Fraction(row["decided"], row["windows"]) >= q and row["A1_occurred"] and row["A2_occurred"]
 
 
+def declared_seeds(decl: dict) -> range:
+    return range(decl["synthetic_seeds"]["first"], decl["synthetic_seeds"]["last"] + 1)
+
+
+def declared_pairs(decl: dict) -> Counter:
+    """宣言の (seed, 規則 c) の対の多重集合。各対はちょうど 1 つ。"""
+    return Counter((seed, body["rule_c"]) for seed in declared_seeds(decl) for body in decl["bodies"]["per_individual"])
+
+
+def declared_windows(decl: dict) -> list[tuple[int, int, int]]:
+    """宣言の予定から窓 (k, a_k, b_k) を作る（TrialSchedule と同じ式：a ＝ c ＋ o、b ＝ c ＋ o ＋ W − 1）。"""
+    s = decl["schedule"]
+    cp = s["cue_pulses"]
+    o, w = s["window_offset_o"], s["window_length_W"]
+    return [(k + 1, cp["first"] + cp["spacing"] * k + o, cp["first"] + cp["spacing"] * k + o + w - 1)
+            for k in range(cp["count"])]
+
+
+def recount_from_layer_a(layer_a, windows, roles=None) -> tuple[dict, list[str]]:
+    """層 A の窓ごとの記録から、報告の行の量を独立に計算し直す。記録の欄どうしの食い違いも挙げる。"""
+    problems = []
+    if not isinstance(layer_a, list):
+        return {}, ["層 A の記録がない"]
+    bounds = {k: (a, b) for k, a, b in windows}
+    ids = [r.get("window") if isinstance(r, dict) else None for r in layer_a]
+    if Counter(ids) != Counter(list(bounds)):
+        problems.append("層 A の窓の番号が、宣言の窓と一致しない（重複・欠落・余分）")
+    action_of = None
+    if isinstance(roles, dict) and roles.get("source1") and roles.get("source2"):
+        action_of = {roles["source1"]: "A1", roles["source2"]: "A2"}
+    outcomes = []
+    for r in layer_a:
+        if not isinstance(r, dict):
+            problems.append("層 A に窓の記録でないものがある")
+            continue
+        k, o, d = r.get("window"), r.get("outcome"), r.get("decision_pulse")
+        outcomes.append(o)
+        if o not in OUTCOMES:
+            problems.append(f"窓 {k}：予期しない結末 {o!r}")
+            continue
+        inside = k in bounds and d is not None and bounds[k][0] <= d <= bounds[k][1]
+        if k in bounds and (r.get("open"), r.get("close")) != bounds[k]:
+            problems.append(f"窓 {k}：区間が宣言と違う")
+        if o in ("A1", "A2"):
+            ok = (inside and r.get("action") == o and r.get("winner_unit") is not None
+                  and r.get("emit_pulse") == d + 1 and r.get("emitted") is True
+                  and (action_of is None or action_of.get(r["winner_unit"]) == o))
+        elif o == "tie":
+            ok = inside and r.get("winner_unit") is None and r.get("action") is None and r.get("emit_pulse") is None \
+                and not r.get("emitted")
+        else:
+            ok = all(r.get(x) is None for x in ("winner_unit", "action", "decision_pulse", "emit_pulse")) \
+                and not r.get("emitted")
+        if not ok:
+            problems.append(f"窓 {k}：結末 {o} と記録の欄が合わない")
+    counts = {"windows": len(layer_a), "decided": outcomes.count("A1") + outcomes.count("A2"),
+              "tie": outcomes.count("tie"), "none": outcomes.count("none"),
+              "A1_occurred": "A1" in outcomes, "A2_occurred": "A2" in outcomes}
+    return counts, problems
+
+
 def evaluate(rows: list[dict], decl: dict) -> dict:
-    """個体（seed）ごとに、対の二つの本体がどちらも本体の条件を満たすかを数え、個体の過半で成立とする。"""
+    """宣言の seed ごとに、規則 c の二つの本体（c ＝ A1・A2 を 1 つずつ）がそろい、どちらも本体の条件を満たす個体を数える。
+    分母は宣言の個体数（synthetic_seeds.count）に固定する。"""
     q = Fraction(str(decl["evaluation"]["q"]))
-    per_body = len(decl["bodies"]["per_individual"])
+    wanted = sorted(body["rule_c"] for body in decl["bodies"]["per_individual"])
     by_seed: dict[int, list[dict]] = defaultdict(list)
     for r in rows:
         by_seed[r["seed"]].append(r)
-    feasible_individuals = sum(1 for rs in by_seed.values() if len(rs) == per_body and all(body_feasible(r, q) for r in rs))
-    n = len(by_seed)
+    feasible_individuals = sum(
+        1 for seed in declared_seeds(decl)
+        if sorted(r["rule_c"] for r in by_seed.get(seed, [])) == wanted and all(body_feasible(r, q) for r in by_seed[seed]))
+    n = decl["synthetic_seeds"]["count"]
     return {"individuals": n, "bodies": len(rows), "feasible_bodies": sum(1 for r in rows if body_feasible(r, q)),
             "feasible_individuals": feasible_individuals, "pass": 2 * feasible_individuals > n}
 
 
 def check_validity(rows: list[dict], audits: list[dict], decl: dict) -> dict:
-    """監査・窓の到達・持ち越し・行の数を確かめる。どれかが合わなければ無効（宣言の validity）。"""
+    """どれかが合わなければ無効（宣言の validity。fail-closed）。
+
+    - 対の完全性：報告の行と検査用の記録の (seed, 規則 c) が、宣言の対の集合とちょうど一致し（重複・欠落・範囲外なし）、
+      行と記録が同じ順で対応する
+    - 各本体：CT-E10 の監査、窓の到達、終わりの未発行の予定 0
+    - 各本体：層 A の窓ごとの記録から計算し直した量が、報告の行と完全に一致する。層 A の記録の欄どうしが整合する
+    """
     problems = []
-    expected = decl["synthetic_seeds"]["count"] * len(decl["bodies"]["per_individual"])
-    if len(rows) != expected or len(audits) != expected:
-        problems.append(f"行の数 {len(rows)}・記録の数 {len(audits)} が {expected} でない")
-    windows = decl["schedule"]["cue_pulses"]["count"]
+    expected = declared_pairs(decl)
+    row_keys = [(r.get("seed"), r.get("rule_c")) if isinstance(r, dict) else None for r in rows]
+    audit_keys = [(a.get("seed"), a.get("rule_c")) if isinstance(a, dict) else None for a in audits]
+    if Counter(row_keys) != expected:
+        problems.append("報告の行の (seed, 規則 c) が、宣言の対の集合と一致しない（重複・欠落・範囲外）")
+    if Counter(audit_keys) != expected:
+        problems.append("検査用の記録の (seed, 規則 c) が、宣言の対の集合と一致しない（重複・欠落・範囲外）")
+    if row_keys != audit_keys:
+        problems.append("報告の行と検査用の記録の対応が食い違う")
+    windows = declared_windows(decl)
     for r, a in zip(rows, audits):
-        tag = f"{r['seed']}/{r['rule_c']}"
-        if not a["audit"]["ok"]:
+        if not isinstance(r, dict) or not isinstance(a, dict):
+            problems.append("行か記録が辞書でない")
+            continue
+        tag = f"{r.get('seed')}/{r.get('rule_c')}"
+        if set(r) != {"seed", "rule_c", *REPORT_KEYS}:
+            problems.append(f"{tag}：報告の行の欄が違う")
+        audit = a.get("audit") if isinstance(a.get("audit"), dict) else {}
+        if audit.get("ok") is not True:
             problems.append(f"{tag}：CT-E10 の監査が合わない")
-        if r["windows"] != windows or a["reached_windows"] != windows or r["decided"] + r["tie"] + r["none"] != windows:
-            problems.append(f"{tag}：窓の到達・数が合わない")
-        if a["audit"].get("carried_over_windows"):
+        if audit.get("carried_over_windows"):
             problems.append(f"{tag}：終わりに未発行の予定が残る")
+        if a.get("reached_windows") != len(windows):
+            problems.append(f"{tag}：窓の到達が合わない")
+        counts, sub = recount_from_layer_a(a.get("layer_a"), windows, a.get("roles"))
+        problems += [f"{tag}：{p}" for p in sub]
+        if {k: r.get(k) for k in REPORT_KEYS} != counts:
+            problems.append(f"{tag}：報告の行が、層 A から計算し直した値と一致しない")
     return {"valid": not problems, "problems": problems}
 
 
 def run_gate(decl: dict, digest: str, out_dir: Path, attempts_dir: Path = ATTEMPTS_DIR) -> dict:
-    """順序：形の確かめ → 試行の札（排他）→ 本体ごとに走らせて記録を書く → 有効性 → 報告 → 試行の記録。
+    """順序：形の確かめ → 走らせる前の点検 → 試行の札（排他）→ 本体ごとに走らせて記録を書く → 有効性 → 報告 → 試行の記録。
 
     札は最初の seed の前に作り、消さない。途中の例外は失敗の記録を残して投げ直す。無効なら合否を出さない。
+    この関数は、受け取った宣言と digest を検め直さない（契約テストの入口）。運用の入口は main で、固定した宣言の
+    SHA-256 を検めてから呼ぶ。
     """
     _check_supported(decl)
     seeds = range(decl["synthetic_seeds"]["first"], decl["synthetic_seeds"]["last"] + 1)
     if len(seeds) != decl["synthetic_seeds"]["count"]:
         raise ValueError("seed の範囲と数が合わない")
-    if (out_dir / "report.json").exists():
-        raise AttemptRefused(f"{out_dir / 'report.json'} がもうある")
+    preflight(out_dir, attempts_dir, digest)
     claim_attempt(attempts_dir, digest, out_dir)                       # ここから先は、この宣言では二度と走らない
     rows, audits = [], []
     try:
