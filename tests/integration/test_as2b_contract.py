@@ -35,6 +35,15 @@ def _load(name: str, path: Path):
 M = _load("as2b_tools_test", ROOT / "experiments" / "as2b_choice" / "as2b.py")
 GATE_DIR = ROOT / "experiments" / "0038_as2b_forward_gate"
 G = _load("as2b_gate_test", GATE_DIR / "gate.py")
+
+
+def _real_gate_files() -> dict[str, str]:
+    """本物の関門の札・結末・結果のファイルと SHA-256（②b の一度だけの試行の記録。テストは何も足さない・変えない）。"""
+    files = [p for d in ("attempts", "results") if (GATE_DIR / d).exists() for p in (GATE_DIR / d).rglob("*") if p.is_file()]
+    return {str(p.relative_to(GATE_DIR)): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
+
+
+REAL_GATE_FILES = _real_gate_files()
 AN = _load("as2b_analysis_test", GATE_DIR / "analysis.py")
 
 TOOL_SEEDS = (9101, 9102, 9103, 9104, 9105, 9106)
@@ -635,13 +644,16 @@ def test_the_declaration_v02_keeps_the_v01_history_and_was_revised_before_any_ga
     assert decl["version"] == "0.2"
     h = decl["history"][0]
     assert h["version"] == "0.1" and h["sha256"].startswith("909ab4f8") and h["synthetic_gate_seeds_run_before_revision"] is False
-    assert not (GATE_DIR / "attempts").exists() and not (GATE_DIR / "results").exists()     # ②a では関門を走らせていない
+    # ②b の後は、v0.2 の宣言の札と結末がちょうど一つずつある（②a のあいだは、どちらもなかった）
+    attempts = sorted(k for k in REAL_GATE_FILES if k.startswith("attempts/"))
+    assert attempts in ([], [f"attempts/attempt-{G.DECLARATION_SHA256}.completed.json",
+                             f"attempts/claim-{G.DECLARATION_SHA256}.json"])
 
 
 def test_without_execute_the_gate_does_not_run_or_claim(tmp_path, capsys) -> None:
     assert G.main(["--out", str(tmp_path / "results")]) == 0
     assert not (tmp_path / "results").exists()
-    assert not (GATE_DIR / "results").exists() and not (GATE_DIR / "attempts").exists()
+    assert _real_gate_files() == REAL_GATE_FILES                       # 本物の札・結果に何も足さない・変えない
 
 
 def _test_declaration(tmp_path):
@@ -936,7 +948,7 @@ def test_main_exit_codes_for_done_refused_invalid_and_failed(tmp_path, monkeypat
 
     monkeypatch.setattr(G, "run_body", boom)
     assert G.main(["--execute", "--out", str(tmp_path / "d")], attempts_dir=tmp_path / "att3", **kw) == G.EXIT_FAILED
-    assert not (GATE_DIR / "attempts").exists() and not (GATE_DIR / "results").exists()     # 本物の宣言の札は作らない
+    assert _real_gate_files() == REAL_GATE_FILES                       # 本物の宣言の札・結果は作らない・変えない
 
 
 def test_proposition_t5_closed_form_parts() -> None:

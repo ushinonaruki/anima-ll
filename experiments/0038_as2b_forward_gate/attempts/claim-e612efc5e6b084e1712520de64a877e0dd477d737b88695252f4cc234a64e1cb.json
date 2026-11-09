@@ -1,0 +1,10 @@
+{
+ "declaration_sha256": "e612efc5e6b084e1712520de64a877e0dd477d737b88695252f4cc234a64e1cb",
+ "status": "started",
+ "started_at": "2026-11-09T17:25:10.641690+00:00",
+ "out_dir": "/home/claude/wt-0038-19b3d01/experiments/0038_as2b_forward_gate/results",
+ "pid": 221,
+ "host": "vm",
+ "checkout": "/home/claude/wt-0038-19b3d01",
+ "git_head": "19b3d0107fd576afbe3565b6893e17705a7ee582"
+}

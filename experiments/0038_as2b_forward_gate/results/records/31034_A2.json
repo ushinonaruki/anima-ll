@@ -1,0 +1,723 @@
+{
+ "seed": 31034,
+ "rule_c": "A2",
+ "layer_a": [
+  {
+   "window": 1,
+   "open": 43,
+   "close": 61,
+   "outcome": "A2",
+   "decision_pulse": 50,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 51,
+   "emitted": true
+  },
+  {
+   "window": 2,
+   "open": 84,
+   "close": 102,
+   "outcome": "A2",
+   "decision_pulse": 92,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 93,
+   "emitted": true
+  },
+  {
+   "window": 3,
+   "open": 125,
+   "close": 143,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 4,
+   "open": 166,
+   "close": 184,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 5,
+   "open": 207,
+   "close": 225,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 6,
+   "open": 248,
+   "close": 266,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 7,
+   "open": 289,
+   "close": 307,
+   "outcome": "A2",
+   "decision_pulse": 289,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 290,
+   "emitted": true
+  },
+  {
+   "window": 8,
+   "open": 330,
+   "close": 348,
+   "outcome": "A2",
+   "decision_pulse": 330,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 331,
+   "emitted": true
+  },
+  {
+   "window": 9,
+   "open": 371,
+   "close": 389,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 10,
+   "open": 412,
+   "close": 430,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 11,
+   "open": 453,
+   "close": 471,
+   "outcome": "A2",
+   "decision_pulse": 453,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 454,
+   "emitted": true
+  },
+  {
+   "window": 12,
+   "open": 494,
+   "close": 512,
+   "outcome": "A2",
+   "decision_pulse": 494,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 495,
+   "emitted": true
+  },
+  {
+   "window": 13,
+   "open": 535,
+   "close": 553,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 14,
+   "open": 576,
+   "close": 594,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 15,
+   "open": 617,
+   "close": 635,
+   "outcome": "A2",
+   "decision_pulse": 617,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 618,
+   "emitted": true
+  },
+  {
+   "window": 16,
+   "open": 658,
+   "close": 676,
+   "outcome": "A2",
+   "decision_pulse": 658,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 659,
+   "emitted": true
+  },
+  {
+   "window": 17,
+   "open": 699,
+   "close": 717,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 18,
+   "open": 740,
+   "close": 758,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 19,
+   "open": 781,
+   "close": 799,
+   "outcome": "A2",
+   "decision_pulse": 781,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 782,
+   "emitted": true
+  },
+  {
+   "window": 20,
+   "open": 822,
+   "close": 840,
+   "outcome": "A2",
+   "decision_pulse": 822,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 823,
+   "emitted": true
+  },
+  {
+   "window": 21,
+   "open": 863,
+   "close": 881,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 22,
+   "open": 904,
+   "close": 922,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 23,
+   "open": 945,
+   "close": 963,
+   "outcome": "A2",
+   "decision_pulse": 945,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 946,
+   "emitted": true
+  },
+  {
+   "window": 24,
+   "open": 986,
+   "close": 1004,
+   "outcome": "A2",
+   "decision_pulse": 986,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 987,
+   "emitted": true
+  },
+  {
+   "window": 25,
+   "open": 1027,
+   "close": 1045,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 26,
+   "open": 1068,
+   "close": 1086,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 27,
+   "open": 1109,
+   "close": 1127,
+   "outcome": "A2",
+   "decision_pulse": 1109,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1110,
+   "emitted": true
+  },
+  {
+   "window": 28,
+   "open": 1150,
+   "close": 1168,
+   "outcome": "A2",
+   "decision_pulse": 1150,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1151,
+   "emitted": true
+  },
+  {
+   "window": 29,
+   "open": 1191,
+   "close": 1209,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 30,
+   "open": 1232,
+   "close": 1250,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 31,
+   "open": 1273,
+   "close": 1291,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 32,
+   "open": 1314,
+   "close": 1332,
+   "outcome": "A2",
+   "decision_pulse": 1314,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1315,
+   "emitted": true
+  },
+  {
+   "window": 33,
+   "open": 1355,
+   "close": 1373,
+   "outcome": "A2",
+   "decision_pulse": 1355,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1356,
+   "emitted": true
+  },
+  {
+   "window": 34,
+   "open": 1396,
+   "close": 1414,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 35,
+   "open": 1437,
+   "close": 1455,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 36,
+   "open": 1478,
+   "close": 1496,
+   "outcome": "A2",
+   "decision_pulse": 1478,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1479,
+   "emitted": true
+  },
+  {
+   "window": 37,
+   "open": 1519,
+   "close": 1537,
+   "outcome": "A2",
+   "decision_pulse": 1519,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1520,
+   "emitted": true
+  },
+  {
+   "window": 38,
+   "open": 1560,
+   "close": 1578,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 39,
+   "open": 1601,
+   "close": 1619,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 40,
+   "open": 1642,
+   "close": 1660,
+   "outcome": "A2",
+   "decision_pulse": 1642,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1643,
+   "emitted": true
+  },
+  {
+   "window": 41,
+   "open": 1683,
+   "close": 1701,
+   "outcome": "A2",
+   "decision_pulse": 1683,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1684,
+   "emitted": true
+  },
+  {
+   "window": 42,
+   "open": 1724,
+   "close": 1742,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 43,
+   "open": 1765,
+   "close": 1783,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 44,
+   "open": 1806,
+   "close": 1824,
+   "outcome": "A2",
+   "decision_pulse": 1806,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1807,
+   "emitted": true
+  },
+  {
+   "window": 45,
+   "open": 1847,
+   "close": 1865,
+   "outcome": "A2",
+   "decision_pulse": 1847,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1848,
+   "emitted": true
+  },
+  {
+   "window": 46,
+   "open": 1888,
+   "close": 1906,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 47,
+   "open": 1929,
+   "close": 1947,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  },
+  {
+   "window": 48,
+   "open": 1970,
+   "close": 1988,
+   "outcome": "A2",
+   "decision_pulse": 1970,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 1971,
+   "emitted": true
+  },
+  {
+   "window": 49,
+   "open": 2011,
+   "close": 2029,
+   "outcome": "A2",
+   "decision_pulse": 2011,
+   "winner_unit": "s2",
+   "action": "A2",
+   "emit_pulse": 2012,
+   "emitted": true
+  },
+  {
+   "window": 50,
+   "open": 2052,
+   "close": 2070,
+   "outcome": "none",
+   "decision_pulse": null,
+   "winner_unit": null,
+   "action": null,
+   "emit_pulse": null,
+   "emitted": false
+  }
+ ],
+ "layer_b": [
+  [
+   51,
+   "d000001",
+   "s2",
+   "A2"
+  ],
+  [
+   93,
+   "d000002",
+   "s2",
+   "A2"
+  ],
+  [
+   290,
+   "d000003",
+   "s2",
+   "A2"
+  ],
+  [
+   331,
+   "d000004",
+   "s2",
+   "A2"
+  ],
+  [
+   454,
+   "d000005",
+   "s2",
+   "A2"
+  ],
+  [
+   495,
+   "d000006",
+   "s2",
+   "A2"
+  ],
+  [
+   618,
+   "d000007",
+   "s2",
+   "A2"
+  ],
+  [
+   659,
+   "d000008",
+   "s2",
+   "A2"
+  ],
+  [
+   782,
+   "d000009",
+   "s2",
+   "A2"
+  ],
+  [
+   823,
+   "d000010",
+   "s2",
+   "A2"
+  ],
+  [
+   946,
+   "d000011",
+   "s2",
+   "A2"
+  ],
+  [
+   987,
+   "d000012",
+   "s2",
+   "A2"
+  ],
+  [
+   1110,
+   "d000013",
+   "s2",
+   "A2"
+  ],
+  [
+   1151,
+   "d000014",
+   "s2",
+   "A2"
+  ],
+  [
+   1315,
+   "d000015",
+   "s2",
+   "A2"
+  ],
+  [
+   1356,
+   "d000016",
+   "s2",
+   "A2"
+  ],
+  [
+   1479,
+   "d000017",
+   "s2",
+   "A2"
+  ],
+  [
+   1520,
+   "d000018",
+   "s2",
+   "A2"
+  ],
+  [
+   1643,
+   "d000019",
+   "s2",
+   "A2"
+  ],
+  [
+   1684,
+   "d000020",
+   "s2",
+   "A2"
+  ],
+  [
+   1807,
+   "d000021",
+   "s2",
+   "A2"
+  ],
+  [
+   1848,
+   "d000022",
+   "s2",
+   "A2"
+  ],
+  [
+   1971,
+   "d000023",
+   "s2",
+   "A2"
+  ],
+  [
+   2012,
+   "d000024",
+   "s2",
+   "A2"
+  ]
+ ],
+ "audit": {
+  "ok": true,
+  "matched": 24,
+  "only_in_layer_a": [],
+  "only_in_layer_b": [],
+  "win_windows": 24,
+  "issued": 24,
+  "identity_issued_plus_carried_equals_wins": true,
+  "duplicate_delta_ids": 0,
+  "carried_over_windows": [],
+  "log_matches_world": true
+ },
+ "roles": {
+  "cue": "s1",
+  "source1": "s3",
+  "source2": "s2",
+  "cue_receptor": "receptor.x1",
+  "source1_action": "A1",
+  "source2_action": "A2"
+ },
+ "reached_windows": 50
+}

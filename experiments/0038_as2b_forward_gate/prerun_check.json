@@ -1,0 +1,23 @@
+{
+ "purpose": "②b の前方の関門を一度だけ走らせる前の点検（#177 のマージ後の指示：ホスト・作業木・commit・出力先・試行の札の状態）",
+ "checked_at": "2026-11-09T17:25:04.525729+00:00",
+ "host": "vm",
+ "python": "3.13.16",
+ "worktree": "/home/claude/wt-0038-19b3d01",
+ "git_head": "19b3d0107fd576afbe3565b6893e17705a7ee582",
+ "git_status_porcelain_lines": 0,
+ "sha256": {
+  "experiments/0038_as2b_forward_gate/gate_declaration.json": "e612efc5e6b084e1712520de64a877e0dd477d737b88695252f4cc234a64e1cb",
+  "experiments/0038_as2b_forward_gate/gate.py": "eca189aed720278e3519a172922f4483351c069f6fa9c60a47eb5bae0dcd863b",
+  "experiments/as2b_choice/as2b.py": "f628fc7d505084bb8366b175115cd70ee95eab493369f1216a6adb4c1421a6fd",
+  "experiments/as1_closed_loop/as1.py": "6337750021b54d8fcdf05eb510ac0c7f388c4f50952116bbbb13ad4ce18b114a"
+ },
+ "gate_constant_matches_declaration": true,
+ "attempts_dir_exists": false,
+ "results_dir_exists": false,
+ "out_dir": "experiments/0038_as2b_forward_gate/results",
+ "contract_tests_in_this_worktree": "tests/integration/test_as2b_contract.py: 111 passed",
+ "no_execute_check": "gate.py without --execute: declaration verified, exit 0, nothing created",
+ "command": "python3 experiments/0038_as2b_forward_gate/gate.py --execute",
+ "single_run_rule": "一度だけ。結果が成立・不成立・無効・途中失敗のどれでも、条件を変えず、再実行しない"
+}
