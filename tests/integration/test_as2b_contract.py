@@ -630,29 +630,165 @@ def test_a_changed_declaration_is_refused(tmp_path) -> None:
         G.load_declaration(path)
 
 
-def test_without_execute_the_gate_does_not_run(tmp_path, capsys) -> None:
+def test_the_declaration_v02_keeps_the_v01_history_and_was_revised_before_any_gate_run() -> None:
+    decl, _ = G.load_declaration()
+    assert decl["version"] == "0.2"
+    h = decl["history"][0]
+    assert h["version"] == "0.1" and h["sha256"].startswith("909ab4f8") and h["synthetic_gate_seeds_run_before_revision"] is False
+    assert not (GATE_DIR / "attempts").exists() and not (GATE_DIR / "results").exists()     # ②a では関門を走らせていない
+
+
+def test_without_execute_the_gate_does_not_run_or_claim(tmp_path, capsys) -> None:
     assert G.main(["--out", str(tmp_path / "results")]) == 0
     assert not (tmp_path / "results").exists()
-    assert not (GATE_DIR / "results").exists()
+    assert not (GATE_DIR / "results").exists() and not (GATE_DIR / "attempts").exists()
 
 
-def test_the_gate_runner_reports_only_feasibility_quantities_on_a_test_declaration(tmp_path) -> None:
+def _test_declaration(tmp_path):
+    """道具の確認用の宣言（関門の宣言の形のまま、seed・予定・長さだけを道具の確認用に替える）。札は tmp_path に作る。"""
     decl = json.loads((GATE_DIR / "gate_declaration.json").read_text(encoding="utf-8"))
     decl["schedule"] = {"cue_pulses": {"first": 30, "spacing": 80, "count": 3}, "window_offset_o": 2, "window_length_W": 60}
     decl["synthetic_seeds"] = {"first": TOOL_SEEDS[0], "last": TOOL_SEEDS[1], "count": 2}
     decl["bodies"]["pulses"] = 30 + 2 * 80 + 61 + L
-    report = G.run_gate(decl, "test-declaration", tmp_path / "out")
-    assert set(report) == {"declaration_sha256", "per_body", "evaluation", "audit_all_ok"}
-    assert report["audit_all_ok"]
+    path = tmp_path / "test_declaration.json"
+    path.write_text(json.dumps(decl, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return decl, path, hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def test_the_gate_runner_reports_only_feasibility_quantities_on_a_test_declaration(tmp_path) -> None:
+    decl, _path, digest = _test_declaration(tmp_path)
+    attempts = tmp_path / "attempts"
+    report = G.run_gate(decl, digest, tmp_path / "out", attempts)
+    assert set(report) == {"declaration_sha256", "status", "validity", "per_body", "evaluation"}
+    assert report["status"] == "completed" and report["validity"] == {"valid": True, "problems": []}
     assert len(report["per_body"]) == 4
     for row in report["per_body"]:
-        assert set(row) == {"seed", "rule_c", *G.REPORT_KEYS}
+        assert set(row) == {"seed", "rule_c", "feasible", *G.REPORT_KEYS}
         assert row["windows"] == 3 and row["decided"] + row["tie"] + row["none"] == 3
-    assert set(report["evaluation"]) == {"bodies", "bodies_decided_at_least_q", "bodies_with_both_actions",
-                                         "criterion_1", "criterion_2", "pass"}
+    assert set(report["evaluation"]) == {"individuals", "bodies", "feasible_bodies", "feasible_individuals", "pass"}
     text = (tmp_path / "out" / "report.json").read_text(encoding="utf-8")
     assert "proportion" not in text and '"A1":' not in text and '"A2":' not in text
     assert len(list((tmp_path / "out" / "records").glob("*.json"))) == 4
+    assert (attempts / f"claim-{digest}.json").exists() and (attempts / f"attempt-{digest}.completed.json").exists()
+
+
+def _row(seed, rule_c, decided, a1=True, a2=True, windows=50):
+    return {"seed": seed, "rule_c": rule_c, "windows": windows, "decided": decided, "tie": 0, "none": windows - decided,
+            "A1_occurred": a1, "A2_occurred": a2}
+
+
+def test_evaluate_requires_both_conditions_in_the_same_body_and_both_bodies_of_an_individual() -> None:
+    decl, _ = G.load_declaration()
+    # 80 本体のうち、「決まった窓 ≥ q」が 41 本体、「A1 と A2 の両方」が 41 本体あるが、同じ本体で両方を満たすのは 2 本体
+    rows = []
+    for k, seed in enumerate(range(31001, 31041)):
+        for j, c in enumerate(("A1", "A2")):
+            idx = 2 * k + j
+            many = idx < 41                      # 0〜40：決まった窓が多い
+            both = idx >= 39                     # 39〜79：両方が出た
+            rows.append(_row(seed, c, 25 if many else 3, a1=True, a2=both))
+    assert sum(1 for r in rows if r["decided"] >= 10) == 41 and sum(1 for r in rows if r["A2_occurred"]) == 41
+    ev = G.evaluate(rows, decl)
+    assert ev["feasible_bodies"] == 2 and ev["feasible_individuals"] <= 1 and ev["pass"] is False      # 旧い判定なら通っていた
+
+
+@pytest.mark.parametrize(("feasible", "expected"), [(20, False), (21, True)])
+def test_evaluate_needs_a_strict_majority_of_the_forty_individuals(feasible, expected) -> None:
+    decl, _ = G.load_declaration()
+    rows = []
+    for k, seed in enumerate(range(31001, 31041)):
+        ok = k < feasible
+        rows += [_row(seed, "A1", 10 if ok else 9), _row(seed, "A2", 10)]       # 10/50 ＝ q ちょうどは満たす
+    ev = G.evaluate(rows, decl)
+    assert ev["individuals"] == 40 and ev["feasible_individuals"] == feasible and ev["pass"] is expected
+
+
+def test_one_body_failing_makes_the_individual_infeasible() -> None:
+    decl, _ = G.load_declaration()
+    rows = [_row(31001, "A1", 30), _row(31001, "A2", 30, a1=False)]
+    assert G.evaluate(rows, decl)["feasible_individuals"] == 0
+
+
+def test_a_second_run_is_refused_even_with_another_out(tmp_path) -> None:
+    decl, _path, digest = _test_declaration(tmp_path)
+    attempts = tmp_path / "attempts"
+    G.run_gate(decl, digest, tmp_path / "out1", attempts)
+    with pytest.raises(G.AttemptRefused):
+        G.run_gate(decl, digest, tmp_path / "out2", attempts)
+    assert not (tmp_path / "out2").exists()
+
+
+def test_a_failure_mid_run_keeps_the_claim_records_the_failure_and_refuses_a_rerun(tmp_path, monkeypatch) -> None:
+    decl, _path, digest = _test_declaration(tmp_path)
+    attempts = tmp_path / "attempts"
+    original = G.run_body
+    calls = {"n": 0}
+
+    def flaky(*args, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise RuntimeError("途中の停止の模擬")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(G, "run_body", flaky)
+    with pytest.raises(RuntimeError):
+        G.run_gate(decl, digest, tmp_path / "out", attempts)
+    failed = json.loads((attempts / f"attempt-{digest}.failed.json").read_text(encoding="utf-8"))
+    assert failed["status"] == "failed" and failed["finished_bodies"] == 1
+    assert (attempts / f"claim-{digest}.json").exists() and not (tmp_path / "out" / "report.json").exists()
+    assert len(list((tmp_path / "out" / "records").glob("*.json"))) == 1          # 終わった本体の記録は痕跡として残る
+    monkeypatch.setattr(G, "run_body", original)
+    with pytest.raises(G.AttemptRefused):
+        G.run_gate(decl, digest, tmp_path / "out-again", attempts)
+
+
+def test_an_audit_mismatch_makes_the_attempt_invalid_not_a_pass(tmp_path, monkeypatch) -> None:
+    decl, _path, digest = _test_declaration(tmp_path)
+    attempts = tmp_path / "attempts"
+    original = G.run_body
+
+    def broken_audit(*args, **kwargs):
+        row, record = original(*args, **kwargs)
+        record["audit"] = dict(record["audit"], ok=False)
+        return row, record
+
+    monkeypatch.setattr(G, "run_body", broken_audit)
+    report = G.run_gate(decl, digest, tmp_path / "out", attempts)
+    assert report["status"] == "invalid" and report["evaluation"] == {"pass": None}
+    assert report["validity"]["valid"] is False and report["validity"]["problems"]
+    invalid = json.loads((attempts / f"attempt-{digest}.invalid.json").read_text(encoding="utf-8"))
+    assert invalid["valid"] is False and invalid["pass"] is None
+
+
+def test_check_validity_flags_unreached_windows_and_carried_over() -> None:
+    decl, _ = G.load_declaration()
+    rows = [_row(31001, "A1", 10, windows=49)]
+    audits = [{"audit": {"ok": True, "carried_over_windows": [50]}, "reached_windows": 49}]
+    v = G.check_validity(rows, audits, decl)
+    assert v["valid"] is False and len(v["problems"]) == 3       # 行の数・窓の到達・持ち越し
+
+
+def test_main_exit_codes_for_done_refused_invalid_and_failed(tmp_path, monkeypatch, capsys) -> None:
+    _decl, path, _digest = _test_declaration(tmp_path)
+    kw = {"declaration": path, "expected_sha256": None}
+    assert G.main(["--execute", "--out", str(tmp_path / "a")], attempts_dir=tmp_path / "att1", **kw) == G.EXIT_DONE
+    assert G.main(["--execute", "--out", str(tmp_path / "b")], attempts_dir=tmp_path / "att1", **kw) == G.EXIT_REFUSED
+    original = G.run_body
+
+    def broken_audit(*args, **kwargs):
+        row, record = original(*args, **kwargs)
+        record["audit"] = dict(record["audit"], ok=False)
+        return row, record
+
+    monkeypatch.setattr(G, "run_body", broken_audit)
+    assert G.main(["--execute", "--out", str(tmp_path / "c")], attempts_dir=tmp_path / "att2", **kw) == G.EXIT_INVALID
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("停止の模擬")
+
+    monkeypatch.setattr(G, "run_body", boom)
+    assert G.main(["--execute", "--out", str(tmp_path / "d")], attempts_dir=tmp_path / "att3", **kw) == G.EXIT_FAILED
+    assert not (GATE_DIR / "attempts").exists() and not (GATE_DIR / "results").exists()     # 本物の宣言の札は作らない
 
 
 def test_proposition_t5_closed_form_parts() -> None:

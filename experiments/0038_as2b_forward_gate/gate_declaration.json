@@ -1,12 +1,12 @@
 {
   "declaration": "AS2b 前方の関門の組（docs/as2b-minimal-implementation-contract.md §7.2）",
-  "version": "0.1",
+  "version": "0.2",
   "contract": {
     "path": "docs/as2b-minimal-implementation-contract.md",
     "pr": 176,
     "main": "6ccec47"
   },
-  "status": "②a で宣言。②a の技術受理の後、②b で、この組を変えずに一度だけ走らせる。③はこの組を引き継いで変えない",
+  "status": "②a で宣言。②a の技術受理の後、②b で、この組を変えずに一度だけ走らせる。③はこの組を引き継いで変えない。v0.2 は、合成の seed を一度も走らせていない段階で、#177 のレビューの静的な論理の欠陥を直した改訂",
   "schedule": {
     "cue_pulses": {
       "first": 41,
@@ -63,11 +63,13 @@
       "A2_occurred"
     ],
     "decided_means": "outcome is A1 or A2",
-    "population": "all 80 bodies (40 individuals x 2 rule_c values); no exclusion",
     "q": 0.2,
-    "criterion_1": "fraction of bodies with decided / windows >= q is strictly greater than 1/2",
-    "criterion_2": "fraction of bodies with A1_occurred and A2_occurred is strictly greater than 1/2",
-    "pass": "criterion_1 and criterion_2"
+    "q_meaning": "operational feasibility floor (10 of 50 windows end in a choice); not a guarantee of estimation precision",
+    "body_feasible": "in the same body: decided / windows >= q AND A1_occurred AND A2_occurred",
+    "individual_feasible": "both paired bodies of the seed (rule_c = A1 and rule_c = A2) are body_feasible",
+    "population": "40 individuals (seeds 31001-31040); the two bodies of an individual share the birth state and are not independent; no exclusion",
+    "pass": "number of feasible individuals is strictly greater than half of the individuals (>= 21 of 40)",
+    "negative_result": "a valid attempt with pass = false is a legitimate negative result of the gate, not a failure of the attempt"
   },
   "forbidden_outputs": [
     "per-body or pooled counts of A1 and of A2 separately",
@@ -81,5 +83,37 @@
     "layer B: world intent records per body (delta_id, source_id, created_pulse, action)",
     "CT-E10 audit result per body",
     "sha256 of this declaration"
+  ],
+  "validity": {
+    "rule": "if any check fails, the attempt is invalid: no pass/fail is reported and the gate is not satisfied (fail-closed)",
+    "checks": [
+      "the declaration sha256 equals the fixed value in gate.py",
+      "number of body rows = individuals x bodies per individual",
+      "every body: CT-E10 audit ok (layer A = layer B one-to-one, issued + carried = wins, unique delta ids, log = world)",
+      "every body: all declared windows reached and closed (records = windows; decided + tie + none = windows)",
+      "every body: no carried-over (unissued) intent at the end (pulses = b_K + L)"
+    ],
+    "invalid_is_not_negative": "an invalid attempt is not a negative result and is not rerun on new seeds"
+  },
+  "one_time_execution": {
+    "claim": "experiments/0038_as2b_forward_gate/attempts/claim-<declaration sha256>.json, created exclusively (O_CREAT | O_EXCL) before the first seed",
+    "refusal": "if the claim exists, the gate does not run, whatever --out is",
+    "attempt_record": "experiments/0038_as2b_forward_gate/attempts/attempt-<declaration sha256>.<completed|invalid|failed>.json, created exclusively",
+    "records_while_running": "each body's audit record is written to <out>/records/ as soon as the body finishes; the report is written last",
+    "failure": "an exception keeps the claim and writes a failed attempt record with the number of finished bodies; the tool has no override",
+    "restart": "only after an independent review that decides without reading the content of partial records; any change to this declaration gives a new sha256 and must be reviewed before running"
+  },
+  "history": [
+    {
+      "version": "0.1",
+      "sha256": "909ab4f8ecd8bbefc688ccfe5a9296ab10dadecb6c6f5d4f189d19fe187fb3e4",
+      "commit": "2728830",
+      "revised_because": [
+        "#177 review 5819011204: the two majority criteria were counted on different bodies and on 80 paired bodies instead of 40 individuals",
+        "one-time protection depended on --out and on completion",
+        "pass could be true when the audit failed"
+      ],
+      "synthetic_gate_seeds_run_before_revision": false
+    }
   ]
 }
