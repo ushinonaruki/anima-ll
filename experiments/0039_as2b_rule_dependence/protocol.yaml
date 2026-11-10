@@ -1,4 +1,6 @@
-# 実験 0039 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
+# 実験 0039 の実行条件と記録項目（事前登録の案 v0.2。ChatGPT の再レビュー待ち・未確定。この実験の道具の実装の前に固定する）
+# v0.2：レビュー 5837398414 の修正必須 2 件。合わせた主張を二つの条件付きの結果の並立に限り（同じ個体での媒介は主張しない）、
+# 選別の後の向きの対称性を、選別の条件の対称性から導いた性質ではなく、明示の帰無として仮定する。判定の形・値・seed・系は不変。
 #
 # AS2b（関門 0038 の宣言 v0.2 の組をそのまま引き継ぐ）で、同じ個体の二つの本体（規則 c = A1 と c = A2）を走らせ、
 # 試しの区間 U（窓 26〜50）の A1 の割合 s の差 D = s(B_A1) - s(B_A2) の符号を個体の事象にする（J_7。R-7 の総効果）。
@@ -120,7 +122,7 @@ judgment:
     ineligible_a_kinds:
       a1_all_none: "every E window of the common prefix ended with none"
       a2_ties_only: "at least one tie and no decided window in E"
-    undefined_b: "eligible, and n_U = 0 in at least one system of the contrast (s undefined; N/A); excluded; symmetric in the pair"
+    undefined_b: "eligible, and n_U = 0 in at least one system of the contrast (s undefined; N/A); excluded; the condition is symmetric in the pair, which is NOT used to derive sign symmetry"
     undefined_b_kinds: [one_system, both_systems]
     structural_identity: "eligible and W_A1 == W_A2 bitwise for all six; kept in the J_W denominator with D_W = 0; labelled and counted"
     structurally_silent_source: "a source with g < -E_S (proposition S-1); labelled and counted; kept in the denominator if eligible and defined (its difference is 0)"
@@ -139,9 +141,11 @@ judgment:
     min_population: 10
     below_min: inconclusive
     rule: "same as J_7 with k2(m_W)"
-  combined_claim: "only if J_7 and J_W are established in the same direction (README §0.2)"
+  combined_claim: "only if J_7 and J_W are established in the same direction, stated as two conditional results side by side (different populations and different U conditions); no same-individual mediation is claimed (README §0.2)"
+  same_individual_table: "(sign D, sign D_W) for individuals in both populations is descriptive only; it never replaces a judgment and is not used for a mediation claim"
   family_error: "fixed sequence J_7 -> J_W; family-wise error <= 0.05"
-  null:
+  null_hypotheses:
+    status: "explicit conditional nulls on the post-selection populations; not derived from the symmetric selection conditions or from the random role assignment"
     H0_7: "with birth states iid, P(D > 0) = P(D < 0) in the J_7 population"
     H0_W: "P(D_W > 0) = P(D_W < 0) in the J_W population"
     zeros: "kept in m; each count is stochastically dominated by Bin(m, 1/2)"
