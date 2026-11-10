@@ -1,0 +1,212 @@
+# 実験 0039 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
+#
+# AS2b（関門 0038 の宣言 v0.2 の組をそのまま引き継ぐ）で、同じ個体の二つの本体（規則 c = A1 と c = A2）を走らせ、
+# 試しの区間 U（窓 26〜50）の A1 の割合 s の差 D = s(B_A1) - s(B_A2) の符号を個体の事象にする（J_7。R-7 の総効果）。
+# J_7 が成立したときだけ、経験の区間 E（窓 1〜25）の終わり P_E = 1065 で、B_A1 の複製の可塑的な 6 本の重みを
+# B_A2 の重み W_A2 に替えた系と替えない系（U で 6 本を FREEZE、世界の規則 c = A1）の s の差 D_W の符号で判定する
+# （J_W。R-1 の PC-4 の型。固定の順序）。どちらも両側（向きごとに 0.025）、個体の多数（README §4）。
+# LC1（出生から 6 本を FREEZE した c = A1・A2 の本体の差 D_F）と、逆の状態の移植（D_W_rev）は、必ず報告する記述の対照（README §6）。
+#
+# この案の段階では、この実験の道具の実装・smoke・本番の測定・どの seed の実行もしない（README の Status・§14）。
+# 関門の記録（experiments/0038_as2b_forward_gate/results/records/）は、来歴と監査のためだけに残し、この実験の判定にも設計にも使わない。
+# 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を
+# 開示し、新しい版・新しい seed の範囲で行う。
+#
+# 種別：事前登録した検証。主の判定は J_7 と J_W の二つ（固定の順序。族の誤りの水準 0.05）。
+# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。新しく選んだ値とその理由は README §1.2・§4.4・§5.3。
+
+experiment: "0039"
+kind: preregistered_test
+seeds: {first: 32001, last: 32200}            # 本番。200 個体を全件記録・全件報告する。以後どの実験にも使わない
+smoke_seeds: {first: 32201, last: 32206}      # 操作の確認だけ。盲検。判定の量・現象の数値は計算・表示・保存しない
+synthetic_seeds: {first: 32301, last: 32399}  # 合成の契約テスト専用
+not_used_seeds:
+  gate_synthetic: {first: 31001, last: 31040} # 関門の seed。その記録に R-7 の二つの本体の結末が入っているので、走らせ直さない（README §9.2）
+
+inherited_gate_set:                           # README §1.1。値は宣言から取り、ここにもコードにも書き込まない
+  declaration: experiments/0038_as2b_forward_gate/gate_declaration.json
+  sha256: e612efc5e6b084e1712520de64a877e0dd477d737b88695252f4cc234a64e1cb
+  version: "0.2"
+  taken_from_declaration: [schedule, exit, world, roles, bodies]
+  not_taken: [synthetic_seeds, evaluation, one_time_execution]   # 関門のための欄
+  expected_values: {cue_first: 41, cue_spacing: 41, cue_count: 50, o: 2, W: 19, tie: close_window_without_intent,
+                    L: 2, consequence_receptor: cue_receptor, multiplicity: per_reservation, lc3: null,
+                    roles_stream: "as2b-roles-{seed}", body_pulses: 2072}   # O2 で宣言から取った値と照らす
+
+tools:
+  base: experiments/as2b_choice/as2b.py       # build・clone・transplant・declare（FREEZE）・sigma・audit をそのまま使う。変えない見込み
+  base_rule: "if anything must be added to as2b.py, the default behaviour is unchanged and all AS2b contract tests pass"
+  gate_body: "experiments/0038_as2b_forward_gate/gate.py run_body: build(seed, schedule=..., delay=2, rule_c=c, respond=True)"
+  contract_tests: [tests/integration/test_as1_contract.py, tests/integration/test_as2b_contract.py]
+  previous_experiment: experiments/0037_as1_plasticity_contribution   # guard・盲検の smoke・O1 の記録・結果の写し・境界の手順を引き継ぐ
+  contract: docs/as2b-minimal-implementation-contract.md
+  criteria: docs/s3-configuration-criteria.md
+
+brain:                                  # C0 のまま（関門と同じ）
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml
+  units: [s1, s2, s3]
+  roles: "random.Random('as2b-roles-{seed}').shuffle([s1, s2, s3]) -> (cue, source1, source2)"
+  action_ids: {source1: A1, source2: A2}
+  receptor_weight: 1.0
+  refractory_pulses: 0
+  plastic_connections: six_s_to_s
+  initial_weight_w0: 0.005               # = w_max / 2。W_0 はこの値（6 本とも）
+  w_max: 0.01
+  adaptation_tau_pulses: 300
+
+world:                                  # すべての系で同じ（関門の宣言の world）。switch_world・replay・LC3 は使わない
+  closed_loop: true
+  rule_c: "per system (A1 or A2); G systems keep the rule of their background body"
+
+timeline:                               # 1 Pulse = 1 秒。窓 k = [41k + 2, 41k + 20]
+  pulse_interval_seconds: 1.0
+  experience_E: {windows: [1, 25], pulses: [1, 1065]}
+  P_E: 1065                             # 窓 26 の手がかり 1066 の直前。E の最後の結果は遅くとも 1047 に成立
+  trial_U: {windows: [26, 50], pulses: [1066, 2072]}
+  runs_to: 2072                         # = b_50 + L（関門の宣言の本体の長さ）
+
+systems:                                # README §2.2。c, d in {A1, A2}、c != d
+  B_c:      {build: "gate run_body construction (rule_c = c)", E_plasticity: rule, U_plasticity: rule, role: "body (R-7 pair; J_7)"}
+  G_c_Wd:   {build: "S2 clone of B_c at P_E", at_P_E: "S3 transplant six to W_d, S4 FREEZE six (advance)", rule: c,
+             role: "J_W (c = A1) and reverse state (c = A2)"}
+  G_c_Wc:   {build: "S2 clone of B_c at P_E", at_P_E: "S4 FREEZE six (advance), no transplant", rule: c, role: "pair of G_c_Wd"}
+  G_c_Wc_tr: {build: "S2 clone of B_c at P_E", at_P_E: "S3 transplant six to W_c (own values), S4 FREEZE six", rule: c,
+              role: "transplant identity check (O9)"}
+  F_c:      {build: "build(seed, ..., rule_c = c) with FREEZE six declared at boundary 0 (advance)", role: "LC1 (D_F, must report)"}
+  B_A1_rerun: {build: "gate run_body construction (rule_c = A1) without the added records", role: "non-interference and gate-body identity (O13)"}
+  per_individual: [B_A1, B_A2, B_A1_rerun, F_A1, F_A2, G_A1_WA1, G_A1_WA2, G_A1_WA1_tr, G_A2_WA2, G_A2_WA1, G_A2_WA2_tr]
+  pulses_per_individual: 16402          # 5 x 2072 + 6 x 1007
+  W_c: "B_c's six plastic weights at the end of pulse P_E"
+  W_0: "birth values (w0 for all six)"
+  transplant: "all six at once (F1 is preserved: SE-7); never one side only"
+  trace_policy: advance                 # 全 6 本を止めている区間では軌道に効かない（SE-5）
+
+boundary_sequence:                      # README §2.4
+  S0: "advance B_A1 and B_A2 to the end of pulse P_E; check no open window, no pending intent and no consequence reservation"
+  S1: "read W_A1 and W_A2 (bodies have no interventions)"
+  S2: "clone B_c -> G_c_Wc, G_c_Wd, G_c_Wc_tr (M1)"
+  S3: "transplant: G_c_Wd <- W_d (six), G_c_Wc_tr <- W_c (six); G_c_Wc untouched; intervention state is empty"
+  S4: "declare the U intervention once per G system: FREEZE six (advance); frozen values = weights at declaration"
+  S5: "advance B_A1, B_A2 and the six G systems to pulse 2072"
+  no_pulse_between: [S1, S4]
+  effective_from: "pulse P_E + 1 (transmission at its start, update at its end)"
+  in_flight_drives: "drives created at pulse P_E keep the pre-transplant weights and are the same within a background"
+  compare_sigma_at: [after_S3, after_S4]
+
+quantities:                             # README §3
+  outcome_per_window: "layer A outcome in {A1, A2, tie, none}; checked one-to-one against layer B (CT-E10)"
+  n_U: "number of U windows (26..50) whose outcome is A1 or A2"
+  A1_U: "number of U windows with outcome A1"
+  s: "A1_U / n_U; defined only if n_U >= 1"
+  contrasts:                            # (a, b)。差は s(a) - s(b)。＋ は a の側（c = A1、または W_A1）で A1 の割合が高い
+    D: [B_A1, B_A2]                     # J_7
+    D_W: [G_A1_WA1, G_A1_WA2]           # J_W
+    D_W_rev: [G_A2_WA1, G_A2_WA2]       # 必ず報告（R-2 の逆の状態）
+    D_F: [F_A1, F_A2]                   # 必ず報告（LC1）
+    Z_A1: [B_A1, G_A1_WA1]              # 記述（U の FREEZE）。同じ規則の中の比べなので、規則 c が指す行動の割合 s_c の差で書く
+    Z_A2: [B_A2, G_A2_WA2]
+    P_A1: [B_A1, F_A1]                  # 記述（PC-1 の型）。s_c の差で書く
+    P_A2: [B_A2, F_A2]
+  s_c: "share of the action pointed to by rule c (s if c = A1, 1 - s if c = A2); used only within one rule (Z, P), never across rules"
+  label_invariance: "swapping the A1/A2 labels leaves D and D_F unchanged and exchanges D_W and D_W_rev; the meaning of plus is unchanged"
+  no_decomposition: "no contrast is written as a sum of others; no order is called the true decomposition (U5)"
+
+judgment:
+  common_prefix:
+    k_star: "first window whose outcome is A1 or A2 in the common prefix of B_A1 and B_A2 (identical up to its intent pulse: SE-1)"
+    k_star_F: "same for F_A1 and F_A2"
+  per_individual:
+    ineligible_a: "no decided window among windows 1..25 of the common prefix (k_star > 25 or none); excluded from the denominator"
+    ineligible_a_kinds:
+      a1_all_none: "every E window of the common prefix ended with none"
+      a2_ties_only: "at least one tie and no decided window in E"
+    undefined_b: "eligible, and n_U = 0 in at least one system of the contrast (s undefined; N/A); excluded; symmetric in the pair"
+    undefined_b_kinds: [one_system, both_systems]
+    structural_identity: "eligible and W_A1 == W_A2 bitwise for all six; kept in the J_W denominator with D_W = 0; labelled and counted"
+    structurally_silent_source: "a source with g < -E_S (proposition S-1); labelled and counted; kept in the denominator if eligible and defined (its difference is 0)"
+    no_post_hoc_exclusion: "no other exclusion; labels are never used to remove an individual"
+    sign: {plus: "difference > 0", minus: "difference < 0", zero: "difference == 0"}
+  J_7:
+    population: "eligible (not ineligible_a) and D defined (n_U(B_A1) >= 1 and n_U(B_A2) >= 1)"
+    min_population: 10
+    below_min: inconclusive
+    rule: "plus if count(plus) >= k2(m); minus if count(minus) >= k2(m); otherwise not established"
+    alpha: {two_sided: 0.05, per_direction: 0.025}
+  J_W:
+    tested_only_if: "J_7 is established (either direction)"
+    otherwise: not_tested
+    population: "not ineligible_a, and D_W defined (n_U(G_A1_WA1) >= 1 and n_U(G_A1_WA2) >= 1); structural identities kept with D_W = 0"
+    min_population: 10
+    below_min: inconclusive
+    rule: "same as J_7 with k2(m_W)"
+  combined_claim: "only if J_7 and J_W are established in the same direction (README §0.2)"
+  family_error: "fixed sequence J_7 -> J_W; family-wise error <= 0.05"
+  null:
+    H0_7: "with birth states iid, P(D > 0) = P(D < 0) in the J_7 population"
+    H0_W: "P(D_W > 0) = P(D_W < 0) in the J_W population"
+    zeros: "kept in m; each count is stochastically dominated by Bin(m, 1/2)"
+  k2_rule: "smallest k with P(Bin(m, 1/2) >= k) <= 1/40 (exact fractions; analysis.py)"
+  k2_of_m: {10: 9, 11: 10, 12: 10, 13: 11, 14: 12, 15: 12, 16: 13, 17: 13, 18: 14, 19: 15, 20: 15, 21: 16, 22: 17,
+            23: 17, 24: 18, 25: 18, 26: 19, 27: 20, 28: 20, 29: 21, 30: 21, 31: 22, 32: 23, 33: 23, 34: 24, 35: 24,
+            36: 25, 37: 25, 38: 26, 39: 27, 40: 27, 41: 28, 42: 28, 43: 29, 44: 29, 45: 30, 46: 31, 47: 31, 48: 32,
+            49: 32, 50: 33, 51: 33, 52: 34, 53: 35, 54: 35, 55: 36, 56: 36, 57: 37, 58: 37, 59: 38, 60: 39, 61: 39,
+            62: 40, 63: 40, 64: 41, 65: 41, 66: 42, 67: 42, 68: 43, 69: 44, 70: 44, 71: 45, 72: 45, 73: 46, 74: 46,
+            75: 47, 76: 48, 77: 48, 78: 49, 79: 49, 80: 50, 81: 50, 82: 51, 83: 51, 84: 52, 85: 53, 86: 53, 87: 54,
+            88: 54, 89: 55, 90: 55, 91: 56, 92: 56, 93: 57, 94: 57, 95: 58, 96: 59, 97: 59, 98: 60, 99: 60,
+            100: 61, 101: 61, 102: 62, 103: 62, 104: 63, 105: 64, 106: 64, 107: 65, 108: 65, 109: 66, 110: 66,
+            111: 67, 112: 67, 113: 68, 114: 68, 115: 69, 116: 70, 117: 70, 118: 71, 119: 71, 120: 72, 121: 72,
+            122: 73, 123: 73, 124: 74, 125: 74, 126: 75, 127: 76, 128: 76, 129: 77, 130: 77, 131: 78, 132: 78,
+            133: 79, 134: 79, 135: 80, 136: 80, 137: 81, 138: 81, 139: 82, 140: 83, 141: 83, 142: 84, 143: 84,
+            144: 85, 145: 85, 146: 86, 147: 86, 148: 87, 149: 87, 150: 88, 151: 89, 152: 89, 153: 90, 154: 90,
+            155: 91, 156: 91, 157: 92, 158: 92, 159: 93, 160: 93, 161: 94, 162: 94, 163: 95, 164: 96, 165: 96,
+            166: 97, 167: 97, 168: 98, 169: 98, 170: 99, 171: 99, 172: 100, 173: 100, 174: 101, 175: 101, 176: 102,
+            177: 103, 178: 103, 179: 104, 180: 104, 181: 105, 182: 105, 183: 106, 184: 106, 185: 107, 186: 107,
+            187: 108, 188: 108, 189: 109, 190: 109, 191: 110, 192: 111, 193: 111, 194: 112, 195: 112, 196: 113,
+            197: 113, 198: 114, 199: 114, 200: 115}
+  interval: "Clopper-Pearson 95% (two-sided) for count(plus)/m and count(minus)/m; always reported when m >= 1 (D6)"
+  outcomes: [invalid, inconclusive, J_7_not_established, J_7_only, both_same_direction, both_opposite_direction]
+
+must_report:                            # README §6.1。検定しない
+  contrasts: [D_W_rev, D_F]
+  descriptive: [Z_A1, Z_A2, P_A1, P_A2]
+  form: "m, counts of plus / minus / zero, each share with its Clopper-Pearson 95% interval"
+  cross_tables: ["(sign D_W, sign D_W_rev) in 9 cells", "(sign D, sign D_W) in 9 cells"]
+  ineligible_and_undefined: "listed in separate tables; never in the judgments or the totals above"
+
+records:                                # README §6.2
+  R1: "roles, birth theta and c of the 3 units, margins g, S-1 label per source, k_star, ineligible / undefined / identity labels"
+  R2: "per system: decided, A1, A2, tie, none counts and s, in E (B and F) and in U"
+  R3: "per contrast: distribution of differences and |differences|; differences of n_U and A1_U"
+  R4: "W_A1, W_A2 and their difference, pair sums; B_A1 and B_A2 six weights at every c_k - 1"
+  R5: "consequences received in E and in U per body (= decided windows of action c: SE-2)"
+  R6: "first pulse at which all-unit firings and window outcomes differ: B pair (end of common prefix), G pairs (SE-6), F pair"
+  R7: "firing counts of the 3 units in E and U per system"
+  R8: "Clopper-Pearson intervals (README §5.2)"
+  R9: "E share and U share per body (within-body before/after; not a counterfactual contrast)"
+
+structural_equivalences: [SE-1, SE-2, SE-3, SE-4, SE-5, SE-6, SE-7, SE-8, SE-9]   # README §7.1
+
+proposition_S1:                         # README §7.2（analysis.py）
+  E_S: "w_max * ((1 + lambda^4) / (1 - lambda^23) + 2 / (1 - lambda^7))"
+  E_S_value: 0.04503
+  condition: "g = c / (1 - lambda) - theta < -E_S"
+  per_source_share: 0.0292
+  individual_share_at_least_one: 0.0576
+  lemma_L1: "the cue unit fires at every pulse with receptor input (adaptation < 0.441); other firings are >= 7 pulses after its previous firing"
+  lemma_L2: "consecutive firings of a source are >= 7 pulses apart"
+  use: "labels only; never used in a judgment. A recorded violation is disclosed and the S-1 labels are withdrawn; the judgments do not change"
+
+operation_checks: [O1, O2, O3, O4, O5, O6, O7, O8, O9, O10, O11, O12, O13, O14]   # README §8。一つでも不成立なら無効
+operation_checks_note: "S-1 violations are recorded, not an operation check (D1)"
+
+storage:                                # README §9.1
+  raw: "seeds/<seed>/raw.json.gz (guard), copied byte for byte to results/ and checked with analyze.py --verify-copy"
+  sigma: {after_S3: G systems, after_S4: G systems, after_pulse_1066: G systems, after_k_star_intent: "B_A1, B_A2 (brain side)",
+          final_sha256: all systems, rerun: "B_A1_rerun at 1065 and 2072"}
+  numbers: "JSON numbers that round-trip with Python repr; equality of values (SHA-256 auxiliary)"
+  independent_recheck: "stdlib only; does not import analyze.py, measure.py, anima_ll or the AS2b tools"
+
+one_time: "the judgment seeds run once; after running, README, protocol and tools are not changed"
+execution_permissions:
+  smoke: "explicit technical execution permission from ChatGPT before running"
+  main: "explicit technical execution permission from ChatGPT before running"
