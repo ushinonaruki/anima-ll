@@ -24,6 +24,7 @@
 import argparse
 import dataclasses
 import gzip
+import hashlib
 import importlib.util
 import json
 import math
@@ -40,6 +41,9 @@ REPO = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent.relative_to(REPO)
 PROTOCOL_PATH = HERE / "protocol.yaml"
 PROTOCOL = yaml.safe_load((REPO / PROTOCOL_PATH).read_text(encoding="utf-8"))
+# 確定済みの事前登録の正本（v0.2、#179 merge `ba7ffba`）。生の記録の meta に保存した protocol の写しと SHA-256 を、これと照らす
+PROTOCOL_SHA256 = hashlib.sha256((REPO / PROTOCOL_PATH).read_bytes()).hexdigest()
+PROTOCOL_AS_STORED = json.loads(json.dumps(PROTOCOL))      # raw は JSON なので、写しは JSON を通した形で照らす
 EXPERIMENT, KIND = PROTOCOL["experiment"], PROTOCOL["kind"]
 OUT_DIR = Path("data/experiments/0039")
 SEED_RANGES = {"formal": "seeds", "smoke": "smoke_seeds", "synthetic": "synthetic_seeds"}
@@ -568,9 +572,21 @@ def _structure(data, mode, seed, plan, out) -> None:
             out.append(f"meta の {k} が {meta.get(k)}")
     if meta.get("manifest") != M.manifest_raw():
         out.append("meta の設計図が AS2b の設計図と違う")
+    _protocol_binding(meta, out)
     want_blind = {"smoke": True, "formal": False}.get(mode)
     if not isinstance(meta.get("blind"), bool) or (want_blind is not None and meta["blind"] is not want_blind):
         out.append(f"meta の blind が {meta.get('blind')}（smoke は盲検、本番は盲検でない）")
+
+
+def _protocol_binding(meta: Mapping, out: list[str]) -> None:
+    """meta の protocol の写しが存在し、確定済みの protocol.yaml（正本）と一致すること。独立の検算は、この写しを正本と照らし直す。"""
+    if "protocol" not in meta or "protocol_sha256" not in meta:
+        out.append("meta に protocol の写し・SHA-256 がない（独立の検算が確定済みの条件で再検証できない）")
+        return
+    if meta["protocol_sha256"] != PROTOCOL_SHA256:
+        out.append("meta の protocol の SHA-256 が、確定済みの protocol.yaml と違う")
+    if meta["protocol"] != PROTOCOL_AS_STORED:
+        out.append("meta の protocol の写しが、確定済みの protocol.yaml と違う")
 
 
 def _o2(data, mode, out) -> None:
@@ -965,6 +981,9 @@ def check_blinded(data: Mapping, seed: int, mode: str = "smoke") -> dict[str, st
                     and meta.get("blind") is True
                     and meta.get("manifest") == M.manifest_raw()
                     and meta.get("gate") == {"sha256": GATE_SHA256, "declaration": GATE_DECLARATION})
+        binding: list[str] = []
+        _protocol_binding(meta, binding)                             # 盲検の記録でも、protocol の写しを正本と照らす
+        ok_shape = ok_shape and not binding
     except (KeyError, TypeError, AttributeError):
         ok_shape = False
     if not ok_shape:

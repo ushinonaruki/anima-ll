@@ -2,7 +2,12 @@
 
 この実験の解析・測定の道具も、anima_ll も、AS2b の道具も、protocol.yaml を読む道具も読み込まない。保存した生の記録
 （seeds/<seed>/raw.json.gz）だけから、定義（README §3〜§6）を書き起こし直して計算し、report.json と一つずつ照合する。
-protocol の値は、生の記録の meta に保存された写し（meta.protocol）から取る。
+判定の閾値などの事前登録の値は、README・protocol.yaml（v0.2）から書き起こした PREREGISTERED から取る。生の記録の meta に保存された
+protocol の写し（meta.protocol・meta.protocol_sha256）は、次のことを確かめるだけに使う（v0.2 の修正。レビュー 5877646345）
+- 全個体にあり、全個体で同じであること
+- SHA-256 が、リポジトリの確定済みの protocol.yaml のバイト列の SHA-256 と同じであること
+- 写しの中の判定に関わる値が、PREREGISTERED と同じであること。k₂(m) の表は、二項から求め直した値と同じであること
+どれかが欠けたり違ったりすれば、食い違いとして数える。
 
 計算し直すもの
 - 個体ごと：共通の部分の k*、適格外 (a)・定まらない (b)・構造上の恒等（W^{A1} と W^{A2} の比べ）・命題 S-1 の札（θ・c から）、
@@ -41,6 +46,21 @@ CONTRASTS = {"D": ("B_A1", "B_A2", "A1", "B_A1"), "D_W": ("G_A1_WA1", "G_A1_WA2"
              "P_A1": ("B_A1", "F_A1", "A1", "B_A1"), "P_A2": ("B_A2", "F_A2", "A2", "B_A1")}
 TABLES = ["D_W_rev", "D_F", "Z_A1", "Z_A2", "P_A1", "P_A2"]
 ACTIONS = ("A1", "A2")
+SHA256_HEX = set("0123456789abcdef")
+PROTOCOL_FILE = Path(__file__).resolve().parent / "protocol.yaml"
+# 事前登録 v0.2（#179 merge `ba7ffba`）から書き起こした値：README §1.1・§1.2・§4.3・§5.1・§9.2、protocol.yaml の
+# judgment・timeline・brain・seeds。判定はこの値で計算し、meta の protocol の写しは、これと照らすだけに使う
+PREREGISTERED = {
+    "experiment": "0039",
+    "alpha_per_direction": Fraction(1, 40), "alpha_two_sided": Fraction(1, 20),
+    "min_population": {"J_7": 10, "J_W": 10},
+    "k2_range": (10, 200),
+    "experience_windows": [1, 25], "trial_windows": [26, 50], "P_E": 1065, "runs_to": 2072,
+    "w_max": 0.01,
+    "seeds": {"first": 32001, "last": 32200}, "smoke_seeds": {"first": 32201, "last": 32206},
+    "synthetic_seeds": {"first": 32301, "last": 32399},
+    "formal_plan": {"first": 41, "spacing": 41, "count": 50, "offset": 2, "length": 19, "delay": 2, "e_windows": 25},
+}
 
 
 def rec(run: dict, name: str) -> dict:
@@ -182,12 +202,11 @@ def decision(table: dict, alpha: Fraction, min_population: int) -> dict:
     return {"status": "established" if direction else "not_established", "direction": direction, "k2": k}
 
 
-def judgment(people: list[dict], protocol: dict) -> dict:
-    j = protocol["judgment"]
-    alpha = Fraction(str(j["J_7"]["alpha"]["per_direction"]))
+def judgment(people: list[dict]) -> dict:
+    alpha, least = PREREGISTERED["alpha_per_direction"], PREREGISTERED["min_population"]
     t7, tw = table_of(people, "D"), table_of(people, "D_W")
-    d7 = decision(t7, alpha, j["J_7"]["min_population"])
-    dw = decision(tw, alpha, j["J_W"]["min_population"]) if d7["status"] == "established" \
+    d7 = decision(t7, alpha, least["J_7"])
+    dw = decision(tw, alpha, least["J_W"]) if d7["status"] == "established" \
         else {"status": "not_tested", "direction": None, "k2": None}
     if d7["status"] == "inconclusive":
         outcome = "inconclusive"
@@ -274,7 +293,7 @@ def operation_problems(data: dict) -> list[str]:
             problems.append(f"O13 {key}")
     if run["bodies"]["B_A1_rerun"]["sigma_end_sha256"] != run["bodies"]["B_A1"]["sigma_end_sha256"]:
         problems.append("O13 sigma_end")
-    w_max = float(data["meta"]["protocol"]["brain"]["w_max"])
+    w_max = PREREGISTERED["w_max"]
     for c in ACTIONS:                                                  # O14
         w = run["boundary"]["W"][c]
         sums: dict[frozenset, float] = {}
@@ -284,6 +303,69 @@ def operation_problems(data: dict) -> list[str]:
         if len(sums) != 3 or any(abs(s - w_max) > 1e-15 for s in sums.values()):
             problems.append(f"O14 W_{c}")
     return problems
+
+
+# ---- protocol の写しと、確定済みの事前登録の結び付き（v0.2） ------------------------------------------------
+
+def _number(x) -> Fraction | None:
+    try:
+        return Fraction(str(x))
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+
+
+def protocol_problems(runs: dict, protocol_file: Path = PROTOCOL_FILE) -> list[str]:
+    """全個体の meta の protocol の写しが、そろってあり、確定済みの protocol.yaml と PREREGISTERED に結び付くこと。"""
+    problems = []
+    file_sha = hashlib.sha256(protocol_file.read_bytes()).hexdigest()
+    copies, shas = set(), set()
+    for s in sorted(runs):
+        meta = runs[s].get("meta", {})
+        proto, sha = meta.get("protocol"), meta.get("protocol_sha256")
+        if not isinstance(proto, dict) or not isinstance(sha, str) or len(sha) != 64 or not set(sha) <= SHA256_HEX:
+            problems.append(f"seed {s}: meta に protocol の写し・SHA-256 がない")
+            continue
+        copies.add(json.dumps(proto, sort_keys=True, ensure_ascii=False))
+        shas.add(sha)
+        if sha != file_sha:
+            problems.append(f"seed {s}: meta の protocol の SHA-256 が、確定済みの protocol.yaml と違う")
+        if meta.get("mode") == "formal" and runs[s].get("run", {}).get("plan") != PREREGISTERED["formal_plan"]:
+            problems.append(f"seed {s}: 本番の Plan が事前登録の値と違う")
+    if len(copies) > 1 or len(shas) > 1:
+        problems.append("個体によって meta の protocol の写しが違う")
+    if len(copies) == 1:
+        problems += [f"protocol の写し：{p}" for p in _preregistered_values(json.loads(next(iter(copies))))]
+    return problems
+
+
+def _preregistered_values(proto: dict) -> list[str]:
+    """写しの中の、判定に関わる値と PREREGISTERED の照合。k₂(m) の表は、二項から求め直した値と照らす。"""
+    out = []
+    try:
+        j, tl, pr = proto["judgment"], proto["timeline"], PREREGISTERED
+        if proto["experiment"] != pr["experiment"]:
+            out.append("experiment")
+        for name in ("J_7", "J_W"):
+            if j[name]["min_population"] != pr["min_population"][name]:
+                out.append(f"{name}.min_population")
+        if _number(j["J_7"]["alpha"]["per_direction"]) != pr["alpha_per_direction"] \
+                or _number(j["J_7"]["alpha"]["two_sided"]) != pr["alpha_two_sided"]:
+            out.append("J_7.alpha")
+        lo, hi = pr["k2_range"]
+        table = {int(m): k for m, k in j["k2_of_m"].items()}
+        if table != {m: k2(m, pr["alpha_per_direction"]) for m in range(lo, hi + 1)}:
+            out.append("k2_of_m")
+        if (tl["experience_E"]["windows"], tl["trial_U"]["windows"], tl["P_E"], tl["runs_to"]) != \
+                (pr["experience_windows"], pr["trial_windows"], pr["P_E"], pr["runs_to"]):
+            out.append("timeline")
+        if _number(proto["brain"]["w_max"]) != _number(pr["w_max"]):
+            out.append("brain.w_max")
+        for key in ("seeds", "smoke_seeds", "synthetic_seeds"):
+            if proto[key] != pr[key]:
+                out.append(key)
+    except (KeyError, TypeError, AttributeError, ValueError):
+        out.append("判定に関わる欄が読めない")
+    return out
 
 
 # ---- report との照合 ------------------------------------------------------------------------------------
@@ -325,7 +407,9 @@ def recheck(runs: dict, report: dict) -> dict:
     """runs：seed → 生の記録（meta に protocol の写しを含む）。report：解析の report。照合の数と、食い違いの一覧を返す。"""
     t = Tally()
     seeds = sorted(runs)
-    protocol = runs[seeds[0]]["meta"]["protocol"]
+    binding = protocol_problems(runs)                                 # 写しが欠けても、違っても、食い違いとして数える
+    t.checks += 1
+    t.mismatches += binding
     for s in seeds:
         for p in operation_problems(runs[s]):
             t.mismatches.append(f"seed {s}: {p}")
@@ -353,7 +437,7 @@ def recheck(runs: dict, report: dict) -> dict:
                 t.same(c[field], d[field], f"{key}.contrasts.{name}.{field}")
             t.same(c["difference"], _fraction_of(d["difference"]), f"{key}.contrasts.{name}.difference")
     # 判定
-    j_mine, j_theirs = judgment(people, protocol), report["judgment"]
+    j_mine, j_theirs = judgment(people), report["judgment"]
     t.same(j_mine["outcome"], j_theirs["outcome"], "judgment.outcome")
     for name in ("J_7", "J_W"):
         a, b = j_mine[name], j_theirs[name]
@@ -411,15 +495,22 @@ def recheck(runs: dict, report: dict) -> dict:
 
 
 def recheck_directory(out: Path) -> dict:
-    runs, files = {}, {}
+    runs, files, starts = {}, {}, {}
     for path in sorted((out / "seeds").glob("*/raw.json.gz")):
         raw = path.read_bytes()
         files[str(path.relative_to(out))] = hashlib.sha256(raw).hexdigest()
         data = json.loads(gzip.decompress(raw).decode("utf-8"))
         runs[data["meta"]["seed"]] = data
+        start = path.parent / "run_started.json"                    # 開始の記録（guard）の protocol の SHA-256
+        starts[data["meta"]["seed"]] = json.loads(start.read_text(encoding="utf-8")) if start.exists() else None
     report_path = out / "report.json"
     files[report_path.name] = hashlib.sha256(report_path.read_bytes()).hexdigest()
     result = recheck(runs, json.loads(report_path.read_text(encoding="utf-8")))
+    for s in sorted(starts):
+        result["checks"] += 1
+        st = starts[s]
+        if not isinstance(st, dict) or st.get("protocol_sha256") != runs[s]["meta"].get("protocol_sha256"):
+            result["mismatches"].append(f"seed {s}: 開始の記録の protocol の SHA-256 が、meta の写しと違うか、開始の記録がない")
     return result | {"individuals": len(runs), "sha256": files}
 
 

@@ -72,7 +72,9 @@ def _repo_root(monkeypatch) -> None:
 
 
 def _meta(seed: int, mode: str = "synthetic") -> dict:
+    """run.py が書く meta と同じ形（protocol の写しと、その SHA-256 を含む）。"""
     return {"experiment": "0039", "kind": PROTOCOL["kind"], "mode": mode, "seed": seed, "manifest": M.manifest_raw(),
+            "protocol": json.loads(json.dumps(PROTOCOL)), "protocol_sha256": AN.PROTOCOL_SHA256,
             "gate": {"sha256": AN.GATE_SHA256, "declaration": AN.GATE_DECLARATION}, "blind": mode == "smoke"}
 
 
@@ -895,8 +897,6 @@ def test_the_analysis_of_the_synthetic_individuals_runs_through_and_the_recheck_
     assert j["J_7"]["interval"]["+"]["computed"] is (j["J_7"]["m"] >= 1)
     assert set(report["auxiliary"]) == {"R1", "R2", "R3", "R4", "R5", "R6", "R7", "R9"}
     assert all(report["auxiliary"]["R5"][n]["equals_decided_windows_of_c"] for n in M.BODIES + M.FROZEN_BODIES)
-    for s in SYN:
-        runs[s]["meta"]["protocol"] = PROTOCOL
     result = RC.recheck(runs, json.loads(json.dumps(report)))
     assert result["mismatches"] == [] and result["checks"] > 500
 
@@ -909,8 +909,6 @@ def test_the_recheck_is_independent_and_detects_a_changed_report_or_raw() -> Non
     assert modules <= {"argparse", "gzip", "hashlib", "json", "math", "sys", "collections", "fractions", "pathlib"}
     assert "spec_from_file_location" not in src and "__import__" not in src and "exec(" not in src
     runs = {s: measured(s) for s in SYN[:4]}
-    for s in runs:
-        runs[s]["meta"]["protocol"] = PROTOCOL
     report = json.loads(json.dumps(AN.analyze_runs({s: measured(s) for s in SYN[:4]}, "synthetic", SMALL, o1=[])))
     assert RC.recheck(runs, report)["mismatches"] == []
     for tamper in (lambda rep, raw: rep["judgment"]["J_7"]["counts"].update({"+": rep["judgment"]["J_7"]["counts"]["+"] + 1}),
@@ -922,6 +920,109 @@ def test_the_recheck_is_independent_and_detects_a_changed_report_or_raw() -> Non
         rep, raw = copy.deepcopy(report), copy.deepcopy(runs)
         tamper(rep, raw)
         assert RC.recheck(raw, rep)["mismatches"]
+
+
+# ---- protocol の写しと、確定済みの事前登録の結び付き（v0.2。レビュー 5877646345） ------------------------------
+
+def _without(meta: dict, key: str) -> None:
+    del meta[key]
+
+
+def _alter_protocol(path: tuple, value):
+    def edit(meta: dict) -> None:
+        node = meta["protocol"]
+        for k in path[:-1]:
+            node = node[k]
+        node[path[-1]] = value
+    return edit
+
+
+PROTOCOL_TAMPERS = {
+    "no_protocol": lambda m: _without(m, "protocol"),
+    "no_sha256": lambda m: _without(m, "protocol_sha256"),
+    "sha256_changed": lambda m: m.update(protocol_sha256="0" * 64),
+    "alpha_changed": _alter_protocol(("judgment", "J_7", "alpha", "per_direction"), 0.05),
+    "min_population_changed": _alter_protocol(("judgment", "J_W", "min_population"), 9),
+    "k2_table_changed": _alter_protocol(("judgment", "k2_of_m", "100"), 60),
+    "seeds_changed": _alter_protocol(("seeds", "last"), 32250),
+    "timeline_changed": _alter_protocol(("timeline", "P_E"), 1024),
+}
+
+
+def test_the_preregistered_values_in_the_recheck_are_the_protocol_values() -> None:
+    """recheck.py が書き起こした値（PREREGISTERED）が、確定済みの protocol.yaml の値と同じ。正本の写しは結び付きを通る。"""
+    pr, j, tl = RC.PREREGISTERED, PROTOCOL["judgment"], PROTOCOL["timeline"]
+    assert pr["experiment"] == PROTOCOL["experiment"]
+    assert pr["alpha_per_direction"] == Fraction(str(j["J_7"]["alpha"]["per_direction"])) == Fraction(1, 40)
+    assert pr["alpha_two_sided"] == Fraction(str(j["J_7"]["alpha"]["two_sided"]))
+    assert pr["min_population"] == {"J_7": j["J_7"]["min_population"], "J_W": j["J_W"]["min_population"]}
+    assert pr["k2_range"] == (min(j["k2_of_m"]), max(j["k2_of_m"]))
+    assert (pr["experience_windows"], pr["trial_windows"], pr["P_E"], pr["runs_to"]) == \
+        (tl["experience_E"]["windows"], tl["trial_U"]["windows"], tl["P_E"], tl["runs_to"])
+    assert pr["w_max"] == PROTOCOL["brain"]["w_max"]
+    assert all(pr[k] == PROTOCOL[k] for k in ("seeds", "smoke_seeds", "synthetic_seeds"))
+    assert pr["formal_plan"] == dataclasses.asdict(FORMAL)
+    assert RC.PROTOCOL_FILE == EXP / "protocol.yaml"
+    assert RC._preregistered_values(json.loads(json.dumps(PROTOCOL))) == []
+    assert RC.protocol_problems({s: measured(s) for s in SYN[:2]}) == []
+
+
+@pytest.mark.parametrize("tamper", sorted(PROTOCOL_TAMPERS))
+def test_the_analysis_requires_the_stored_protocol_to_be_the_preregistered_one(tamper) -> None:
+    """主の解析：meta の protocol の写し・SHA-256 が欠けるか、確定済みの protocol.yaml と違えば、その個体は無効で、判定を出さない。"""
+    good = measured(SYN[0])
+    assert AN.check_seed(good, "synthetic", SYN[0], SMALL)["structure"] == []
+    bad = copy.deepcopy(good)
+    PROTOCOL_TAMPERS[tamper](bad["meta"])
+    assert AN.check_seed(bad, "synthetic", SYN[0], SMALL)["structure"]
+    report = AN.analyze_runs({SYN[0]: bad, SYN[1]: measured(SYN[1])}, "synthetic", SMALL, o1=[])
+    assert report["valid"] is False and report["judgment"] is None
+
+
+@pytest.mark.parametrize("tamper", sorted(PROTOCOL_TAMPERS))
+def test_a_blinded_record_with_a_wrong_protocol_fails_every_check(tamper) -> None:
+    """smoke の盲検の記録でも、protocol の写しが欠けるか違えば、記録の形から通さない（すべての確認が fail）。"""
+    s = SYN[0]
+    data = measured(s)
+    data["meta"]["blind"] = True
+    record = R.blinded(data, "synthetic", s, SMALL)
+    record["meta"]["mode"] = "smoke"
+    before = AN.check_blinded(record, s, "smoke")
+    assert before["structure"] == "ok" and before["O12"] == "fail"           # 形は通る（O12 は合成の seed なので fail）
+    PROTOCOL_TAMPERS[tamper](record["meta"])
+    assert AN.check_blinded(record, s, "smoke") == {k: "fail" for k in AN.CHECK_NAMES}
+
+
+@pytest.mark.parametrize("tamper", sorted(PROTOCOL_TAMPERS))
+@pytest.mark.parametrize("everyone", [False, True])
+def test_the_recheck_binds_every_stored_protocol_to_the_preregistered_one(tamper, everyone) -> None:
+    """独立の検算：写しが欠けても、一つの個体だけ違っても、全個体でそろって違っても（SHA-256 はそのままでも）、食い違いとして数える。"""
+    runs = {s: measured(s) for s in SYN[:3]}
+    report = json.loads(json.dumps(AN.analyze_runs(runs, "synthetic", SMALL, o1=[])))
+    assert RC.recheck(copy.deepcopy(runs), report)["mismatches"] == []
+    bad = copy.deepcopy(runs)
+    for s in (SYN[:3] if everyone else SYN[1:2]):
+        PROTOCOL_TAMPERS[tamper](bad[s]["meta"])
+    found = RC.recheck(bad, report)["mismatches"]
+    assert found and any("protocol" in m for m in found)
+
+
+def test_the_recheck_checks_the_formal_plan_and_the_start_records(repo, tmp_path, monkeypatch) -> None:
+    runs = {s: measured(s) for s in SYN[:2]}
+    runs[SYN[0]]["meta"]["mode"] = "formal"                                  # 本番なのに Plan が小さい
+    assert any("本番の Plan" in m for m in RC.protocol_problems(runs))
+    other = tmp_path / "other.yaml"
+    other.write_text((EXP / "protocol.yaml").read_text(encoding="utf-8") + "\n# changed\n", encoding="utf-8")
+    assert any("SHA-256" in m for m in RC.protocol_problems({s: measured(s) for s in SYN[:2]}, other))
+    monkeypatch.setattr(R, "REPO", repo)
+    out = tmp_path / "out"
+    _exec(repo, out, SYN[:2], runner=functools.partial(M.measure_seed, PROTOCOL, plan=SMALL))
+    runs = {s: AN.read_raw(R.G.seed_dir(out, s) / R.G.RAW) for s in SYN[:2]}
+    (out / AN.REPORT).write_text(json.dumps(AN.analyze_runs(runs, "synthetic", SMALL, o1=[])), encoding="utf-8")
+    assert RC.recheck_directory(out)["mismatches"] == []
+    start = R.G.seed_dir(out, SYN[1]) / R.G.START
+    start.write_text(json.dumps(json.loads(start.read_text(encoding="utf-8")) | {"protocol_sha256": "1" * 64}), encoding="utf-8")
+    assert any("開始の記録" in m for m in RC.recheck_directory(out)["mismatches"])
 
 
 def test_an_invalid_individual_or_a_failed_o1_blocks_the_judgment() -> None:
@@ -1170,6 +1271,7 @@ def test_the_raw_meta_carries_the_gate_declaration_and_its_hash(repo, tmp_path, 
     _exec(repo, out, GUARD_SEEDS[:1], runner=functools.partial(M.measure_seed, PROTOCOL, plan=SMALL))
     raw = AN.read_raw(R.G.seed_dir(out, GUARD_SEEDS[0]) / R.G.RAW)
     assert raw["meta"]["gate"] == {"sha256": AN.GATE_SHA256, "declaration": AN.GATE_DECLARATION}
+    assert raw["meta"]["protocol"] == AN.PROTOCOL_AS_STORED and raw["meta"]["protocol_sha256"] == AN.PROTOCOL_SHA256
     assert (R.GATE_SHA256, R.GATE_DECLARATION) == (AN.GATE_SHA256, AN.GATE_DECLARATION)
     assert AN.check_seed(raw, "synthetic", GUARD_SEEDS[0], SMALL) == {k: [] for k in AN.CHECK_NAMES}
 
