@@ -1,0 +1,20 @@
+{
+ "measurement_commit": "f21576c18897ecb84ee03ae7544c2cbc11f5cfc8",
+ "command": [
+  "python",
+  "-m",
+  "pytest",
+  "-q",
+  "tests/integration/test_as1_contract.py",
+  "tests/integration/test_as2b_contract.py",
+  "tests/integration/test_as2b_rule_dependence_0039.py"
+ ],
+ "exit_code": 0,
+ "summary": "401 passed in 108.21s (0:01:48)",
+ "test_files_sha256": {
+  "tests/integration/test_as1_contract.py": "66c57388a5f71ec66113a8eda70bd962c0e5f1f7357daffa01cf8cfad08f5a52",
+  "tests/integration/test_as2b_contract.py": "a5e2d24496dd69fbe306659c9c8ac73fe8581e139b2bb681f1bfe38f92bdbb99",
+  "tests/integration/test_as2b_rule_dependence_0039.py": "11a8bbff12069b3f48ef75137d059b1c5e232959b22795a38a68e55520c38c8f"
+ },
+ "at": "2026-11-13T23:06:53.768502+00:00"
+}
