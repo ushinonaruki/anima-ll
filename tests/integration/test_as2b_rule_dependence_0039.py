@@ -23,6 +23,7 @@ import copy
 import dataclasses
 import functools
 import gzip
+import hashlib
 import importlib.util
 import inspect
 import itertools
@@ -946,7 +947,14 @@ PROTOCOL_TAMPERS = {
     "k2_table_changed": _alter_protocol(("judgment", "k2_of_m", "100"), 60),
     "seeds_changed": _alter_protocol(("seeds", "last"), 32250),
     "timeline_changed": _alter_protocol(("timeline", "P_E"), 1024),
+    # 以下は PREREGISTERED で個別に照らさない欄（v0.3。レビュー 5883922143）。写しの中身全体のハッシュで見つける
+    "J_W_order_changed": _alter_protocol(("judgment", "J_W", "tested_only_if"), "always"),
+    "combined_claim_changed": _alter_protocol(("judgment", "combined_claim"), "J_7 and J_W in any direction"),
+    "J_7_rule_changed": _alter_protocol(("judgment", "J_7", "rule"), "plus if count(plus) > m / 2"),
+    "contrast_swapped": _alter_protocol(("quantities", "contrasts", "D_W"), ["G_A1_WA2", "G_A1_WA1"]),
+    "operation_check_dropped": _alter_protocol(("operation_checks",), ["O1", "O2", "O3"]),
 }
+UNCOMPARED = ("J_W_order_changed", "combined_claim_changed", "J_7_rule_changed", "contrast_swapped", "operation_check_dropped")
 
 
 def test_the_preregistered_values_in_the_recheck_are_the_protocol_values() -> None:
@@ -965,6 +973,26 @@ def test_the_preregistered_values_in_the_recheck_are_the_protocol_values() -> No
     assert RC.PROTOCOL_FILE == EXP / "protocol.yaml"
     assert RC._preregistered_values(json.loads(json.dumps(PROTOCOL))) == []
     assert RC.protocol_problems({s: measured(s) for s in SYN[:2]}) == []
+
+
+def test_the_recheck_holds_the_fixed_hashes_of_the_preregistered_protocol() -> None:
+    """recheck.py の固定のハッシュが、確定済み v0.2 の protocol.yaml（このリポジトリの正本）から計算し直した値と同じ。"""
+    stored = json.loads(json.dumps(PROTOCOL))                               # raw の meta と同じ形
+    assert RC.canonical_protocol_sha256(stored) == RC.PROTOCOL_JSON_SHA256
+    assert hashlib.sha256((EXP / "protocol.yaml").read_bytes()).hexdigest() == RC.PROTOCOL_FILE_SHA256 == AN.PROTOCOL_SHA256
+    canonical = json.dumps(stored, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    assert hashlib.sha256(canonical).hexdigest() == RC.PROTOCOL_JSON_SHA256   # 正規化の仕方を独立に書き直しても同じ
+    assert RC.PROTOCOL_JSON_SHA256 == "da03701edada2a902c576052c34b55b8ce0ff07afe2d1291b5a8ddb538ae2d40"
+    assert RC.PROTOCOL_FILE_SHA256 == "c5f491a5256a475727016ce086e29db01a22a77f8d991f2ea6a98c3135b8ea06"
+
+
+@pytest.mark.parametrize("tamper", UNCOMPARED)
+def test_the_value_comparison_alone_misses_these_fields_but_the_content_hash_does_not(tamper) -> None:
+    """個別の値の照合（_preregistered_values）だけでは見逃す欄の改変を、写しの中身全体のハッシュが見つける。"""
+    proto = json.loads(json.dumps(PROTOCOL))
+    PROTOCOL_TAMPERS[tamper]({"protocol": proto})
+    assert RC._preregistered_values(proto) == []
+    assert RC.canonical_protocol_sha256(proto) != RC.PROTOCOL_JSON_SHA256
 
 
 @pytest.mark.parametrize("tamper", sorted(PROTOCOL_TAMPERS))
@@ -1013,7 +1041,8 @@ def test_the_recheck_checks_the_formal_plan_and_the_start_records(repo, tmp_path
     assert any("本番の Plan" in m for m in RC.protocol_problems(runs))
     other = tmp_path / "other.yaml"
     other.write_text((EXP / "protocol.yaml").read_text(encoding="utf-8") + "\n# changed\n", encoding="utf-8")
-    assert any("SHA-256" in m for m in RC.protocol_problems({s: measured(s) for s in SYN[:2]}, other))
+    found = RC.protocol_problems({s: measured(s) for s in SYN[:2]}, other)
+    assert any("SHA-256" in m for m in found) and any("照らす protocol.yaml" in m for m in found)
     monkeypatch.setattr(R, "REPO", repo)
     out = tmp_path / "out"
     _exec(repo, out, SYN[:2], runner=functools.partial(M.measure_seed, PROTOCOL, plan=SMALL))
