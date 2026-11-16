@@ -1,4 +1,4 @@
-# 実験 0040 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
+# 実験 0040 の実行条件と記録項目（事前登録の案 v0.2。ChatGPT のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
 #
 # 候補 A（docs/as2b-next-research-candidates.md v0.2）：AS2b の関門の組（予定・窓・出口・役・本体の長さ。関門の宣言 v0.2）と
 # C0 の力学のもとで、同じ個体から、可塑的な 6 本のうち手がかりの Unit C と源の間の 2 組（4 本）だけが違う二つの系を作る。
@@ -135,7 +135,7 @@ judgment:
     no_post_hoc_exclusion: "no other exclusion; labels are never used to remove an individual"
     sign: {plus: "difference > 0", minus: "difference < 0", zero: "difference == 0"}
   J_A:
-    population: "D_X defined (n_U(X1) >= 1 and n_U(X2) >= 1)"
+    population: "D_X defined (n_U(X1) >= 1 and n_U(X2) >= 1); m = its size, not the 200 recorded individuals"
     min_population: 10
     below_min: inconclusive
     rule: "plus if count(plus) >= k2(m); minus if count(minus) >= k2(m); otherwise not established"
@@ -189,7 +189,7 @@ records:                                # README §6.2
   R6: "firing counts of the 3 units in windows 1..25 and in U per system"
   R7: "intents (layer B) per system; consequence reservations and consequence stimuli (expected 0)"
   R8: "Clopper-Pearson intervals"
-  R9: "per system and source: firings from each U cue pulse c_k to the pulse before its window (c_k .. c_k + 1); descriptive only, no mechanism name, never used in the judgment or the estimate"
+  R9: "per system and source: firings at c_k and c_k + 1 of each U window (the two pulses before its start a_k = c_k + 2; the cue drive reaches the sources only at c_k + 2, so these firings are not caused by that cue); descriptive only, no mechanism name, never used in the judgment or the estimate"
 
 structural_equivalences: [SE-A1, SE-A2, SE-A3, SE-A4, SE-A5, SE-A6, SE-A7, SE-A8]   # README §7.1
 
