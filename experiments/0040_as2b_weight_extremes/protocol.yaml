@@ -1,4 +1,4 @@
-# 実験 0040 の実行条件と記録項目（事前登録の案 v0.2。ChatGPT のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
+# 実験 0040 の実行条件と記録項目（事前登録 v0.3：v0.2〔#184 merge 9a8651a〕に、X1′ の観測の区分と O6〜O10 の確かめ方の範囲の補足だけを足したもの。ChatGPT のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
 #
 # 候補 A（docs/as2b-next-research-candidates.md v0.2）：AS2b の関門の組（予定・窓・出口・役・本体の長さ。関門の宣言 v0.2）と
 # C0 の力学のもとで、同じ個体から、可塑的な 6 本のうち手がかりの Unit C と源の間の 2 組（4 本）だけが違う二つの系を作る。
@@ -98,10 +98,14 @@ systems:                                # README §2.2。どれも build(seed, s
   M2: {pulse_0: "transplant four to M2, FREEZE six", role: "must report (D_M)"}
   X0: {pulse_0: "FREEZE six (no transplant)", role: "reference (Delta_1, Delta_2)"}
   X0_tr: {pulse_0: "transplant four to w0 (own values), FREEZE six", role: "transplant identity check (O8)"}
-  X1_rerun: {pulse_0: "same as X1, without the added records", role: "non-interference (O9)"}
+  X1_rerun: {pulse_0: "same as X1, without the added records", role: "non-interference (O9)",
+             run: "advanced to the end in one call with the default log; no per-pulse reading; only the end sigma (full) and its SHA-256 are written after reaching the end"}
   per_individual: [X1, X2, M1, M2, X0, X0_tr, X1_rerun]
   pulses_per_individual: 14504          # 7 x 2072
   trace_policy: advance                 # 全 6 本を止めているので軌道に効かない（SE-A5）
+  observation:                          # README §2.2 の観測の区分（v0.3）
+    observed: [X1, X2, M1, M2, X0, X0_tr]    # Σ_T0・Σ_T1・Σ_T2 と Pulse ごとの 6 本の重みを実測して保存する
+    not_observed: [X1_rerun]                 # 走らせている間に状態を読まない。計算から作り直した値を実測の記録として保存しない
 
 pulse_0_sequence:                       # README §2.4
   T0: "build; export sigma (sigma_T0); no pulse processed"
@@ -184,7 +188,7 @@ records:                                # README §6.2
   R1: "roles, birth theta and c of the 3 units, margins g, S-1' label per source, undefined labels"
   R2: "per system: decided, A1, A2, tie, none counts and s, in windows 1..25 and in U"
   R3: "per contrast: distribution of differences and |differences|; differences of n_U and A1_U"
-  R4: "six weights at T0, T1, T2 per system, pair sums; summary of constancy under FREEZE"
+  R4: "six weights at T0, T1, T2 per observed system and the end weights of X1_rerun, pair sums; summary of constancy under FREEZE"
   R5: "first pulse at which all-unit firings and window outcomes differ: X1/X2, M1/M2, X1/X0, X2/X0; number of pairs that never diverge"
   R6: "firing counts of the 3 units in windows 1..25 and in U per system"
   R7: "intents (layer B) per system; consequence reservations and consequence stimuli (expected 0)"
@@ -205,6 +209,13 @@ corollary_S1_prime:                     # README §7.2（analysis.py）
 
 operation_checks: [O1, O2, O3, O4, O5, O6, O7, O8, O9, O10, O11, O12]   # README §8。一つでも不成立なら無効
 operation_checks_note: "S-1' violations are recorded, not an operation check (D1)"
+operation_check_scope:                  # README §8（v0.3 の補足）
+  O4: "(a) and (b) on the sigma of the observed systems; X1_rerun through its operation steps and its intervention history"
+  O6: "observed systems: the measured weights at every pulse equal the T2 values; X1_rerun: the end-sigma weights equal the T2 values of X1, the history is one FREEZE at boundary 0, and O9"
+  O7: "observed systems on the T2 sigma, X1_rerun on the end sigma"
+  O8: "X0_tr and X0: firings, layer A, layer B, history and the full end sigma are equal as values (SHA-256 auxiliary)"
+  O9: "X1_rerun and X1: firings, layer A, layer B, history and the full end sigma are equal as values (SHA-256 auxiliary)"
+  O10: "a limited check on the saved records: t1, firings and layer A up to t1, first divergence at t1 + 1 or later; unit internal states are checked only by CT-40-5"
 
 not_displayed:                          # README §9.3。契約テスト（合成の seed）と smoke では計算しても表示・保存しない
   quantities: [s, A1_U, A2_U, contrasts_and_signs, m, direction_counts, E_A, clopper_pearson, first_divergence_pulse, R9_firings_before_window]
@@ -213,7 +224,10 @@ not_displayed:                          # README §9.3。契約テスト（合�
 
 storage:                                # README §9.1
   raw: "seeds/<seed>/raw.json.gz (guard), copied byte for byte to results/ and checked with analyze.py --verify-copy"
-  sigma: {T0: all systems, T1: all systems, T2: all systems, final_sha256: all systems}
+  sigma: {T0: observed systems, T1: observed systems, T2: observed systems,
+          final: "all seven systems: the full end sigma and its SHA-256, written after the system reached the end"}
+  pulse_weights: "observed systems only (measured at every pulse)"
+  sigma_scope: "the AS2b tool sigma; it does not contain the provenance log"
   numbers: "JSON numbers that round-trip with Python repr; equality of values (SHA-256 auxiliary)"
   protocol_binding: "analyze.py checks meta.protocol against the canonical protocol; the independent recheck holds the canonical-JSON SHA-256 and the file SHA-256 of the frozen protocol (same form as the 0039 tools v0.3)"
   independent_recheck: "stdlib only; does not import analyze.py, measure.py, anima_ll or the AS2b tools"
