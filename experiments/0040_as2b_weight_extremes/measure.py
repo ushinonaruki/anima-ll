@@ -1,4 +1,4 @@
-"""実験 0040 の測定（確定した事前登録 v0.2：README §2・§8・§9、protocol.yaml。#184 merge `9a8651a`）。
+"""実験 0040 の測定（事前登録 v0.3：README §2・§8・§9、protocol.yaml。v0.2 は #184 merge `9a8651a`。v0.3 は観測の区分の補足）。
 
 seed ごとに measure_seed（1 個体で 7 系。README §2.2）：
 1. どの系も `build(seed, schedule=…, delay=L, rule_c="A1", respond=False)` で組み立てる。予定・o・W・L・本体の長さは、
@@ -8,10 +8,10 @@ seed ごとに measure_seed（1 個体で 7 系。README §2.2）：
    - T1：X1・X2・M1・M2 は C ↔ 源 1・C ↔ 源 2 の 4 本をそれぞれの値に、X0^tr は 4 本を w0 に移植する（`transplant`）。X0 は移植しない。
      源 1 ↔ 源 2 の 2 本には触れない。移植の時の介入の状態（空のはず）を記録する。Σ を書き出す
    - T2：6 本の FREEZE（advance）を、各系で一度の宣言で置く（境界 0）。Σ を書き出す
-3. T3：6 つの系（X1′ を除く）を 1 Pulse ずつ終わり（b_K ＋ L）まで進め、Pulse ごとの 6 本の重み（O6）と、3 つの Unit のどれかが
-   最初に発火した Pulse t₁ の処理の後の Σ（O10）を記録する
-4. X1′：X1 と同じ組み立て・同じ移植と FREEZE で、この実験で足す記録（Σ の書き出し・Pulse ごとの重み・t₁ の Σ・来歴のログの絞り込み）を
-   しない。AS2b の道具の既定の来歴のログのまま、終わりまで一度に進め、終わりの Σ だけを取る（O9）
+3. T3：観測の 6 系（X1′ を除く）を 1 Pulse ずつ終わり（b_K ＋ L）まで進め、Pulse ごとの 6 本の重みを実測して記録する（O6）
+4. X1′：X1 と同じ組み立て・同じ移植と FREEZE で、この実験で足す記録（Σ の書き出し・Pulse ごとの重み・来歴のログの絞り込み）を
+   しない。AS2b の道具の既定の来歴のログのまま、終わりまで一度に進める。走らせている間は状態を読まない（README §2.2 の観測の区分）
+5. 7 系とも、終わりまで進んだ後に、終わりの Σ を値の全体と SHA-256 で書き出す（O8・O9。v0.3）。Σ は来歴のログを含まない
 
 介入の値（README §2.3）は、C0 の設計図の w_min・w_max・w0 だけから作る（`intervention_values`。相手の値は引き算で作らず定数のまま置く）。
 生の記録だけを返す。A1 の割合・差・符号・定まる・判定の量は計算しない（analyze.py）。
@@ -205,7 +205,8 @@ def _intent_log(system) -> list:
 
 
 def _end_record(system) -> dict:
-    """終わりの記録（どの系も同じ形）。層 A・層 B・世界・来歴のログは出生からのすべて。"""
+    """終わりの記録（どの系も同じ形）。層 A・層 B・世界・来歴のログは出生からのすべて。終わりの Σ は値の全体と SHA-256（v0.3）。"""
+    end = _sigma(system)
     return {
         "activity": [list(x) for x in system.log.activity()],
         "sensory": [list(x) for x in system.log.sensory()],
@@ -214,7 +215,8 @@ def _end_record(system) -> dict:
         "layer_b": [list(x) for x in system.world.intents],
         "audit": _jsonable(A.audit(system)),
         "world_end": _jsonable(system.world.export_state()),
-        "sigma_end_sha256": sigma_sha256(_sigma(system)),
+        "sigma_end": end,
+        "sigma_end_sha256": sigma_sha256(end),
         "history": _history(system),
         "pulse_end": system.pulse,
     }
@@ -254,13 +256,10 @@ def _pulse_0(system, name: str, values: dict[str, dict[str, float]], six: frozen
 
 
 def _advance_each_pulse(system, until: int, order, rec: dict) -> None:
-    """1 Pulse ずつ until まで進め、各 Pulse の処理の後の 6 本の重みを [Pulse, 重みの列] で記録する（O6）。3 つの Unit のどれかが
-    最初に発火した Pulse t₁ の処理の後の Σ を一度だけ記録する（O10）。"""
+    """1 Pulse ずつ until まで進め、各 Pulse の処理の後の 6 本の重みを [Pulse, 重みの列] で実測して記録する（O6。観測の 6 系だけ）。"""
     for pulse in range(system.pulse + 1, until + 1):
         A.advance_to(system.app, pulse)
         rec["pulse_weights"].append([pulse, _row(system, order)])
-        if rec["first_firing"] is None and system.log.activity() and system.log.activity()[-1][0] == pulse:
-            rec["first_firing"] = {"pulse": pulse, "sigma": _sigma(system)}
 
 
 def measure_seed(protocol: dict, seed: int, plan: Plan | None = None) -> dict:
@@ -287,17 +286,17 @@ def measure_seed(protocol: dict, seed: int, plan: Plan | None = None) -> dict:
         _pulse_0(systems[name], name, values, six, steps, sigmas)
     records = {}
     for name in RECORDED:                                   # T3
-        rec: dict = {"pulse_weights": [], "first_firing": None}
+        rec: dict = {"pulse_weights": []}
         _advance_each_pulse(systems[name], end, order, rec)
         records[name] = rec | _end_record(systems[name])
         steps.append(["T3", name, systems[name].pulse, "advance_to", {"from": 0}])
 
-    # ---- X1′：同じ組み立て・移植・FREEZE。足した記録をせず、既定のログのまま一度に進める ----
+    # ---- X1′：同じ組み立て・移植・FREEZE。足した記録をせず、既定のログのまま一度に進める（走らせている間は状態を読まない） ----
     rerun = build_system(plan, seed)
     _pulse_0(rerun, RERUN, values, six, steps, None)
     A.advance_to(rerun.app, end)
     steps.append(["T3", RERUN, rerun.pulse, "advance_to", {"from": 0}])
-    records[RERUN] = {"sigma_end": _sigma(rerun)} | _end_record(rerun)
+    records[RERUN] = _end_record(rerun)                     # 終わりまで進んだ後に書き出す
 
     return {
         "seed": seed,

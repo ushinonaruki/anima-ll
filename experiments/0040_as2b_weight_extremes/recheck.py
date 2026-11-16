@@ -2,10 +2,10 @@
 
 この実験の解析・測定の道具も、anima_ll も、AS2b の道具も、protocol.yaml を読む道具も読み込まない。保存した生の記録
 （seeds/<seed>/raw.json.gz）だけから、定義（README §3〜§6）を書き起こし直して計算し、report.json と一つずつ照合する。
-判定の閾値などの事前登録の値は、README・protocol.yaml（v0.2）から書き起こした PREREGISTERED から取る。生の記録の meta に保存された
+判定の閾値などの事前登録の値は、README・protocol.yaml（v0.3。判定の条件は v0.2 と同じ）から書き起こした PREREGISTERED から取る。生の記録の meta に保存された
 protocol の写し（meta.protocol・meta.protocol_sha256）は、次のことを確かめるだけに使う（0039 の道具 v0.3 と同じ形）
 - 全個体にあり、全個体で同じであること
-- 写しの中身全体を JSON に正規化したもののハッシュが、確定済み v0.2 の protocol の固定のハッシュ（PROTOCOL_JSON_SHA256）と同じであること
+- 写しの中身全体を JSON に正規化したもののハッシュが、事前登録 v0.3 の protocol の固定のハッシュ（PROTOCOL_JSON_SHA256）と同じであること
   （PREREGISTERED で個別に照らさない欄の改変も見つける）
 - SHA-256 が、リポジトリの確定済みの protocol.yaml のバイト列の SHA-256（PROTOCOL_FILE_SHA256）と同じであること
 - 写しの中の判定に関わる値が、PREREGISTERED と同じであること。k₂(m) の表は、二項から求め直した値と同じであること
@@ -44,12 +44,12 @@ CROSS = [("D_X", "D_M"), ("Delta_1", "Delta_2")]
 ACTIONS = ("A1", "A2")
 SHA256_HEX = set("0123456789abcdef")
 PROTOCOL_FILE = Path(__file__).resolve().parent / "protocol.yaml"
-# 確定済み v0.2 の protocol.yaml（#184 merge `9a8651a`）を、raw の meta と同じ形（YAML を読み、JSON を通した形）にして正規化した
-# JSON の SHA-256。正規化：json.dumps(写し, sort_keys=True, ensure_ascii=False, separators=(",", ":")) の UTF-8。
-# 値は契約テストで、正本から計算し直して照らす
-PROTOCOL_JSON_SHA256 = "d68f7a36b2761435601e4a0f9e1c6d41e4eebe4cf9953768fb9a899d0491826d"
-PROTOCOL_FILE_SHA256 = "cfb7deae7764cc748ce9839671bf3ff6d0dd4f398cd942fa64eca93010c7120d"   # 同じ正本のファイルのバイト列
-# 事前登録 v0.2（#184 merge `9a8651a`）から書き起こした値：README §1.2・§2.3・§4.3・§5.1・§9.2、protocol.yaml の
+# 事前登録 v0.3 の protocol.yaml（v0.2 は #184 merge `9a8651a`。v0.3 は観測の区分の補足）を、raw の meta と同じ形（YAML を読み、
+# JSON を通した形）にして正規化した JSON の SHA-256。正規化：json.dumps(写し, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+# の UTF-8。値は契約テストで、正本から計算し直して照らす
+PROTOCOL_JSON_SHA256 = "5e4fa28eb3473748afc392bfd05064c50c1c931218ccae063fc021d74c57af87"
+PROTOCOL_FILE_SHA256 = "62c15db4340eac25b78fd4cff31e90983fd13850f914a9dc36ec5616fa787fda"   # 同じ正本のファイルのバイト列
+# 事前登録（v0.2 で確定した判定の条件。v0.3 でも同じ）から書き起こした値：README §1.2・§2.3・§4.3・§5.1・§9.2、protocol.yaml の
 # judgment・timeline・brain・seeds。判定はこの値で計算し、meta の protocol の写しは、これと照らすだけに使う
 PREREGISTERED = {
     "experiment": "0040",
@@ -271,12 +271,16 @@ def operation_problems(data: dict) -> list[str]:
     rerun_w = {cid: v["weight"] for cid, v in sysrec["X1_rerun"]["sigma_end"]["connections"].items()}
     if rerun_w != dict.fromkeys(order, W0) | dict(zip(four, TABLE["X1_rerun"], strict=True)):
         problems.append("O6 X1_rerun: 終わりの重み")
-    # O8：恒等
-    if any(sysrec["X0"][k] != sysrec["X0_tr"][k] for k in ("activity", "layer_a", "layer_b", "sigma_end_sha256")):
-        problems.append("O8 X0_tr")
-    # O9：記録の非干渉
-    if any(sysrec["X1_rerun"][k] != sysrec["X1"][k] for k in ("activity", "layer_a", "layer_b", "sigma_end_sha256")):
-        problems.append("O9 X1_rerun")
+    # O8・O9：終わりの記録の完全な一致。終わりの Σ は値の全体で比べ（主）、SHA-256 は保存した Σ から求め直して照らす（補助）
+    for check, a, b in (("O8", "X0", "X0_tr"), ("O9", "X1", "X1_rerun")):
+        ra, rb = sysrec[a], sysrec[b]
+        if any(ra[k] != rb[k] for k in ("activity", "sensory", "layer_a", "layer_b", "history")) or ra["sigma_end"] != rb["sigma_end"]:
+            problems.append(f"{check} {b}")
+        for r in (ra, rb):
+            text = json.dumps(r["sigma_end"], separators=(",", ":"), sort_keys=True)
+            if hashlib.sha256(text.encode("utf-8")).hexdigest() != r["sigma_end_sha256"] or r["sigma_end_sha256"] != rb["sigma_end_sha256"]:
+                problems.append(f"{check} {b}: SHA-256")
+                break
     # O10 の一部：最初の発火の Pulse t₁ が値の系で同じで、そこまでの発火が同じ
     firsts = {n: min((p for p, _u in sysrec[n]["activity"]), default=None) for n in ("X1", "X2", "M1", "M2", "X0")}
     if len(set(firsts.values())) != 1:
@@ -309,7 +313,7 @@ def protocol_problems(runs: dict, protocol_file: Path = PROTOCOL_FILE) -> list[s
     problems = []
     file_sha = hashlib.sha256(protocol_file.read_bytes()).hexdigest()
     if file_sha != PROTOCOL_FILE_SHA256:
-        problems.append("照らす protocol.yaml が、確定済み v0.2 の protocol.yaml と違う")
+        problems.append("照らす protocol.yaml が、事前登録 v0.3 の protocol.yaml と違う")
     copies, shas = set(), set()
     for s in sorted(runs):
         meta = runs[s].get("meta", {})
@@ -320,7 +324,7 @@ def protocol_problems(runs: dict, protocol_file: Path = PROTOCOL_FILE) -> list[s
         copies.add(json.dumps(proto, sort_keys=True, ensure_ascii=False))
         shas.add(sha)
         if canonical_protocol_sha256(proto) != PROTOCOL_JSON_SHA256:
-            problems.append(f"seed {s}: meta の protocol の写しの中身が、確定済み v0.2 の protocol と違う")
+            problems.append(f"seed {s}: meta の protocol の写しの中身が、事前登録 v0.3 の protocol と違う")
         if sha != file_sha:
             problems.append(f"seed {s}: meta の protocol の SHA-256 が、確定済みの protocol.yaml と違う")
         if meta.get("mode") == "formal" and runs[s].get("run", {}).get("plan") != PREREGISTERED["formal_plan"]:

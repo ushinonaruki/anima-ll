@@ -1,4 +1,4 @@
-"""実験 0040 の道具の契約テスト（確定した事前登録 v0.2 の README・protocol.yaml、#184 merge `9a8651a`。README §14 の CT-40-1〜10）。
+"""実験 0040 の道具の契約テスト（事前登録 v0.3 の README・protocol.yaml。v0.2 は #184 merge `9a8651a`。README §14 の CT-40-1〜10）。
 
 本番の seed（33001〜33200）・smoke の seed（33201〜33206）・関門の seed（31001〜31040）・0039 の seed（32001〜32399）は使わない
 （実行もしない）。0034〜0039 の seed・raw も、関門の記録も使わない。合成の契約テスト専用の範囲（33301〜33399）だけを使う。
@@ -338,18 +338,46 @@ def test_ct40_4_the_own_value_transplant_reproduces_x0_and_the_rerun_reproduces_
 
 def test_ct40_4_the_rerun_keeps_no_added_records_and_uses_the_default_log() -> None:
     rec = measured(SYN[0])["run"]["systems"][M.RERUN]
-    assert set(rec) == AN.SYSTEM_KEYS[M.RERUN] and "pulse_weights" not in rec and "first_firing" not in rec
+    assert set(rec) == AN.SYSTEM_KEYS[M.RERUN] and "pulse_weights" not in rec
     src = inspect.getsource(M.measure_seed)
     assert "rerun = build_system(plan, seed)" in src                      # log を渡さない ＝ AS2b の道具の既定のログ
     assert "_pulse_0(rerun, RERUN, values, six, steps, None)" in src and "A.advance_to(rerun.app, end)" in src
+    assert "_advance_each_pulse(rerun" not in src                         # X1′ は走らせている間に状態を読まない（観測の区分。v0.3）
+    p0 = measured(SYN[0])["run"]["pulse_0"]
+    assert all(M.RERUN not in p0[f"sigma_{t}"] for t in ("T0", "T1", "T2"))
+
+
+def test_ct40_4_the_end_sigma_is_kept_whole_and_compared_by_value() -> None:
+    """v0.3：7 系とも終わりの Σ を値の全体で保存する。O8・O9 は値の完全な一致が主で、SHA-256 は補助。正規化は鍵の順に依らない。"""
+    run = measured(decided_seed())["run"]
+    for n in M.SYSTEMS:
+        end = run["systems"][n]["sigma_end"]
+        assert end["pulse"] == SMALL.end and M.sigma_sha256(end) == run["systems"][n]["sigma_end_sha256"]
+        assert set(end) == {"pulse", "clock", "units", "connections", "drives", "deltas", "issuer", "runtime", "world",
+                            "interventions", "exit"}                     # 来歴のログを含まない
+        shuffled = json.loads(json.dumps(dict(reversed(list(end.items())))))
+        assert M.sigma_sha256(shuffled) == M.sigma_sha256(end) == RC.hashlib.sha256(
+            json.dumps(end, separators=(",", ":"), sort_keys=True).encode("utf-8")).hexdigest()
+    for a, b in (("X0", "X0_tr"), ("X1", "X1_rerun")):
+        assert AS1.sigma_diff(run["systems"][a]["sigma_end"], run["systems"][b]["sigma_end"]) == []
+    assert AS1.sigma_diff(run["systems"]["X1"]["sigma_end"], run["systems"]["X2"]["sigma_end"])     # 値の違う系は違う
+
+
+def _same_sha_value_change(r, name: str) -> None:
+    """終わりの Σ の値だけを変え、SHA-256 の欄は元のまま残す（値の照合が主であることの確かめ）。"""
+    r["systems"][name]["sigma_end"]["units"][r["roles"]["cue"]]["activity"] = 9.0
 
 
 def test_o8_and_o9_detect_a_broken_identity_or_rerun() -> None:
     s = decided_seed()
     for tamper, check in ((lambda r: r["systems"]["X0_tr"].update(sigma_end_sha256="0" * 64), "O8"),
                           (lambda r: r["systems"]["X0_tr"]["activity"].pop(), "O8"),
+                          (lambda r: _same_sha_value_change(r, "X0_tr"), "O8"),
+                          (lambda r: _same_sha_value_change(r, "X0"), "O8"),
+                          (lambda r: r["systems"]["X0_tr"]["history"].append([0, "x", []]), "O8"),
                           (lambda r: r["systems"]["X1_rerun"]["activity"].pop(), "O9"),
-                          (lambda r: r["systems"]["X1_rerun"]["sigma_end"]["units"][r["roles"]["cue"]].update(activity=9.0), "O9"),
+                          (lambda r: _same_sha_value_change(r, "X1_rerun"), "O9"),
+                          (lambda r: r["systems"]["X1_rerun"]["sigma_end"].update(pulse=SMALL.end - 1), "O9"),
                           (lambda r: r["systems"]["X1"].update(sigma_end_sha256="0" * 64), "O9")):
         data = measured(s)
         tamper(data["run"])
@@ -368,7 +396,7 @@ def test_ct40_5_the_value_systems_share_the_start_up_to_the_first_firing() -> No
         t1 = _first_firing(run)
         assert t1 is not None
         for n in M.VALUE_SYSTEMS:
-            assert run["systems"][n]["first_firing"]["pulse"] == t1
+            assert min(p for p, _u in run["systems"][n]["activity"]) == t1
             fd = AN.first_divergence(run["systems"][n]["activity"], run["systems"]["X0"]["activity"], 1, SMALL.end)
             assert fd is None or fd >= t1 + 1
     run = measured(diverging_seed())["run"]
@@ -433,39 +461,23 @@ def test_ct40_5_a_drive_difference_appears_only_after_its_sender_fires() -> None
         assert x[0] in fired and wa[cid] != wb[cid] and x[3] == t1 and (x[2], y[2]) == (wa[cid], wb[cid])
 
 
-def test_o10_detects_tampering() -> None:
+def test_o10_is_the_limited_check_on_the_saved_records_and_detects_tampering() -> None:
+    """O10（v0.3）：保存した記録から、t₁ の一致、t₁ までの発火・層 A の一致、最初に分かれた Pulse が t₁ ＋ 1 以後を確かめる。
+    Unit の内部の状態は O10 では確かめない（raw に t₁ の Σ を入れない。CT-40-5 の合成の系で直接確かめる）。"""
     s = diverging_seed()
     run = measured(s)["run"]
+    assert all(set(run["systems"][n]) == AN.SYSTEM_KEYS[n] for n in M.SYSTEMS)
+    assert "sigma" not in inspect.getsource(AN._o10).replace("sigma_end", "")
     t1 = _first_firing(run)
-    cue = run["roles"]["cue"]
-    for tamper in (lambda r: r["systems"]["X2"]["first_firing"]["sigma"]["units"][cue].update(activity=9.0),
-                   lambda r: r["systems"]["M1"]["first_firing"].update(pulse=t1 + 1),
-                   lambda r: r["systems"]["X1"]["activity"].insert(0, [t1, "zz"]),
-                   lambda r: r["systems"]["M2"]["first_firing"]["sigma"]["drives"].append(["s1", "s2", 0.5, t1]),
-                   lambda r: r["systems"]["X2"]["first_firing"]["sigma"]["exit"].update(cursor=7),
-                   lambda r: r["systems"]["X1"]["first_firing"]["sigma"]["world"].update(next_rid=999)):
+    other = next(u for u in (run["roles"]["cue"], run["roles"]["source1"], run["roles"]["source2"])
+                 if [t1, u] not in run["systems"]["M1"]["activity"])
+    for tamper in (lambda r: r["systems"]["X2"]["activity"].insert(0, [t1 - 1, r["roles"]["cue"]]),
+                   lambda r: r["systems"]["M1"]["activity"].insert(0, [t1, other]),
+                   lambda r: r["systems"]["X1"]["layer_a"][0].update(decision_pulse=t1),
+                   lambda r: r["systems"]["M2"]["activity"].__setitem__(0, [t1, "zz"])):
         changed = measured(s)
         tamper(changed["run"])
         assert "O10" in failures(changed, s)
-
-
-def test_o10_accepts_only_the_drive_difference_of_a_weight_differing_connection_whose_sender_fired() -> None:
-    s = diverging_seed()
-    data = measured(s)
-    run = data["run"]
-    t1 = _first_firing(run)
-    cids = AN.role_cids(run["roles"])
-    cid = cids["C_to_source1"]
-    u, v = AN._ends(cid)
-    for n in M.VALUE_SYSTEMS:                                          # 送り手 C が t₁ に発火した、と記録を書き換える
-        w = AN._weights_of(run["pulse_0"]["sigma_T2"][n])
-        if not any(p == t1 and x == u for p, x in run["systems"][n]["activity"]):
-            run["systems"][n]["activity"].insert(0, [t1, u])
-        run["systems"][n]["first_firing"]["sigma"]["drives"] = [[u, v, w[cid], t1]]
-    assert "O10" not in failures(data, s)
-    wx0 = AN._weights_of(run["pulse_0"]["sigma_T2"]["X0"])
-    run["systems"]["X1"]["first_firing"]["sigma"]["drives"] = [[u, v, wx0[cid] + 1.0, t1]]   # 重みと合わない駆動
-    assert "O10" in failures(data, s)
 
 
 # ---- CT-40-6 世界（SE-A4） ---------------------------------------------------------------------------------
@@ -837,6 +849,8 @@ def test_the_recheck_is_independent_and_detects_a_changed_report_or_raw() -> Non
                    lambda rep, raw: rep["individuals"][k].update(flip="?"),
                    lambda rep, raw: raw[SYN[1]]["run"]["systems"]["X2"]["pulse_weights"][3][1].__setitem__(0, 0.0011),
                    lambda rep, raw: raw[SYN[1]]["run"]["systems"]["X0_tr"]["layer_b"].append([9, "d", "s1", "A1"]),
+                   lambda rep, raw: raw[SYN[3]]["run"]["systems"]["X1_rerun"]["sigma_end"]["units"][
+                       raw[SYN[3]]["run"]["roles"]["cue"]].update(activity=9.0),
                    lambda rep, raw: raw[SYN[2]]["run"]["pulse_0"]["sigma_T1"]["M1"]["connections"][min(raw[SYN[2]]["run"]["W_0"])]
                    .update(weight=0.001)):
         rep, raw = copy.deepcopy(report), copy.deepcopy(runs)
@@ -902,14 +916,14 @@ def test_the_preregistered_values_in_the_recheck_are_the_protocol_values() -> No
 
 
 def test_the_recheck_holds_the_fixed_hashes_of_the_preregistered_protocol() -> None:
-    """recheck.py の固定のハッシュが、確定済み v0.2 の protocol.yaml（このリポジトリの正本）から計算し直した値と同じ。"""
+    """recheck.py の固定のハッシュが、事前登録 v0.3 の protocol.yaml（このリポジトリの正本）から計算し直した値と同じ。"""
     stored = json.loads(json.dumps(PROTOCOL))                               # raw の meta と同じ形
     assert RC.canonical_protocol_sha256(stored) == RC.PROTOCOL_JSON_SHA256
     assert hashlib.sha256((EXP / "protocol.yaml").read_bytes()).hexdigest() == RC.PROTOCOL_FILE_SHA256 == AN.PROTOCOL_SHA256
     canonical = json.dumps(stored, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     assert hashlib.sha256(canonical).hexdigest() == RC.PROTOCOL_JSON_SHA256   # 正規化の仕方を独立に書き直しても同じ
-    assert RC.PROTOCOL_JSON_SHA256 == "d68f7a36b2761435601e4a0f9e1c6d41e4eebe4cf9953768fb9a899d0491826d"
-    assert RC.PROTOCOL_FILE_SHA256 == "cfb7deae7764cc748ce9839671bf3ff6d0dd4f398cd942fa64eca93010c7120d"
+    assert RC.PROTOCOL_JSON_SHA256 == "5e4fa28eb3473748afc392bfd05064c50c1c931218ccae063fc021d74c57af87"     # v0.3
+    assert RC.PROTOCOL_FILE_SHA256 == "62c15db4340eac25b78fd4cff31e90983fd13850f914a9dc36ec5616fa787fda"
 
 
 @pytest.mark.parametrize("tamper", UNCOMPARED)
@@ -1300,8 +1314,7 @@ def test_blinded_record_marks_a_failed_check_without_reasons() -> None:
     s = decided_seed()
     for tamper, check in ((lambda r: r["systems"]["X2"]["pulse_weights"][3][1].__setitem__(0, 0.0011), "O6"),
                           (lambda r: r["systems"]["X0_tr"].update(sigma_end_sha256="0" * 64), "O8"),
-                          (lambda r: r["systems"]["M1"]["first_firing"]["sigma"]["units"][r["roles"]["cue"]].update(activity=9.0),
-                           "O10")):
+                          (lambda r: r["systems"]["M1"]["activity"].insert(0, [1, "zz"]), "O10")):
         data = measured(s)
         data["meta"]["blind"] = True
         tamper(data["run"])

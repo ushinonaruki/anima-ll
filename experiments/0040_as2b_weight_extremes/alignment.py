@@ -1,7 +1,7 @@
 """実験 0040 の protocol.yaml と道具（measure.py・AS2b の道具 as2b.py・関門の宣言 v0.2・analysis.py）が食い違っていないことの機械的な確認。
 
 run.py・analyze.py が、実行・解析の前に check(protocol) を呼ぶ。食い違いがあれば AssertionError で止まる。
-確定した事前登録（README・protocol.yaml v0.2、#184 merge `9a8651a`）の値を写した固定値と、道具の定数・関門の宣言の値を比べる。
+事前登録（README・protocol.yaml v0.3。v0.2 は #184 merge `9a8651a`）の値を写した固定値と、道具の定数・関門の宣言の値を比べる。
 analyze.py の対比の組（CONTRASTS）・O1 の契約テストの組と protocol の対応は、契約テストで確かめる（analyze.py はこのファイルを読み込むため）。
 """
 
@@ -166,6 +166,15 @@ def check(protocol: dict) -> None:
     assert systems["per_individual"] == SYSTEMS == list(M.SYSTEMS)
     assert systems["pulses_per_individual"] == len(SYSTEMS) * plan.end == 14504
     assert systems["trace_policy"] == AS1.ADVANCE == "advance"
+    # 観測の区分（README §2.2。v0.3）：観測の 6 系だけが Pulse ごとの重みと Σ_T0〜T2 を持ち、X1′ は走らせている間に読まない
+    assert systems["observation"] == {"observed": list(M.RECORDED), "not_observed": [M.RERUN]}
+    assert systems["X1_rerun"]["run"].startswith("advanced to the end in one call with the default log; no per-pulse reading")
+    st = protocol["storage"]
+    assert st["sigma"]["T0"] == st["sigma"]["T1"] == st["sigma"]["T2"] == "observed systems"
+    assert st["sigma"]["final"].startswith("all seven systems: the full end sigma and its SHA-256")
+    assert st["pulse_weights"].startswith("observed systems only")
+    assert set(protocol["operation_check_scope"]) == {"O4", "O6", "O7", "O8", "O9", "O10"}
+    assert "unit internal states are checked only by CT-40-5" in protocol["operation_check_scope"]["O10"]
     assert M.TRANSPLANTED == {"X1": "X1", "X2": "X2", "M1": "M1", "M2": "M2", "X0_tr": "X0_tr", "X1_rerun": "X1"}
     assert M.VALUE_SYSTEMS == ("X1", "X2", "M1", "M2", "X0") and M.IDENTITY == "X0_tr" and M.RERUN == "X1_rerun"
     p0 = protocol["pulse_0_sequence"]

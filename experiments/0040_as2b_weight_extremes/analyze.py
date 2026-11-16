@@ -1,4 +1,4 @@
-"""実験 0040 の記録の解析（確定した事前登録 v0.2 に従う。正本は README・protocol.yaml。#184 merge `9a8651a`）。
+"""実験 0040 の記録の解析（事前登録 v0.3 に従う。正本は README・protocol.yaml。v0.2 は #184 merge `9a8651a`、v0.3 は観測の区分の補足）。
 
 0039 の解析の契約（記録の確認、生の記録からの操作の確認、invalid なら判定しない、一度だけの report、解析の道具の HEAD ＝
 測定の commit、smoke の盲検、O1 の記録の確かめ、protocol の結び付き、結果の写しの照合）を引き継ぐ（ほかの実験の analyze.py は読み込まない）。
@@ -40,7 +40,7 @@ REPO = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent.relative_to(REPO)
 PROTOCOL_PATH = HERE / "protocol.yaml"
 PROTOCOL = yaml.safe_load((REPO / PROTOCOL_PATH).read_text(encoding="utf-8"))
-# 確定済みの事前登録の正本（v0.2、#184 merge `9a8651a`）。生の記録の meta に保存した protocol の写しと SHA-256 を、これと照らす
+# 事前登録の正本（v0.3）。生の記録の meta に保存した protocol の写しと SHA-256 を、これと照らす
 PROTOCOL_SHA256 = hashlib.sha256((REPO / PROTOCOL_PATH).read_bytes()).hexdigest()
 PROTOCOL_AS_STORED = json.loads(json.dumps(PROTOCOL))      # raw は JSON なので、写しは JSON を通した形で照らす
 EXPERIMENT, KIND = PROTOCOL["experiment"], PROTOCOL["kind"]
@@ -226,7 +226,9 @@ def individual(run: Mapping) -> dict:
     by_role = {cid: role for role, cid in role_cids(roles).items()}
     weights = {t: {n: {by_role[cid]: w for cid, w in _weights_of(run["pulse_0"][f"sigma_{t}"][n]).items()}
                    for n in M.RECORDED} for t in ("T0", "T1", "T2")}
+    weights["end_X1_rerun"] = {by_role[cid]: w for cid, w in _weights_of(systems[M.RERUN]["sigma_end"]).items()}
     sums = {n: pair_sums(_weights_of(run["pulse_0"]["sigma_T2"][n])) for n in M.RECORDED}
+    sums[M.RERUN] = pair_sums(_weights_of(systems[M.RERUN]["sigma_end"]))
     return {
         "roles": {k: roles[k] for k in ROLES3},
         "birth": {names[u]: {"threshold": units[u]["dynamics"]["threshold"],
@@ -239,7 +241,7 @@ def individual(run: Mapping) -> dict:
         "s_E": {n: _frac(shares["E"][n]) for n in M.SYSTEMS},
         "contrasts": contrasts,
         "flip": flip,
-        "weights": weights, "pair_sums_T2": sums,
+        "weights": weights, "pair_sums": sums,
         "first_divergence": divergence,
         "firing": firing, "pre_window_firing_U": pre_window,
         "world": world,
@@ -400,9 +402,10 @@ def auxiliary(individuals: Mapping[str, Mapping]) -> dict:
         out["R3"][name] = {"difference": five_numbers(diffs), "abs_difference": five_numbers([abs(x) for x in diffs]),
                            "decided_diff": five_numbers([c["decided_diff"] for c in pop]),
                            "A1_diff": five_numbers([c["A1_diff"] for c in pop])}
-    out["R4"] = {"pair_sum_equals_w_max_exactly": all(s == W_MAX for v in vals for n in M.RECORDED
-                                                      for s in v["pair_sums_T2"][n].values()),
+    out["R4"] = {"pair_sum_equals_w_max_exactly": all(s == W_MAX for v in vals for n in M.SYSTEMS
+                                                      for s in v["pair_sums"][n].values()),
                  "T2_values_by_system": {n: vals[0]["weights"]["T2"][n] for n in M.RECORDED} if vals else None,
+                 "end_values_X1_rerun": vals[0]["weights"]["end_X1_rerun"] if vals else None,
                  "pulse_weights": "kept in the raw records (systems.<name>.pulse_weights); constant under FREEZE (O6)"}
     out["R5"] = {}
     for key in (vals[0]["first_divergence"] if vals else {}):
@@ -425,9 +428,10 @@ def auxiliary(individuals: Mapping[str, Mapping]) -> dict:
 # ---- 操作の確認（README §8） -----------------------------------------------------------------------------
 
 RUN_KEYS = {"seed", "plan", "roles", "birth_units", "connection_order", "W_0", "values", "pulse_0", "systems"}
-END_KEYS = {"activity", "sensory", "delta_log", "layer_a", "layer_b", "audit", "world_end", "sigma_end_sha256",
+END_KEYS = {"activity", "sensory", "delta_log", "layer_a", "layer_b", "audit", "world_end", "sigma_end", "sigma_end_sha256",
             "history", "pulse_end"}
-SYSTEM_KEYS = {n: END_KEYS | {"pulse_weights", "first_firing"} for n in M.RECORDED} | {M.RERUN: END_KEYS | {"sigma_end"}}
+# 観測の 6 系は Pulse ごとの重みを実測して持つ。X1′ は終わりの記録だけ（README §2.2 の観測の区分。v0.3）
+SYSTEM_KEYS = {n: END_KEYS | {"pulse_weights"} for n in M.RECORDED} | {M.RERUN: END_KEYS}
 PULSE_0_KEYS = {"steps", "sigma_T0", "sigma_T1", "sigma_T2"}
 AUDIT_KEYS = {"ok", "matched", "only_in_layer_a", "only_in_layer_b", "win_windows", "issued",
               "identity_issued_plus_carried_equals_wins", "duplicate_delta_ids", "carried_over_windows", "log_matches_world"}
@@ -711,69 +715,63 @@ def _o7(run, out) -> None:
             out.append(f"{n}：重みが README §2.3 の表と違う")
 
 
+def _same_end(run, a: str, b: str, out: list[str], label: str) -> None:
+    """二つの系の終わりの記録の完全な一致（O8・O9。v0.3）：発火・感覚・層 A・層 B・来歴のログの意図・介入の履歴と、終わりの Σ の
+    値の全体（主）。SHA-256 は補助：保存した Σ から計算し直した値が、記録した値と、相手の値に一致する。"""
+    ra, rb = run["systems"][a], run["systems"][b]
+    for key in ("activity", "sensory", "layer_a", "layer_b", "delta_log", "history"):
+        if ra[key] != rb[key]:
+            out.append(f"{label}：{key} が違う")
+    end = _plan(run).end
+    if ra["sigma_end"]["pulse"] != end or rb["sigma_end"]["pulse"] != end:
+        out.append(f"{label}：終わりの Σ の Pulse が終わりではない")
+    diff = AS1.sigma_diff(ra["sigma_end"], rb["sigma_end"])
+    if diff:
+        out.append(f"{label}：終わりの Σ の値が違う（{[list(x) for x in diff[:3]]}）")
+    for n, r in ((a, ra), (b, rb)):
+        if M.sigma_sha256(r["sigma_end"]) != r["sigma_end_sha256"]:
+            out.append(f"{label}：{n} の終わりの Σ の SHA-256 が、保存した Σ から計算し直した値と違う")
+    if ra["sigma_end_sha256"] != rb["sigma_end_sha256"]:
+        out.append(f"{label}：終わりの Σ の SHA-256 が違う")
+
+
 def _o8(run, out) -> None:
-    """恒等：X0^tr（自分の値の移植）が X0 と同じ。"""
-    a, b = run["systems"]["X0"], run["systems"][M.IDENTITY]
-    for key in ("activity", "sensory", "layer_a", "layer_b", "delta_log", "sigma_end_sha256", "history"):
-        if a[key] != b[key]:
-            out.append(f"X0^tr が X0 と違う（{key}）")
-            break
+    """恒等：X0^tr（自分の値の移植）が X0 と同じ（値の完全な一致が主、SHA-256 は補助）。"""
+    _same_end(run, "X0", M.IDENTITY, out, "X0^tr と X0")
 
 
 def _o9(run, out) -> None:
-    """記録の非干渉（SE-A8）：X1′ が X1 と同じ。Σ は、保存した全体の値の SHA-256 と、X1 の終わりの Σ の SHA-256 で比べる。"""
-    r, m = run["systems"][M.RERUN], run["systems"]["X1"]
-    for key in ("activity", "sensory", "layer_a", "layer_b", "delta_log", "history"):
-        if r[key] != m[key]:
-            out.append(f"X1′ の {key} が X1 と違う")
-    if M.sigma_sha256(r["sigma_end"]) != r["sigma_end_sha256"] or r["sigma_end_sha256"] != m["sigma_end_sha256"]:
-        out.append("X1′ の終わりの Σ が、X1 の終わりの Σ（SHA-256）と違う")
-    if r["sigma_end"]["pulse"] != _plan(run).end:
-        out.append("X1′ の終わりの Σ の Pulse が終わりではない")
+    """記録の非干渉（SE-A8）：X1′ が X1 と同じ（値の完全な一致が主、SHA-256 は補助）。"""
+    _same_end(run, "X1", M.RERUN, out, "X1′ と X1")
 
 
 def _o10(run, out) -> None:
-    """共通の始まり（SE-A2）：5 つの値の系で、最初に Unit が発火する Pulse t₁ が同じで、t₁ の処理の終わりまで全 Unit の発火・
-    層 A・Unit の内部の状態・世界が同じ。届く途中の駆動は、重みの違う接続の、t₁ に発火した送り手の分だけが違う。最初に分かれた
-    Pulse は t₁ ＋ 1 以後。"""
+    """共通の始まり（SE-A2）。保存した記録から確かめる限られた確認（README §8 の O10。v0.3）：5 つの値の系で、最初に Unit が発火する
+    Pulse t₁ が同じで、t₁ の処理の終わりまで全 Unit の発火・層 A が同じで、最初に分かれた Pulse が t₁ ＋ 1 以後。Unit の内部の状態は
+    ここでは確かめない（CT-40-5 の合成の系で直接確かめる）。"""
     systems, end = run["systems"], _plan(run).end
     ref = systems["X0"]
     t1 = min((p for p, _u in ref["activity"]), default=None)
+
+    def layer_upto(la: list) -> list:
+        return [r for r in la if r["close"] <= t1 or (r["decision_pulse"] is not None and r["decision_pulse"] <= t1)]
     for n in M.VALUE_SYSTEMS:
         rec = systems[n]
         mine = min((p for p, _u in rec["activity"]), default=None)
-        ff = rec["first_firing"]
-        if mine != t1 or (ff is None) != (t1 is None) or (ff is not None and (ff["pulse"] != t1 or ff["sigma"]["pulse"] != t1)):
-            out.append(f"{n}：最初に Unit が発火する Pulse が X0 と違うか、その Pulse の処理の後の Σ がない")
+        if mine != t1:
+            out.append(f"{n}：最初に Unit が発火する Pulse が X0 と違う")
             continue
         if t1 is None:
             if rec["activity"] != ref["activity"] or rec["layer_a"] != ref["layer_a"]:
                 out.append(f"{n}：どの Unit も発火しないのに、発火・層 A が X0 と違う")
             continue
         if [x for x in rec["activity"] if x[0] <= t1] != [x for x in ref["activity"] if x[0] <= t1]:
-            out.append(f"(a) {n} と X0 の、t₁ までの発火が違う")
-        sa, sb = ff["sigma"], ref["first_firing"]["sigma"]
-        if sa["units"] != sb["units"] or sa["exit"] != sb["exit"] or sa["world"] != sb["world"]:
-            out.append(f"(a) {n} と X0 の、t₁ の処理の後の Unit の内部の状態・層 A・世界が違う")
-        wa, wb = _weights_of(sa), _weights_of(sb)
-        fired = {u for p, u in rec["activity"] if p == t1}
-        da, db = sa["drives"], sb["drives"]
-        if len(da) != len(db):
-            out.append(f"(b) {n} と X0 の届く途中の駆動の数が違う")
-        else:
-            for x, y in zip(da, db):
-                if x[0] != y[0] or x[1] != y[1] or x[3] != y[3]:
-                    out.append(f"(b) {n} と X0 の届く途中の駆動の送り手・受け手・Pulse が違う")
-                    break
-                if x[2] != y[2]:
-                    cid = f"{x[0]}.main->{x[1]}"
-                    if not (cid in wa and wa[cid] != wb[cid] and x[0] in fired and x[3] == t1
-                            and x[2] == wa[cid] and y[2] == wb[cid]):
-                        out.append(f"(b) {n} と X0 の駆動が、重みの違う接続の送り手の発火の分の外で違う")
-                        break
+            out.append(f"{n} と X0 の、t₁ までの発火が違う")
+        if layer_upto(rec["layer_a"]) != layer_upto(ref["layer_a"]):
+            out.append(f"{n} と X0 の、t₁ までの層 A が違う")
         fd = first_divergence(rec["activity"], ref["activity"], 1, end)
         if fd is not None and fd < t1 + 1:
-            out.append(f"(c) {n} と X0 の最初に分かれた Pulse が t₁ ＋ 1 より前")
+            out.append(f"{n} と X0 の最初に分かれた Pulse が t₁ ＋ 1 より前")
 
 
 def layer_a_problems(layer_a: list, windows: list, roles: Mapping) -> list[str]:
