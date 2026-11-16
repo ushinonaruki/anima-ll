@@ -1,0 +1,222 @@
+# 実験 0040 の実行条件と記録項目（事前登録の案 v0.1。ChatGPT のレビュー待ち・未確定。この実験の道具の実装の前に固定する）
+#
+# 候補 A（docs/as2b-next-research-candidates.md v0.2）：AS2b の関門の組（予定・窓・出口・役・本体の長さ。関門の宣言 v0.2）と
+# C0 の力学のもとで、同じ個体から、可塑的な 6 本のうち手がかりの Unit C と源の間の 2 組（4 本）だけが違う二つの系を作る。
+# X1 は C -> source1 = w_max・source1 -> C = 0・C -> source2 = 0・source2 -> C = w_max、X2 はその鏡。源どうしの 2 本は w0。
+# どの系も出生のとき（Pulse 0）に移植し、境界 0 で 6 本を FREEZE（advance）。世界は意図を記録するだけで結果を返さない（respond = false）。
+# 試しの区間 U（窓 26〜50）の A1 の割合 s の差 D_X = s(X1) - s(X2) の符号を個体の事象にし、向きのそろった個体の多数を
+# 両側で判定する（J_A。向きごとに 0.025）。変わる個体の割合などの推定 E_A は、判定の成否に依らず必ず報告する。
+# 中間の対（D_M）、参照の系 X0 との差（Delta_1・Delta_2）、窓 1〜25 の同じ対比（D_X_E）は、必ず報告する記述の対照。
+#
+# 実行の形式は 0039 型の事前登録の実験（README §0.1）。この案の段階では、この実験の道具の実装・smoke・本番の測定・
+# どの seed の実行もしない。0038・0039 の記録は、この実験の判定にも設計にも使わない。
+# 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を
+# 開示し、新しい版・新しい seed の範囲で行う。
+#
+# 種別：事前登録した検証。主の判定は J_A の一つ（誤りの水準 0.05）。主の推定 E_A は判定ではない。
+# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。新しく選んだ値とその理由は README §1.2・§4.5。
+
+experiment: "0040"
+kind: preregistered_test
+execution_form: "0039-type preregistered experiment (not a 0038-type forward gate): README section 0.1"
+candidate: "A (docs/as2b-next-research-candidates.md v0.2, sections 3 and 4.1)"
+seeds: {first: 33001, last: 33200}            # 本番。200 個体を全件記録・全件報告する。以後どの実験にも使わない
+smoke_seeds: {first: 33201, last: 33206}      # 操作の確認だけ。盲検。判定と推定の量・現象の数値は計算・表示・保存しない
+synthetic_seeds: {first: 33301, last: 33399}  # 合成の契約テスト専用
+not_used_seeds:
+  gate_synthetic: {first: 31001, last: 31040}
+  experiment_0039: {first: 32001, last: 32399}
+
+inherited_gate_set:                           # README §1.1。値は宣言から取り、ここにもコードにも書き込まない
+  declaration: experiments/0038_as2b_forward_gate/gate_declaration.json
+  sha256: e612efc5e6b084e1712520de64a877e0dd477d737b88695252f4cc234a64e1cb
+  version: "0.2"
+  taken_from_declaration: [schedule, exit, world, roles, bodies.pulses]
+  not_taken: [bodies.per_individual, bodies.plasticity, bodies.respond, synthetic_seeds, evaluation, one_time_execution]
+  expected_values: {cue_first: 41, cue_spacing: 41, cue_count: 50, o: 2, W: 19, tie: close_window_without_intent,
+                    L: 2, consequence_receptor: cue_receptor, multiplicity: per_reservation, lc3: null,
+                    roles_stream: "as2b-roles-{seed}", body_pulses: 2072}   # O2 で宣言から取った値と照らす
+
+tools:
+  base: experiments/as2b_choice/as2b.py       # build(respond=False)・transplant・declare（FREEZE）・sigma・audit をそのまま使う。変えない見込み
+  base_rule: "if anything must be added to as2b.py, the default behaviour is unchanged and all AS2b contract tests pass"
+  contract_tests: [tests/integration/test_as1_contract.py, tests/integration/test_as2b_contract.py,
+                   tests/integration/test_as2b_rule_dependence_0039.py]
+  previous_experiment: experiments/0039_as2b_rule_dependence   # guard・盲検の smoke・O1 の記録・結果の写し・protocol の結び付きを引き継ぐ
+  contract: docs/as2b-minimal-implementation-contract.md
+  criteria: docs/s3-configuration-criteria.md
+
+brain:                                  # C0 のまま（関門と同じ）
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml
+  units: [s1, s2, s3]
+  roles: "random.Random('as2b-roles-{seed}').shuffle([s1, s2, s3]) -> (cue, source1, source2)"
+  action_ids: {source1: A1, source2: A2}
+  receptor_weight: 1.0
+  refractory_pulses: 0
+  plastic_connections: six_s_to_s
+  initial_weight_w0: 0.005               # = w_max / 2（出生時の値。6 本とも）
+  w_min: 0.0
+  w_max: 0.01
+  adaptation_tau_pulses: 300
+
+world:                                  # README §2.5。すべての系で同じ
+  respond: false                        # 意図を記録するだけ。結果の予約を置かない（WB-9）
+  rule_c_passed_to_build: A1            # build に渡す値。respond = false では軌道に効かない（SE-A4）
+  cues: "gate schedule c_k to the cue receptor"
+  not_used: [switch_world, replay, lc3]
+
+timeline:                               # 1 Pulse = 1 秒。窓 k = [41k + 2, 41k + 20]
+  pulse_interval_seconds: 1.0
+  lead_in_E: {windows: [1, 25], pulses: [1, 1065], use: descriptive_only}
+  trial_U: {windows: [26, 50], pulses: [1066, 2072]}
+  runs_to: 2072
+  operations_only_at_pulse_0: true      # 区間の境界で操作はしない
+
+main_condition:                         # README §1.2・§4.5
+  placement: birth                      # (a) Pulse 0 で移植
+  freeze: "six connections from boundary 0 (advance)"
+  world_respond: false
+  not_in_this_experiment: [post_E_transplant, responding_world, other_weight_points]   # README §1.3
+
+intervention_values:                    # README §2.3（analysis.py の intervention_values）。4 本だけを移植し、源どうしの 2 本は出生時の値のまま
+  built_from: [w_min, w_max, w0]        # 端 = w_min・w_max、中間 = 3 w_max / 4・w_max / 4。相手の値は引き算で作らず定数のまま置く
+  X1: {C_to_source1: w_max, source1_to_C: w_min, C_to_source2: w_min, source2_to_C: w_max}
+  X2: {C_to_source1: w_min, source1_to_C: w_max, C_to_source2: w_max, source2_to_C: w_min}
+  M1: {C_to_source1: 3w_max/4, source1_to_C: w_max/4, C_to_source2: w_max/4, source2_to_C: 3w_max/4}
+  M2: {C_to_source1: w_max/4, source1_to_C: 3w_max/4, C_to_source2: 3w_max/4, source2_to_C: w_max/4}
+  X0: "no transplant (all six at w0)"
+  X0_tr: {C_to_source1: w0, source1_to_C: w0, C_to_source2: w0, source2_to_C: w0}
+  source_pair: "source1 -> source2 and source2 -> source1 stay at w0 in every system (never transplanted)"
+  F1: "each pair sums to w_max exactly in binary floating point; every value in [w_min, w_max]"
+  mirror: "swapping the source1 / source2 labels exchanges X1 and X2 (M1 and M2) bit for bit"
+
+systems:                                # README §2.2。どれも build(seed, schedule, delay=2, rule_c=A1, respond=False)
+  X1: {pulse_0: "transplant four to X1, FREEZE six", role: "main (J_A, E_A)"}
+  X2: {pulse_0: "transplant four to X2, FREEZE six", role: "main (J_A, E_A)"}
+  M1: {pulse_0: "transplant four to M1, FREEZE six", role: "must report (D_M)"}
+  M2: {pulse_0: "transplant four to M2, FREEZE six", role: "must report (D_M)"}
+  X0: {pulse_0: "FREEZE six (no transplant)", role: "reference (Delta_1, Delta_2)"}
+  X0_tr: {pulse_0: "transplant four to w0 (own values), FREEZE six", role: "transplant identity check (O8)"}
+  X1_rerun: {pulse_0: "same as X1, without the added records", role: "non-interference (O9)"}
+  per_individual: [X1, X2, M1, M2, X0, X0_tr, X1_rerun]
+  pulses_per_individual: 14504          # 7 x 2072
+  trace_policy: advance                 # 全 6 本を止めているので軌道に効かない（SE-A5）
+
+pulse_0_sequence:                       # README §2.4
+  T0: "build; export sigma (sigma_T0); no pulse processed"
+  T1: "transplant the four C <-> source weights (X1, X2, M1, M2, X0_tr); X0 untouched; intervention state is empty; export sigma_T1"
+  T2: "declare FREEZE six (advance) once per system at boundary 0; frozen values = weights at declaration; export sigma_T2"
+  T3: "advance every system to pulse 2072"
+  no_pulse_between: [T0, T2]
+  effective_from: "pulse 1 (transmission at its start, update at its end)"
+
+quantities:                             # README §3
+  outcome_per_window: "layer A outcome in {A1, A2, tie, none}; checked one-to-one against layer B (CT-E10)"
+  n_U: "number of U windows (26..50) whose outcome is A1 or A2"
+  A1_U: "number of U windows with outcome A1"
+  s: "A1_U / n_U; defined only if n_U >= 1"
+  s_E: "same over windows 1..25 (descriptive only)"
+  contrasts:                            # (a, b)。差は s(a) - s(b)
+    D_X: [X1, X2]                       # J_A・E_A。＋ = C -> 源 を w_max にした側の源の行動の割合が高い
+    D_M: [M1, M2]                       # 必ず報告
+    Delta_1: [X1, X0]                   # 必ず報告
+    Delta_2: [X0, X2]                   # 必ず報告
+    D_X_E: [X1, X2]                     # 必ず報告（s_E で）
+  label_invariance: "swapping the A1/A2 (source1/source2) labels leaves D_X, D_M and D_X_E unchanged and exchanges Delta_1 and Delta_2; not a basis for sign symmetry"
+  no_decomposition: "D_X = Delta_1 + Delta_2 holds as arithmetic when all are defined; it is never called the true decomposition"
+
+judgment:
+  per_individual:
+    undefined: "n_U(X1) = 0 or n_U(X2) = 0 (s undefined; N/A); excluded; the condition is symmetric in the pair, which is NOT used to derive sign symmetry"
+    undefined_kinds: [one_system, both_systems]
+    no_ineligible_class: "X1 and X2 differ from pulse 0; individuals whose two systems never diverge are kept (D_X = 0) and labelled"
+    structurally_silent_source: "a source with g < -E_S (corollary S-1'); labelled and counted; kept if defined (its difference is 0)"
+    no_post_hoc_exclusion: "no other exclusion; labels are never used to remove an individual"
+    sign: {plus: "difference > 0", minus: "difference < 0", zero: "difference == 0"}
+  J_A:
+    population: "D_X defined (n_U(X1) >= 1 and n_U(X2) >= 1)"
+    min_population: 10
+    below_min: inconclusive
+    rule: "plus if count(plus) >= k2(m); minus if count(minus) >= k2(m); otherwise not established"
+    alpha: {two_sided: 0.05, per_direction: 0.025}
+    only_judgment: true
+  null_hypothesis:
+    status: "explicit conditional null on the post-selection population; not derived from the symmetric undefined condition or from the random role assignment"
+    H0_A: "with birth states iid, P(D_X > 0) = P(D_X < 0) in the J_A population"
+    zeros: "kept in m; each count is stochastically dominated by Bin(m, 1/2)"
+  k2_rule: "smallest k with P(Bin(m, 1/2) >= k) <= 1/40 (exact fractions; analysis.py; equal to the 0039 table)"
+  k2_of_m: {10: 9, 11: 10, 12: 10, 13: 11, 14: 12, 15: 12, 16: 13, 17: 13, 18: 14, 19: 15, 20: 15, 21: 16, 22: 17,
+            23: 17, 24: 18, 25: 18, 26: 19, 27: 20, 28: 20, 29: 21, 30: 21, 31: 22, 32: 23, 33: 23, 34: 24, 35: 24,
+            36: 25, 37: 25, 38: 26, 39: 27, 40: 27, 41: 28, 42: 28, 43: 29, 44: 29, 45: 30, 46: 31, 47: 31, 48: 32,
+            49: 32, 50: 33, 51: 33, 52: 34, 53: 35, 54: 35, 55: 36, 56: 36, 57: 37, 58: 37, 59: 38, 60: 39, 61: 39,
+            62: 40, 63: 40, 64: 41, 65: 41, 66: 42, 67: 42, 68: 43, 69: 44, 70: 44, 71: 45, 72: 45, 73: 46, 74: 46,
+            75: 47, 76: 48, 77: 48, 78: 49, 79: 49, 80: 50, 81: 50, 82: 51, 83: 51, 84: 52, 85: 53, 86: 53, 87: 54,
+            88: 54, 89: 55, 90: 55, 91: 56, 92: 56, 93: 57, 94: 57, 95: 58, 96: 59, 97: 59, 98: 60, 99: 60, 100: 61,
+            101: 61, 102: 62, 103: 62, 104: 63, 105: 64, 106: 64, 107: 65, 108: 65, 109: 66, 110: 66, 111: 67,
+            112: 67, 113: 68, 114: 68, 115: 69, 116: 70, 117: 70, 118: 71, 119: 71, 120: 72, 121: 72, 122: 73,
+            123: 73, 124: 74, 125: 74, 126: 75, 127: 76, 128: 76, 129: 77, 130: 77, 131: 78, 132: 78, 133: 79,
+            134: 79, 135: 80, 136: 80, 137: 81, 138: 81, 139: 82, 140: 83, 141: 83, 142: 84, 143: 84, 144: 85,
+            145: 85, 146: 86, 147: 86, 148: 87, 149: 87, 150: 88, 151: 89, 152: 89, 153: 90, 154: 90, 155: 91,
+            156: 91, 157: 92, 158: 92, 159: 93, 160: 93, 161: 94, 162: 94, 163: 95, 164: 96, 165: 96, 166: 97,
+            167: 97, 168: 98, 169: 98, 170: 99, 171: 99, 172: 100, 173: 100, 174: 101, 175: 101, 176: 102, 177: 103,
+            178: 103, 179: 104, 180: 104, 181: 105, 182: 105, 183: 106, 184: 106, 185: 107, 186: 107, 187: 108,
+            188: 108, 189: 109, 190: 109, 191: 110, 192: 111, 193: 111, 194: 112, 195: 112, 196: 113, 197: 113,
+            198: 114, 199: 114, 200: 115}
+  interval: "Clopper-Pearson 95% (two-sided); always reported when m >= 1 (D6)"
+  outcomes: [invalid, inconclusive, not_established, plus, minus]
+  negative_reading: "not established means only: with the two pre-fixed extremes, this population and these windows, the pre-specified difference (a sign-aligned majority) was not observed; never a configuration limit and never a trigger for candidate D"
+
+estimate_E_A:                           # README §4.4。判定ではない。有効で m >= 1 なら成否に依らず報告する
+  p_change: "(count(plus) + count(minus)) / m, Clopper-Pearson 95%"
+  p_plus_minus: "count(plus) / m and count(minus) / m, Clopper-Pearson 95%"
+  p_flip: "count of (s(X1) - 1/2) * (s(X2) - 1/2) < 0, divided by m, Clopper-Pearson 95%"
+  abs_D_X: "min, quartiles, max over the J_A population and over individuals with D_X != 0"
+  no_threshold: true
+
+must_report:                            # README §6.1。検定しない
+  contrasts: [D_M, Delta_1, Delta_2, D_X_E]
+  form: "m, counts of plus / minus / zero, each share with its Clopper-Pearson 95% interval, distribution of differences"
+  cross_tables: ["(sign D_X, sign D_M) in 9 cells", "(sign Delta_1, sign Delta_2) in 9 cells"]
+  undefined: "listed in separate tables; never in the judgment or the totals above"
+
+records:                                # README §6.2
+  R1: "roles, birth theta and c of the 3 units, margins g, S-1' label per source, undefined labels"
+  R2: "per system: decided, A1, A2, tie, none counts and s, in windows 1..25 and in U"
+  R3: "per contrast: distribution of differences and |differences|; differences of n_U and A1_U"
+  R4: "six weights at T0, T1, T2 per system, pair sums; summary of constancy under FREEZE"
+  R5: "first pulse at which all-unit firings and window outcomes differ: X1/X2, M1/M2, X1/X0, X2/X0; number of pairs that never diverge"
+  R6: "firing counts of the 3 units in windows 1..25 and in U per system"
+  R7: "intents (layer B) per system; consequence reservations and consequence stimuli (expected 0)"
+  R8: "Clopper-Pearson intervals"
+
+structural_equivalences: [SE-A1, SE-A2, SE-A3, SE-A4, SE-A5, SE-A6, SE-A7, SE-A8]   # README §7.1
+
+corollary_S1_prime:                     # README §7.2（analysis.py）
+  E_S: "same as experiment 0039: w_max * ((1 + lambda^4) / (1 - lambda^23) + 2 / (1 - lambda^7))"
+  E_S_value: 0.04503
+  condition: "g = c / (1 - lambda) - theta < -E_S"
+  why_it_holds: "weights in [0, w_max]; no input to source receptors; cue-unit receptor events are cues only (a subset of the R pulses of S-1); phi_R_cues_only = 1 / (1 - lambda^41) <= phi_R"
+  per_source_share: 0.0292
+  individual_share_at_least_one: 0.0576
+  individual_share_both: 0.0009
+  use: "labels only; never used in a judgment or an estimate. A recorded violation is disclosed and the labels are withdrawn; the judgment does not change"
+
+operation_checks: [O1, O2, O3, O4, O5, O6, O7, O8, O9, O10, O11, O12]   # README §8。一つでも不成立なら無効
+operation_checks_note: "S-1' violations are recorded, not an operation check (D1)"
+
+not_displayed:                          # README §9.3。契約テスト（合成の seed）と smoke では計算しても表示・保存しない
+  quantities: [s, A1_U, A2_U, contrasts_and_signs, m, direction_counts, E_A, clopper_pearson, first_divergence_pulse]
+  contract_tests: "arithmetic is checked on hand-made records; values from real trajectories are checked for consistency only and never printed"
+  smoke: "ok / fail of the operation checks only"
+
+storage:                                # README §9.1
+  raw: "seeds/<seed>/raw.json.gz (guard), copied byte for byte to results/ and checked with analyze.py --verify-copy"
+  sigma: {T0: all systems, T1: all systems, T2: all systems, final_sha256: all systems}
+  numbers: "JSON numbers that round-trip with Python repr; equality of values (SHA-256 auxiliary)"
+  protocol_binding: "analyze.py checks meta.protocol against the canonical protocol; the independent recheck holds the canonical-JSON SHA-256 and the file SHA-256 of the frozen protocol (same form as the 0039 tools v0.3)"
+  independent_recheck: "stdlib only; does not import analyze.py, measure.py, anima_ll or the AS2b tools"
+
+one_time: "the judgment seeds run once (guard claim bound to the protocol hash before the first seed); invalid means no judgment and no rerun on the same seeds; after running, README, protocol and tools are not changed"
+execution_permissions:
+  smoke: "explicit technical execution permission from ChatGPT before running"
+  main: "explicit technical execution permission from ChatGPT before running"
