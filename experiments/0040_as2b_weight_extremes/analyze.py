@@ -4,7 +4,9 @@
 測定の commit、smoke の盲検、O1 の記録の確かめ、protocol の結び付き、結果の写しの照合）を引き継ぐ（ほかの実験の analyze.py は読み込まない）。
 
 0. 解析する道具の commit（このリポジトリの HEAD）が、保存した測定の commit と同じで、作業ツリーがきれいなことを確かめる
-1. 実行の記録（guard.py）を確かめる。未完了なら解析しない。失敗・中断・破損・範囲の外・別の測定の commit なら invalid
+1. 実行の記録（guard.py）を確かめる。未完了なら解析しない。失敗・中断・破損・範囲の外・別の測定の commit なら invalid。
+   raw の中身の meta（測定の commit・protocol の SHA-256・seed・experiment・kind・mode）も、開始・終了の記録と直接照らす
+   （provenance_problems。PR #185 のレビュー 5924138620 の修正必須 2）。違えば invalid
 2. 操作の確認 O2〜O12（README §8）を、保存した生の記録から seed ごとに再検証する（D2）。一つでも成り立たなければ invalid で、
    判定と推定の量を計算・表示しない。O1 は、run.py が seed に触れる前に測定の commit で走らせた契約テストの記録を確かめる（o1_check）
 3. 判定と推定（README §3〜§6）：本番・合成で、すべての seed が completed で invalid がないときだけ計算する
@@ -869,6 +871,31 @@ def verify_records(out: Path, mode: str, seeds: list[int]) -> dict:
             "measurement_commit": commit if G.SHA_RE.match(str(commit)) else None}
 
 
+def provenance_problems(out: Path, runs: Mapping[int, dict], mode: str) -> list[str]:
+    """raw の中身の meta と、開始・終了の記録の結び付き（verify_records は開始・終了の記録だけを読む。ここでは読んだ raw の meta を
+    それと直接照らす）。測定の commit：raw の meta ＝ 開始の記録 ＝ 終了の記録の measurement_commit_end。protocol の SHA-256：
+    raw の meta ＝ 開始の記録。seed：raw の meta ＝ 開始・終了の記録 ＝ フォルダ。experiment・kind・mode も同じ。
+    raw のファイルの SHA-256・バイト数も、終了の記録と照らし直す。smoke の盲検の記録も、meta は同じ形なので同じに確かめる。"""
+    problems = []
+    for s, data in sorted(runs.items()):
+        rec = G.read_seed(out, s)
+        st, fin = rec["start"] or {}, rec["finish"] or {}
+        meta = data.get("meta") if isinstance(data, Mapping) else None
+        meta = meta if isinstance(meta, Mapping) else {}
+        commit = meta.get("measurement_commit")
+        if not G.SHA_RE.match(str(commit)) or commit != st.get("measurement_commit") or commit != fin.get("measurement_commit_end"):
+            problems.append(f"seed {s} の raw の meta の測定の commit が、開始・終了の記録と違う")
+        if meta.get("protocol_sha256") != st.get("protocol_sha256"):
+            problems.append(f"seed {s} の raw の meta の protocol の SHA-256 が、開始の記録と違う")
+        if not (meta.get("seed") == st.get("seed") == fin.get("seed") == s):
+            problems.append(f"seed {s} の raw の meta・開始・終了の記録の seed が一致しない")
+        if any(x.get(k) != v for x in (meta, st, fin) for k, v in (("experiment", EXPERIMENT), ("kind", KIND), ("mode", mode))):
+            problems.append(f"seed {s} の raw の meta・開始・終了の記録の experiment・kind・mode が {EXPERIMENT}・{KIND}・{mode} ではない")
+        if rec["raw_sha256"] != fin.get("raw_file_sha256") or rec["raw_bytes"] != fin.get("raw_file_bytes"):
+            problems.append(f"seed {s} の raw の SHA-256・バイト数が、終了の記録と違う")
+    return problems
+
+
 def check_blinded(data: Mapping, seed: int, mode: str = "smoke") -> dict[str, str]:
     """smoke の盲検の記録の確かめ（0039 と同じ）。O12（seed の範囲）は記録に頼らずここで確かめ直す。"""
     status = {k: "fail" for k in CHECK_NAMES}
@@ -1016,6 +1043,9 @@ def main() -> None:
             raw = G.seed_dir(out, s) / G.RAW
             shas[str(s)] = G.sha256_file(raw)
             runs[s] = read_raw(raw)
+        provenance = provenance_problems(out, runs, mode)                # raw の meta と開始・終了の記録の結び付き
+        if provenance:
+            records["state"], records["problems"] = "failed", records["problems"] + provenance
     with open(out / LOG, "a", encoding="utf-8") as f:
         f.write(json.dumps({"event": "start", "at": G.now_iso(), "inputs": shas}) + "\n")
     o1 = o1_check(out, records["measurement_commit"])

@@ -30,6 +30,7 @@ import inspect
 import itertools
 import json
 import re
+import shutil
 import subprocess
 from concurrent.futures import Future
 from fractions import Fraction
@@ -858,6 +859,135 @@ def test_the_recheck_is_independent_and_detects_a_changed_report_or_raw() -> Non
         assert RC.recheck(raw, rep)["mismatches"]
 
 
+# ---- CT-40-9・10 独立の検算：report のすべての欄（PR #185 のレビュー 5924138620 の修正必須 1） -----------------------
+
+COMMIT = "a" * 40                                                    # 照合の形だけを確かめる測定の commit（合成）
+
+
+def _leaves(x, path=()):
+    """report の葉（数・文字列・真偽・null と、空の列・辞書）の場所。"""
+    if isinstance(x, dict) and x:
+        for k, v in x.items():
+            yield from _leaves(v, (*path, k))
+    elif isinstance(x, list) and x:
+        for i, v in enumerate(x):
+            yield from _leaves(v, (*path, i))
+    else:
+        yield path
+
+
+def _at(x, path):
+    for k in path:
+        x = x[k]
+    return x
+
+
+def _changed(v):
+    """値を変える（真偽は反転、整数は ＋1、浮動小数は ＋0.25、文字列は文字を足す、null は 0、空の列・辞書は 1 つ足す）。"""
+    if isinstance(v, bool):
+        return not v
+    if isinstance(v, int):
+        return v + 1
+    if isinstance(v, float):
+        return v + 0.25
+    if isinstance(v, str):
+        return v + "~"
+    if v is None:
+        return 0
+    return ["~"] if isinstance(v, list) else {"~": 0}
+
+
+@functools.cache
+def _analyzed() -> str:
+    """合成の 3 個体（SMALL）の解析の report（解析の main と同じく measurement_commit を書き足した形。JSON を通す）。"""
+    runs = {s: measured(s) for s in SYN[:3]}
+    return json.dumps(AN.analyze_runs(runs, "synthetic", SMALL, o1=[]) | {"measurement_commit": COMMIT})
+
+
+def test_the_recheck_rebuilds_the_whole_report_and_compares_every_field() -> None:
+    """raw から report の全体を組み立て直し、すべての葉を照合する。report のどの葉の値を変えても、どの欄を消しても足しても、
+    照合が失敗する（合成の個体の値は表示しない。失敗の文は場所だけ）。"""
+    runs = {s: measured(s) for s in SYN[:3]}
+    report = json.loads(_analyzed())
+    mine = RC.expected_report(runs, COMMIT)
+    checks, found = RC.compare(mine, report)
+    paths = list(_leaves(report))
+    scalars = [p for p in paths if not isinstance(_at(report, p), (dict, list))]
+    assert found == [] and checks == len(scalars) > 2000                     # すべての葉を比べている
+    assert {p[0] for p in paths} == set(report) == {"mode", "valid", "O1", "gate_declaration_sha256", "judgment", "estimate",
+                                                    "descriptive_controls", "individuals", "auxiliary", "measurement_commit"}
+    for p in paths:
+        parent = _at(report, p[:-1])
+        before = parent[p[-1]]
+        parent[p[-1]] = _changed(before)
+        assert RC.compare(mine, report)[1], p
+        parent[p[-1]] = before
+    nodes = {q[:i] for q in paths for i in range(len(q)) if isinstance(_at(report, q[:i]), dict)}
+    for p in nodes:
+        node = _at(report, p)
+        for key in list(node):
+            value = node.pop(key)
+            assert RC.compare(mine, report)[1], (p, key)
+            node[key] = value
+        node["~"] = 0
+        assert RC.compare(mine, report)[1], p
+        del node["~"]
+    assert RC.compare(mine, report) == (checks, [])
+
+
+def test_the_comparison_tolerates_only_the_two_independently_written_numbers() -> None:
+    """ちょうど同じであることを求めない欄は、Clopper–Pearson の端点と E_S だけ（計算の書き方が解析と違う）。"""
+    assert RC._loose("report.judgment.J_A.interval.+.interval[0]") and RC._loose("report.auxiliary.R1.S1_prime.E_S")
+    assert not RC._loose("report.estimate.p_change.proportion") and not RC._loose("report.individuals.33301.birth.cue.margin_g")
+    report = json.loads(_analyzed())
+    mine = RC.expected_report({s: measured(s) for s in SYN[:3]}, COMMIT)
+    margin = report["individuals"][str(SYN[0])]["birth"]["cue"]
+    margin["margin_g"] += 1e-12                                              # 書き方の同じ数は、わずかな違いも見つける
+    assert RC.compare(mine, report)[1] == [f"report.individuals.{SYN[0]}.birth.cue.margin_g"]
+    margin["margin_g"] -= 1e-12
+    report["valid"] = 1                                                      # 真偽と数を取り違えない
+    assert RC.compare(mine, report)[1] == ["report.valid"]
+
+
+TARGETS = [("estimate", "p_change", "proportion"), ("estimate", "p_flip", "proportion"), ("estimate", "abs_D_X"),
+           ("descriptive_controls", "contrasts", "D_M", "difference"), ("descriptive_controls", "contrasts", "Delta_1", "proportion"),
+           ("descriptive_controls", "contrasts", "Delta_2", "interval"), ("descriptive_controls", "contrasts", "D_X_E", "difference"),
+           ("descriptive_controls", "cross_tables"), ("descriptive_controls", "undefined"),
+           ("auxiliary", "R1", "never_diverged_X1_X2_in_J_A_population"), ("auxiliary", "R1", "S1_prime", "E_S"),
+           ("auxiliary", "R2"), ("auxiliary", "R3"), ("auxiliary", "R4", "T2_values_by_system"),
+           ("auxiliary", "R4", "end_values_X1_rerun"), ("auxiliary", "R4", "pulse_weights"), ("auxiliary", "R5"),
+           ("auxiliary", "R6"), ("auxiliary", "R7"), ("auxiliary", "R9"),
+           ("individuals", None, "firing"), ("individuals", None, "pre_window_firing_U"), ("individuals", None, "world"),
+           ("individuals", None, "weights"), ("individuals", None, "pair_sums"), ("individuals", None, "first_divergence"),
+           ("individuals", None, "birth"), ("individuals", None, "roles"), ("individuals", None, "counts_U"),
+           ("individuals", None, "contrasts", "Delta_2", "a"), ("mode",), ("O1",), ("gate_declaration_sha256",),
+           ("measurement_commit",)]
+
+
+@pytest.mark.parametrize("target", TARGETS, ids=lambda t: ".".join(str(x) for x in t if x))
+def test_the_recheck_fails_when_a_field_it_did_not_check_before_is_changed(target) -> None:
+    """これまで独立の照合がなかった欄（E_A の割合、記述の対照の差の分布、R2〜R7・R9、個体の発火・世界・重みなど）を変えると、
+    recheck が失敗する。"""
+    runs = {s: measured(s) for s in SYN[:3]}
+    report = json.loads(_analyzed())
+    assert RC.recheck(runs, report, COMMIT)["mismatches"] == []
+    prefix = tuple(str(SYN[1]) if k is None else k for k in target)
+    path = prefix + next(_leaves(_at(report, prefix)))
+    parent = _at(report, path[:-1])
+    parent[path[-1]] = _changed(parent[path[-1]])
+    found = RC.recheck(runs, report, COMMIT)["mismatches"]
+    assert found and all(m.startswith("report.") for m in found)
+
+
+def test_a_raw_change_that_no_operation_check_sees_still_fails_the_report_comparison() -> None:
+    runs = {s: measured(s) for s in SYN[:3]}
+    report = json.loads(_analyzed())
+    roles = runs[SYN[2]]["run"]["roles"]
+    runs[SYN[2]]["run"]["birth_units"][roles["cue"]]["dynamics"]["threshold"] += 0.001
+    found = RC.recheck(runs, report, COMMIT)["mismatches"]
+    assert f"report.individuals.{SYN[2]}.birth.cue.threshold" in found and all(m.startswith("report.") for m in found)
+
+
 # ---- CT-40-10 protocol の写しと、確定済みの事前登録の結び付き ------------------------------------------------
 
 def _without(meta: dict, key: str) -> None:
@@ -913,6 +1043,16 @@ def test_the_preregistered_values_in_the_recheck_are_the_protocol_values() -> No
     assert RC.PROTOCOL_FILE == EXP / "protocol.yaml"
     assert RC._preregistered_values(json.loads(json.dumps(PROTOCOL))) == []
     assert RC.protocol_problems({s: measured(s) for s in SYN[:2]}) == []
+    gate = PROTOCOL["inherited_gate_set"]
+    assert (RC.GATE_FILE, RC.GATE_SHA256) == (gate["declaration"], gate["sha256"]) and RC.GATE_SHA256 == AN.GATE_SHA256
+    assert RC.gate_problems({s: measured(s) for s in SYN[:2]}) == [] and RC.REPO_ROOT == ROOT
+    assert RC.PREREGISTERED["kind"] == PROTOCOL["kind"]
+    # 書き起こした名前・組が、道具と同じ（照合の相手を取り違えない）
+    assert (RC.START, RC.FINISH, RC.RAW, RC.SEEDS_DIR) == (R.G.START, R.G.FINISH, R.G.RAW, R.G.SEEDS_DIR)
+    assert (RC.REPORT, RC.O1_FILE, RC.O1_KEYS, RC.CONTRACT_TESTS) == (AN.REPORT, AN.O1_FILE, AN.O1_KEYS, AN.CONTRACT_TESTS)
+    assert (RC.SYSTEMS, RC.RECORDED, RC.RERUN, RC.PAIRS) == (list(M.SYSTEMS), list(M.RECORDED), M.RERUN, list(M.PAIRS))
+    assert {k: v[:2] for k, v in RC.CONTRASTS.items()} == AN.CONTRASTS and RC.TABLES == list(AN.MUST_REPORT)
+    assert RC.CROSS == list(AN.CROSS_TABLES)
 
 
 def test_the_recheck_holds_the_fixed_hashes_of_the_preregistered_protocol() -> None:
@@ -982,12 +1122,186 @@ def test_the_recheck_checks_the_formal_plan_and_the_start_records(repo, tmp_path
     monkeypatch.setattr(R, "REPO", repo)
     out = tmp_path / "out"
     _exec(repo, out, SYN[:2], runner=functools.partial(M.measure_seed, PROTOCOL, plan=SMALL))
-    runs = {s: AN.read_raw(R.G.seed_dir(out, s) / R.G.RAW) for s in SYN[:2]}
-    (out / AN.REPORT).write_text(json.dumps(AN.analyze_runs(runs, "synthetic", SMALL, o1=[])), encoding="utf-8")
+    _complete(out, SYN[:2])
     assert RC.recheck_directory(out)["mismatches"] == []
     start = R.G.seed_dir(out, SYN[1]) / R.G.START
     start.write_text(json.dumps(json.loads(start.read_text(encoding="utf-8")) | {"protocol_sha256": "1" * 64}), encoding="utf-8")
     assert any("開始の記録" in m for m in RC.recheck_directory(out)["mismatches"])
+
+
+# ---- CT-40-10 独立の検算：測定の来歴と全件性（PR #185 のレビュー 5924138620 の修正必須 2） ------------------------
+
+DIR_SEEDS = SYN[:3]
+
+
+def _o1_record(commit: str) -> dict:
+    """run.py の record_contract_tests が書く O1 の記録と同じ形（テストのファイルの SHA-256 は、このリポジトリのもの）。"""
+    return {"measurement_commit": commit, "command": ["python", "-m", "pytest", "-q", *AN.CONTRACT_TESTS], "exit_code": 0,
+            "summary": "551 passed in 250.00s", "test_files_sha256": {f: R.G.sha256_file(ROOT / f) for f in AN.CONTRACT_TESTS},
+            "at": "2026-01-01T00:00:00+00:00"}
+
+
+def _complete(out: Path, seeds: list[int], plan: M.Plan = SMALL) -> dict:
+    """解析の main と同じ形の report（measurement_commit を書き足す）と、O1 の記録を出力先に書く。書いた report を返す。"""
+    commit = AN.verify_records(out, "synthetic", seeds)["measurement_commit"]
+    runs = {s: AN.read_raw(R.G.seed_dir(out, s) / R.G.RAW) for s in seeds}
+    report = json.loads(json.dumps(AN.analyze_runs(runs, "synthetic", plan, o1=[]) | {"measurement_commit": commit}))
+    (out / AN.REPORT).write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+    (out / AN.O1_FILE).write_text(json.dumps(_o1_record(commit), ensure_ascii=False, indent=1), encoding="utf-8")
+    return report
+
+
+@pytest.fixture(scope="module")
+def finished_out(tmp_path_factory) -> Path:
+    """合成の 3 個体を run.py の一度限りの実行で測り、解析の report と O1 の記録を書いた出力先（テストごとに写して使う）。"""
+    base = tmp_path_factory.mktemp("finished")
+    repo = _make_repo(base / "repo")
+    out = base / "out"
+    with pytest.MonkeyPatch.context() as mp:
+        mp.chdir(ROOT)
+        mp.setattr(R, "REPO", repo)
+        _exec(repo, out, DIR_SEEDS, runner=functools.partial(M.measure_seed, PROTOCOL, plan=SMALL))
+        _complete(out, DIR_SEEDS)
+    return out
+
+
+@pytest.fixture
+def done(finished_out, tmp_path) -> Path:
+    dst = tmp_path / "out"
+    shutil.copytree(finished_out, dst, ignore=shutil.ignore_patterns(R.G.LOCK))
+    return dst
+
+
+def _json_edit(path: Path, edit) -> None:
+    rec = json.loads(path.read_text(encoding="utf-8"))
+    edit(rec)
+    path.write_text(json.dumps(rec, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _rewrite_raw(out: Path, seed: int, edit=None, data: dict | None = None) -> None:
+    """raw を書き換え、終了の記録の SHA-256・バイト数も合わせる（guard の状態の確かめでは見つからない改変）。"""
+    d = R.G.seed_dir(out, seed)
+    if data is None:
+        data = AN.read_raw(d / R.G.RAW)
+        edit(data)
+    payload = gzip.compress(json.dumps(data, separators=(",", ":")).encode("utf-8"), mtime=0)
+    (d / R.G.RAW).write_bytes(payload)
+    _json_edit(d / R.G.FINISH, lambda f: f.update(raw_file_sha256=hashlib.sha256(payload).hexdigest(), raw_file_bytes=len(payload)))
+
+
+def _seed_file(seed: int, name: str):
+    return lambda out: R.G.seed_dir(out, seed) / name
+
+
+def _edit_seed_file(seed: int, name: str, edit):
+    return lambda out: _json_edit(R.G.seed_dir(out, seed) / name, edit)
+
+
+_A, _B, _C = DIR_SEEDS
+DIRECTORY_TAMPERS = {
+    # 終了の記録と raw
+    "finish_raw_sha256": _edit_seed_file(_B, R.G.FINISH, lambda f: f.update(raw_file_sha256="0" * 64)),
+    "finish_raw_bytes": _edit_seed_file(_B, R.G.FINISH, lambda f: f.update(raw_file_bytes=f["raw_file_bytes"] + 1)),
+    "finish_status_failed": _edit_seed_file(_B, R.G.FINISH, lambda f: f.update(status="failed")),
+    "finish_commit_end": _edit_seed_file(_B, R.G.FINISH, lambda f: f.update(measurement_commit_end="0" * 40)),
+    "finish_seed": _edit_seed_file(_B, R.G.FINISH, lambda f: f.update(seed=_C)),
+    # 開始の記録
+    "start_commit": _edit_seed_file(_B, R.G.START, lambda f: f.update(measurement_commit="0" * 40)),
+    "start_protocol_sha256": _edit_seed_file(_B, R.G.START, lambda f: f.update(protocol_sha256="1" * 64)),
+    "start_mode": _edit_seed_file(_B, R.G.START, lambda f: f.update(mode="formal")),
+    "start_seed": _edit_seed_file(_B, R.G.START, lambda f: f.update(seed=_C)),
+    # raw の中身（終了の記録の SHA-256・バイト数は合わせる）
+    "raw_meta_commit": lambda o: _rewrite_raw(o, _B, lambda d: d["meta"].update(measurement_commit="0" * 40)),
+    "raw_meta_protocol_sha256": lambda o: _rewrite_raw(o, _B, lambda d: d["meta"].update(protocol_sha256="1" * 64)),
+    "raw_meta_mode": lambda o: _rewrite_raw(o, _B, lambda d: d["meta"].update(mode="formal")),
+    "raw_meta_gate_sha256": lambda o: _rewrite_raw(o, _B, lambda d: d["meta"]["gate"].update(sha256="2" * 64)),
+    "raw_meta_gate_declaration": lambda o: _rewrite_raw(o, _B, lambda d: d["meta"]["gate"]["declaration"].update({"~": 1})),
+    "raw_of_another_seed": lambda o: _rewrite_raw(o, _A, data=AN.read_raw(R.G.seed_dir(o, _B) / R.G.RAW)),
+    # フォルダ
+    "renamed_folder": lambda o: R.G.seed_dir(o, _B).rename(R.G.seed_dir(o, 33309)),
+    "leading_zero_folder": lambda o: R.G.seed_dir(o, _B).rename(o / R.G.SEEDS_DIR / f"0{_B}"),
+    "stray_entry": lambda o: (o / R.G.SEEDS_DIR / "notes.txt").write_text("x", encoding="utf-8"),
+    "extra_file_in_a_seed": lambda o: (R.G.seed_dir(o, _A) / "raw.json.gz.tmp").write_bytes(b""),
+    "missing_start": lambda o: _seed_file(_A, R.G.START)(o).unlink(),
+    "missing_finish": lambda o: _seed_file(_A, R.G.FINISH)(o).unlink(),
+    "missing_raw": lambda o: _seed_file(_A, R.G.RAW)(o).unlink(),
+    "missing_seed": lambda o: shutil.rmtree(R.G.seed_dir(o, _C)),
+    # report
+    "report_commit": lambda o: _json_edit(o / AN.REPORT, lambda r: r.update(measurement_commit="0" * 40)),
+    "report_without_commit": lambda o: _json_edit(o / AN.REPORT, lambda r: r.pop("measurement_commit")),
+    "report_mode": lambda o: _json_edit(o / AN.REPORT, lambda r: r.update(mode="formal")),
+    "report_missing": lambda o: (o / AN.REPORT).unlink(),
+    # O1 の記録
+    "o1_missing": lambda o: (o / AN.O1_FILE).unlink(),
+    "o1_exit_code": lambda o: _json_edit(o / AN.O1_FILE, lambda r: r.update(exit_code=1)),
+    "o1_commit": lambda o: _json_edit(o / AN.O1_FILE, lambda r: r.update(measurement_commit="0" * 40)),
+    "o1_summary": lambda o: _json_edit(o / AN.O1_FILE, lambda r: r.update(summary="1 failed, 550 passed in 250.00s")),
+    "o1_command": lambda o: _json_edit(o / AN.O1_FILE, lambda r: r.update(command=r["command"][:-1])),
+    "o1_test_file": lambda o: _json_edit(o / AN.O1_FILE, lambda r: r["test_files_sha256"].update({AN.CONTRACT_TESTS[3]: "0" * 64})),
+    "o1_extra_field": lambda o: _json_edit(o / AN.O1_FILE, lambda r: r.update(note="x")),
+}
+
+
+def test_the_recheck_of_a_finished_output_checks_its_provenance_and_agrees(done) -> None:
+    result = RC.recheck_directory(done)
+    assert result["mismatches"] == [] and result["individuals"] == len(DIR_SEEDS)
+    commit = AN.verify_records(done, "synthetic", DIR_SEEDS)["measurement_commit"]
+    assert result["provenance"] == {"mode": "synthetic", "measurement_commit": commit, "seeds": len(DIR_SEEDS)}
+    assert set(result["sha256"]) == {f"seeds/{s}/raw.json.gz" for s in DIR_SEEDS} | {"report.json"}
+
+
+@pytest.mark.parametrize("tamper", sorted(DIRECTORY_TAMPERS))
+def test_the_recheck_verifies_the_provenance_and_completeness_itself(done, tamper) -> None:
+    """guard・解析の道具の確かめに頼らず、開始・終了の記録・raw・フォルダ・report・O1 の記録の結び付きを、独立の検算が確かめる。"""
+    assert RC.recheck_directory(done)["mismatches"] == []
+    DIRECTORY_TAMPERS[tamper](done)
+    assert RC.recheck_directory(done)["mismatches"]
+
+
+def test_the_seed_set_of_the_formal_run_is_exactly_the_preregistered_200() -> None:
+    formal = list(range(33001, 33201))
+    assert RC.seed_set_problems("formal", formal) == []
+    assert RC.seed_set_problems("formal", formal[:57] + formal[58:])                 # 欠け
+    assert RC.seed_set_problems("formal", formal + [33201])                           # 範囲の外（smoke の seed）
+    assert RC.seed_set_problems("formal", formal + [33001])                           # 重複
+    assert RC.seed_set_problems("formal", [*formal[:-1], 32399])                       # 0039 の seed（欠けと範囲の外）
+    assert RC.seed_set_problems("synthetic", SYN) == []
+    assert RC.seed_set_problems("synthetic", [33001]) and RC.seed_set_problems("synthetic", [])
+    assert RC.seed_set_problems("smoke", [33201]) and RC.seed_set_problems(None, SYN)
+    assert (RC.PREREGISTERED["seeds"], RC.PREREGISTERED["synthetic_seeds"]) == (PROTOCOL["seeds"], PROTOCOL["synthetic_seeds"])
+
+
+def test_a_formal_output_must_hold_exactly_the_200_preregistered_seeds(done) -> None:
+    """mode を本番に揃えて書き換えた 3 個体の出力先は、seed の欠け・範囲の外と Plan で、独立の検算が失敗する。"""
+    for s in DIR_SEEDS:
+        for name in (R.G.START, R.G.FINISH):
+            _json_edit(R.G.seed_dir(done, s) / name, lambda r: r.update(mode="formal"))
+        _rewrite_raw(done, s, lambda d: d["meta"].update(mode="formal"))
+    _json_edit(done / AN.REPORT, lambda r: r.update(mode="formal"))
+    found = RC.recheck_directory(done)["mismatches"]
+    assert any("欠け" in m for m in found) and any("範囲の外" in m for m in found) and any("本番の Plan" in m for m in found)
+
+
+@pytest.mark.parametrize("edit", [lambda d: d["meta"].update(measurement_commit="0" * 40),
+                                  lambda d: d["meta"].update(protocol_sha256="1" * 64),
+                                  lambda d: d["meta"].update(seed=_C),
+                                  lambda d: d["meta"].update(mode="formal")], ids=["commit", "protocol_sha256", "seed", "mode"])
+def test_the_analysis_binds_the_raw_meta_to_the_start_and_finish_records(done, edit) -> None:
+    """解析側も、raw の meta の測定の commit・protocol の SHA-256・seed・mode を、開始・終了の記録と直接照らす。"""
+    def runs() -> dict:
+        return {s: AN.read_raw(R.G.seed_dir(done, s) / R.G.RAW) for s in DIR_SEEDS}
+    assert AN.provenance_problems(done, runs(), "synthetic") == []
+    _rewrite_raw(done, _B, edit)
+    assert AN.verify_records(done, "synthetic", DIR_SEEDS)["state"] == "complete"     # 開始・終了の記録だけでは見つからない
+    assert AN.provenance_problems(done, runs(), "synthetic")
+    assert RC.recheck_directory(done)["mismatches"]
+
+
+def test_the_analysis_main_checks_the_provenance_before_the_report() -> None:
+    src = inspect.getsource(AN.main)
+    assert "provenance = provenance_problems(out, runs, mode)" in src
+    assert src.index("provenance_problems(out, runs, mode)") < src.index("analyze_runs(runs, mode, o1=o1)")
+    assert 'records["state"], records["problems"] = "failed"' in src                # 違えば invalid（判定・推定を出さない）
 
 
 def test_an_invalid_individual_or_a_failed_o1_blocks_the_judgment_and_the_estimate() -> None:
@@ -1121,9 +1435,7 @@ def _git(repo, *args):
     return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=True).stdout.strip()
 
 
-@pytest.fixture
-def repo(tmp_path) -> Path:
-    r = tmp_path / "repo"
+def _make_repo(r: Path) -> Path:
     (r / EXP.relative_to(ROOT)).mkdir(parents=True)
     (r / EXP.relative_to(ROOT) / "protocol.yaml").write_bytes((EXP / "protocol.yaml").read_bytes())
     _git(r, "init", "-q")
@@ -1132,6 +1444,11 @@ def repo(tmp_path) -> Path:
     _git(r, "add", "-A")
     _git(r, "commit", "-q", "-m", "init")
     return r
+
+
+@pytest.fixture
+def repo(tmp_path) -> Path:
+    return _make_repo(tmp_path / "repo")
 
 
 def _dummy(seed: int) -> dict:
@@ -1218,7 +1535,7 @@ def test_records_state_and_the_synthetic_pipeline_through_run_and_analyze(repo, 
     report = AN.analyze_runs(runs, "synthetic", SMALL, o1=[])
     assert report["valid"] is True and report["judgment"]["J_A"]["status"] == "inconclusive"   # 3 個体なので m ＜ 10
     assert report["judgment"]["outcome"] == "inconclusive"
-    (out / AN.REPORT).write_text(json.dumps(report), encoding="utf-8")
+    assert _complete(out, seeds) == report | {"measurement_commit": records["measurement_commit"]}
     assert RC.recheck_directory(out)["mismatches"] == []                       # 保存したファイルからの独立の検算
 
 
@@ -1432,7 +1749,6 @@ def test_main_goes_through_start() -> None:
 
 
 def test_results_copy_is_verified_byte_for_byte(repo, tmp_path, monkeypatch) -> None:
-    import shutil
     monkeypatch.setattr(R, "REPO", repo)
     out = tmp_path / "out"
     _exec(repo, out, GUARD_SEEDS[:2])
