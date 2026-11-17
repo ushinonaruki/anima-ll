@@ -1,0 +1,22 @@
+{
+ "measurement_commit": "06ec685f471fa23df5d3bb7caf255f3d1b4cd728",
+ "command": [
+  "python",
+  "-m",
+  "pytest",
+  "-q",
+  "tests/integration/test_as1_contract.py",
+  "tests/integration/test_as2b_contract.py",
+  "tests/integration/test_as2b_rule_dependence_0039.py",
+  "tests/integration/test_as2b_weight_extremes_0040.py"
+ ],
+ "exit_code": 0,
+ "summary": "630 passed in 289.84s (0:04:49)",
+ "test_files_sha256": {
+  "tests/integration/test_as1_contract.py": "66c57388a5f71ec66113a8eda70bd962c0e5f1f7357daffa01cf8cfad08f5a52",
+  "tests/integration/test_as2b_contract.py": "a5e2d24496dd69fbe306659c9c8ac73fe8581e139b2bb681f1bfe38f92bdbb99",
+  "tests/integration/test_as2b_rule_dependence_0039.py": "11a8bbff12069b3f48ef75137d059b1c5e232959b22795a38a68e55520c38c8f",
+  "tests/integration/test_as2b_weight_extremes_0040.py": "ad5b40b286a6c89c634b9210d71bf4ec4529dfde6787e1041dfc100adf98b57b"
+ },
+ "at": "2026-11-17T16:28:53.253189+00:00"
+}
