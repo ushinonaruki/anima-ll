@@ -1,0 +1,92 @@
+{
+ "mode": "smoke",
+ "O1": "ok",
+ "checks": {
+  "33201": {
+   "structure": "ok",
+   "O2": "ok",
+   "O3": "ok",
+   "O4": "ok",
+   "O5": "ok",
+   "O6": "ok",
+   "O7": "ok",
+   "O8": "ok",
+   "O9": "ok",
+   "O10": "ok",
+   "O11": "ok",
+   "O12": "ok"
+  },
+  "33202": {
+   "structure": "ok",
+   "O2": "ok",
+   "O3": "ok",
+   "O4": "ok",
+   "O5": "ok",
+   "O6": "ok",
+   "O7": "ok",
+   "O8": "ok",
+   "O9": "ok",
+   "O10": "ok",
+   "O11": "ok",
+   "O12": "ok"
+  },
+  "33203": {
+   "structure": "ok",
+   "O2": "ok",
+   "O3": "ok",
+   "O4": "ok",
+   "O5": "ok",
+   "O6": "ok",
+   "O7": "ok",
+   "O8": "ok",
+   "O9": "ok",
+   "O10": "ok",
+   "O11": "ok",
+   "O12": "ok"
+  },
+  "33204": {
+   "structure": "ok",
+   "O2": "ok",
+   "O3": "ok",
+   "O4": "ok",
+   "O5": "ok",
+   "O6": "ok",
+   "O7": "ok",
+   "O8": "ok",
+   "O9": "ok",
+   "O10": "ok",
+   "O11": "ok",
+   "O12": "ok"
+  },
+  "33205": {
+   "structure": "ok",
+   "O2": "ok",
+   "O3": "ok",
+   "O4": "ok",
+   "O5": "ok",
+   "O6": "ok",
+   "O7": "ok",
+   "O8": "ok",
+   "O9": "ok",
+   "O10": "ok",
+   "O11": "ok",
+   "O12": "ok"
+  },
+  "33206": {
+   "structure": "ok",
+   "O2": "ok",
+   "O3": "ok",
+   "O4": "ok",
+   "O5": "ok",
+   "O6": "ok",
+   "O7": "ok",
+   "O8": "ok",
+   "O9": "ok",
+   "O10": "ok",
+   "O11": "ok",
+   "O12": "ok"
+  }
+ },
+ "valid": true,
+ "measurement_commit": "06ec685f471fa23df5d3bb7caf255f3d1b4cd728"
+}
