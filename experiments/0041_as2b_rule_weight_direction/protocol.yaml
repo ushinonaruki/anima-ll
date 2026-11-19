@@ -1,0 +1,189 @@
+# 実験 0041 の実行条件と記録項目（事前登録 v0.1。ChatGPT の独立レビュー待ち・未確定。この実験の道具の実装の前に固定する）
+#
+# 候補 B（docs/as2b-next-research-candidates.md v0.2）：AS2b の関門の組（予定・窓・出口・世界・役。関門の宣言 v0.2）と
+# C0 の力学・可塑性のもとで、同じ個体の二つの本体（規則 c = A1 と c = A2。ほかはすべて同じ。可塑性あり・世界は結果を返す）を、
+# 経験の区間 E（窓 1〜25）の終わりの境界 P_E = 1065 まで走らせる。P_E の C -> 源 の重みから
+# delta = [W^A1(C -> source1) - W^A2(C -> source1)] - [W^A1(C -> source2) - W^A2(C -> source2)] を求め、その符号を個体の事象にし、
+# 向きのそろった個体の多数を両側で判定する（J_B。向きごとに 0.025）。母集団は生まれた全 200 個体で、構造的な 0 も分母に入れる。
+# 変わる個体の割合などの推定 E_B は、判定の成否に依らず必ず報告する。
+#
+# 実行の形式は 0039 型の事前登録の実験（README §0.1）。この案の段階では、この実験の道具の実装・smoke・本番の測定・
+# どの seed の実行もしない。0038・0039・0040 の記録（raw・report）は、この実験の判定にも設計にも使わない（README §11）。
+# 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を
+# 開示し、新しい版・新しい seed の範囲で行う。
+#
+# 種別：事前登録した検証。主の判定は J_B の一つ（誤りの水準 0.05）。主の推定 E_B は判定ではない。
+# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。新しく選んだ値とその理由は README §1.2・§4.5。
+
+experiment: "0041"
+kind: preregistered_test
+execution_form: "0039-type preregistered experiment (not a 0038-type forward gate): README section 0.1"
+candidate: "B (docs/as2b-next-research-candidates.md v0.2, sections 3 and 4.1)"
+seeds: {first: 34001, last: 34200}            # 本番。200 個体を全件記録・全件報告する。以後どの実験にも使わない
+smoke_seeds: {first: 34201, last: 34206}      # 操作の確認だけ。盲検。判定と推定の量・現象の数値は計算・表示・保存しない
+synthetic_seeds: {first: 34301, last: 34399}  # 合成の契約テスト専用
+not_used_seeds:
+  gate_synthetic: {first: 31001, last: 31040}
+  experiment_0039: {first: 32001, last: 32399}
+  experiment_0040: {first: 33001, last: 33399}
+
+inherited_gate_set:                           # README §1.1。値は宣言から取り、ここにもコードにも書き込まない
+  declaration: experiments/0038_as2b_forward_gate/gate_declaration.json
+  sha256: e612efc5e6b084e1712520de64a877e0dd477d737b88695252f4cc234a64e1cb
+  version: "0.2"
+  taken_from_declaration: [schedule, exit, world, roles, bodies.per_individual, bodies.plasticity, bodies.outlet, bodies.respond,
+                           bodies.interventions]
+  not_taken: [bodies.pulses, synthetic_seeds, evaluation, one_time_execution]
+  body_length_note: "the bodies run only to P_E = 1065 (README section 2.1); the first 1065 pulses equal the gate body (CT-41-1)"
+  expected_values: {cue_first: 41, cue_spacing: 41, cue_count: 50, o: 2, W: 19, tie: close_window_without_intent,
+                    L: 2, consequence_receptor: cue_receptor, multiplicity: per_reservation, lc3: null,
+                    roles_stream: "as2b-roles-{seed}", per_individual: [A1, A2], plasticity: "on", outlet: true,
+                    respond: true, interventions: none}
+
+tools:
+  base: experiments/as2b_choice/as2b.py       # build(respond=True)・sigma・audit をそのまま使う。変えない見込み
+  base_rule: "if anything must be added to as2b.py, the default behaviour is unchanged and all AS2b contract tests pass"
+  contract_tests: [tests/integration/test_as1_contract.py, tests/integration/test_as2b_contract.py,
+                   tests/integration/test_as2b_rule_dependence_0039.py, tests/integration/test_as2b_weight_extremes_0040.py]
+  previous_experiment: experiments/0040_as2b_weight_extremes   # guard・盲検の smoke・O1 の記録・結果の写し・protocol の結び付き・独立の検算の形を引き継ぐ
+  contract: docs/as2b-minimal-implementation-contract.md
+  criteria: docs/s3-configuration-criteria.md
+
+brain:                                  # C0 のまま（関門と同じ）
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml
+  units: [s1, s2, s3]
+  roles: "random.Random('as2b-roles-{seed}').shuffle([s1, s2, s3]) -> (cue, source1, source2)"
+  action_ids: {source1: A1, source2: A2}
+  receptor_weight: 1.0
+  refractory_pulses: 0
+  plastic_connections: six_s_to_s
+  plasticity_rule: balanced_pair_window   # 変えない。痕跡は出生時に 0（PlasticState の既定）
+  initial_weight_w0: 0.005               # = w_max / 2（出生時の値。6 本とも）
+  w_min: 0.0
+  w_max: 0.01
+  adaptation_tau_pulses: 300
+
+world:                                  # README §2.3。すべての本体で同じ予定。規則 c だけが本体で違う
+  respond: true                         # 規則 c が指す行動 ID の意図にだけ、手がかりの Receptor に結果を 1 つ返す（L = 2）
+  rule_c: {B_A1: A1, B_A2: A2, B_A1_rerun: A1}
+  cues: "gate schedule c_k to the cue receptor"
+  not_used: [switch_world, replay, lc3]
+
+timeline:                               # 1 Pulse = 1 秒。窓 k = [41k + 2, 41k + 20]
+  pulse_interval_seconds: 1.0
+  experience_E: {windows: [1, 25], pulses: [1, 1065]}
+  boundary_P_E: 1065                    # Pulse 1065 の処理の後。窓 26 の手がかり 1066 の直前
+  last_E_outcome_pulse: 1047            # 窓 25 の決定から出た意図の結果の刺激は遅くとも b_25 + L = 1047（analysis.py）
+  runs_to: 1065                         # 本体は P_E で止める。試しの区間は走らせない（README §2.1）
+  window_boundaries: "c_(k+1) - 1 for k = 1..25 (the last is P_E); descriptive weight records only"
+  no_operations: "no transplant, FREEZE, clone or world switch at any pulse"
+
+bodies:                                 # README §2.2。どれも build(seed, schedule, delay=2, rule_c=c, respond=True)
+  B_A1: {rule_c: A1, role: "main (J_B, E_B)", observed: true}
+  B_A2: {rule_c: A2, role: "main (J_B, E_B)", observed: true}
+  B_A1_rerun: {rule_c: A1, role: "non-interference and determinism (O8)", observed: false,
+               run: "advanced to P_E in one call with the default log; no per-pulse reading; only the end records (full sigma at P_E and its SHA-256, layer A, layer B, firings, sensory events) are written after reaching P_E"}
+  per_individual: [B_A1, B_A2, B_A1_rerun]
+  interventions: none                   # 移植・FREEZE・複製・世界の切り替えをしない（介入の履歴は空：O6）
+  pulses_per_individual: 3195           # 3 x 1065
+  observation:
+    observed: [B_A1, B_A2]              # Pulse 0 の Σ、Pulse ごとの 6 本の重み、k* の意図の Pulse の Σ（あれば）を実測して保存する
+    not_observed: [B_A1_rerun]          # 走らせている間に状態を読まない。計算から作り直した値を実測の記録として保存しない
+
+quantities:                             # README §3。a_j^c = 本体 B^c の P_E の W(C -> source j)、b_j^c = W(source j -> C)
+  arithmetic: "exact rational arithmetic on the stored binary64 values (fractions.Fraction); the sign is that of the exact value"
+  delta: "(a_1^A1 - a_1^A2) - (a_2^A1 - a_2^A2) = q_1 + q_2"   # J_B・E_B
+  q_1: "a_1^A1 - a_1^A2 (source 1: the body whose rule points to it minus the body whose rule points to the other)"
+  q_2: "a_2^A2 - a_2^A1 (source 2: the same form)"
+  delta_back: "(b_1^A1 - b_1^A2) - (b_2^A1 - b_2^A2)"         # 必ず報告。F1 で -delta に浮動小数の誤差まで一致
+  epsilon: "[W^A1(s1 -> s2) - W^A2(s1 -> s2)] - [W^A1(s2 -> s1) - W^A2(s2 -> s1)]"   # 必ず報告（源どうし）
+  plus_meaning: "delta > 0: the C -> source weight is higher in the body whose rule points to that source's action than in the body whose rule points to the other action, summed over the two sources; by F1 the source -> C weight is correspondingly lower"
+  label_invariance: "swapping the A1/A2 (source1/source2) labels maps body A1 to body A2 and leaves delta, delta_back and epsilon unchanged exactly; it exchanges q_1 and q_2 (analysis.py label_swap_check); not a basis for sign symmetry"
+  no_decomposition: "delta = q_1 + q_2 is arithmetic; q_1 and q_2 are never called the true per-source effects"
+  k_star: "the first window in 1..25 whose outcome in the common part of the two bodies is A1 or A2 (none if no such window)"
+  choice_counts_E: "decided, A1, A2, tie, none counts of windows 1..25 per body (descriptive only)"
+
+judgment:
+  per_individual:
+    population: "all 200 born individuals; delta is defined for every individual of a valid run; no exclusion"
+    structural_zero: "no decided window in E (k* none; sub-labels: all windows none / ties but no decided window). By SE-B1 the two bodies are identical through P_E except world.rule.rule_c, so delta = 0 exactly. Kept in m (the rule had no opportunity to act; delta = 0 is its outcome)"
+    other_zero: "k* in E but delta == 0 exactly; kept in m and labelled"
+    not_applicable: "none (delta is always defined); an individual failing an operation check makes the run invalid"
+    structurally_silent_source: "a source with g < -E_S (proposition S-1); labelled and counted; kept (SE-B6: its q is 0)"
+    no_post_hoc_exclusion: "no other exclusion; labels are never used to remove an individual"
+    b3_note: "the 0039 ineligible class (a) is not carried over; README section 4.1 gives the reasons (BLACKBOARD audit item B-3)"
+    sign: {plus: "delta > 0", minus: "delta < 0", zero: "delta == 0"}
+  J_B:
+    m: 200                              # 有効な実行では常に 200（判定不能の区分はない）
+    rule: "plus if count(plus) >= k2(200); minus if count(minus) >= k2(200); otherwise not established"
+    k2_200: 115                         # P(Bin(200, 1/2) >= 115) = 0.0200, >= 114 is 0.0280（analysis.py）
+    alpha: {two_sided: 0.05, per_direction: 0.025}
+    only_judgment: true                 # 判定はこれだけ。E_B・記述の対照・補助の記録は検定しない（多重性なし）
+  null_hypothesis:
+    status: "explicit statistical null on the population of born individuals; assumed, not derived (delta is label-invariant, so the random role assignment gives no sign symmetry; proposition G-11 gives no direction)"
+    H0_B: "with birth states iid, P(delta > 0) = P(delta < 0) in the population of born individuals"
+    zeros: "kept in m; each count is stochastically dominated by Bin(200, 1/2)"
+  k2_rule: "smallest k with P(Bin(m, 1/2) >= k) <= 1/40 (exact fractions; analysis.py; equal to k2(200) of the 0039 and 0040 tables)"
+  interval: "Clopper-Pearson 95% (two-sided); always reported (D6)"
+  outcomes: [invalid, not_established, plus, minus]
+  no_inconclusive: "m = 200 for every valid run, so the m < 10 class of 0039 / 0040 cannot occur"
+  negative_reading: "not established means only: under these bodies, this E and this population, a sign-aligned majority of the rule-swap weight difference beyond the pre-fixed threshold was not observed; never 'rule c does not change the weights', never a trigger for candidate D"
+
+estimate_E_B:                           # README §4.4。判定ではない。有効なら成否に依らず報告する
+  p_change: "count(delta != 0) / 200, Clopper-Pearson 95%"
+  p_plus_minus: "count(plus) / 200 and count(minus) / 200, Clopper-Pearson 95%"
+  abs_delta: "min, quartiles, max over all 200 and over individuals with delta != 0"
+  no_threshold: true
+
+must_report:                            # README §6.1。検定しない
+  diverged_subpopulation: "individuals with k* in E: count, plus / minus / zero, shares with Clopper-Pearson 95%, distribution of delta"
+  delta_back: "plus / minus / zero over 200; count of individuals whose sign of delta_back is not the opposite of the sign of delta; largest |delta + delta_back|"
+  epsilon: "plus / minus / zero over 200, shares with Clopper-Pearson 95%, distribution"
+  cross_table: "(sign q_1, sign q_2) in 9 cells (swapping the labels transposes it)"
+  zero_table: "structural zeros (with sub-labels), other zeros, individuals with a structurally silent source, listed by seed"
+
+records:                                # README §6.2
+  R1: "roles, birth theta and c of the 3 units, margins g, S-1 label per source, k*, structural-zero labels, other-zero label"
+  R2: "per body: decided, A1, A2, tie, none counts in windows 1..25"
+  R3: "distributions of delta, |delta|, q_1, q_2, delta_back, epsilon"
+  R4: "six weights at P_E per body and their differences; pair sums and their largest deviation from w_max; the six weights of B_A1 and B_A2 at each window boundary; per boundary, the counts of plus / minus / zero of delta computed there (descriptive only)"
+  R5: "consequence stimuli received per body in E (equal to decided windows of action c: SE-B2)"
+  R6: "first pulse at which all-unit firings, window outcomes and the six weights differ between B_A1 and B_A2; number of individuals whose bodies never diverge"
+  R7: "firing counts of the 3 units per body in E"
+  R8: "Clopper-Pearson intervals"
+
+structural_equivalences: [SE-B1, SE-B2, SE-B3, SE-B4, SE-B5, SE-B6, SE-B7]   # README §7.1
+
+proposition_S1:                         # README §7.2（analysis.py）。実験 0039 §7.2 の命題 S-1 をそのまま引き継ぐ
+  E_S: "w_max * ((1 + lambda^4) / (1 - lambda^23) + 2 / (1 - lambda^7))"
+  E_S_value: 0.04503
+  condition: "g = c / (1 - lambda) - theta < -E_S"
+  per_source_share: 0.0292
+  individual_share_at_least_one: 0.0576
+  use: "labels only; never used in the judgment or the estimate. A recorded violation is disclosed and the labels are withdrawn; the judgment does not change"
+
+operation_checks: [O1, O2, O3, O4, O5, O6, O7, O8, O9, O10, O11]   # README §8。一つでも不成立なら無効
+operation_checks_note: "S-1 violations are recorded, not an operation check (D1)"
+
+not_displayed:                          # README §9.3。契約テスト（合成の seed）と smoke では計算しても表示・保存しない
+  quantities: [delta, q_1, q_2, delta_back, epsilon, signs, direction_counts, E_B, clopper_pearson, k_star,
+               structural_zero_labels, weights_at_P_E, weights_at_window_boundaries, choice_counts, consequence_counts,
+               first_divergence_pulse]
+  contract_tests: "arithmetic is checked on hand-made records; values from real trajectories are checked for consistency only and never printed"
+  smoke: "ok / fail of the operation checks only"
+
+storage:                                # README §9.1
+  raw: "seeds/<seed>/raw.json.gz (guard), copied byte for byte to results/ and checked with analyze.py --verify-copy"
+  sigma: {pulse_0: "observed bodies", k_star_intent: "observed bodies, after the intent pulse of k* (if k* exists)",
+          P_E: "all three bodies: the full sigma at P_E and its SHA-256, written after the body reached P_E"}
+  pulse_weights: "observed bodies only (measured at every pulse 1..1065)"
+  sigma_scope: "the AS2b tool sigma; it does not contain the provenance log"
+  numbers: "JSON numbers that round-trip with Python repr; equality of values (SHA-256 auxiliary)"
+  protocol_binding: "analyze.py checks meta.protocol against the canonical protocol; the independent recheck holds the canonical-JSON SHA-256 and the file SHA-256 of the frozen protocol (same form as the 0040 tools v0.3)"
+  independent_recheck: "stdlib only; does not import analyze.py, measure.py, anima_ll or the AS2b tools; rebuilds every report field from the raw records and compares all fields; checks provenance and completeness of the 200 seeds itself (same form as the 0040 tools v0.3)"
+
+one_time: "the judgment seeds run once (guard claim bound to the protocol hash before the first seed); invalid means no judgment and no rerun on the same seeds; after running, README, protocol and tools are not changed"
+execution_permissions:
+  tools: "a separate tools PR after this preregistration is accepted"
+  smoke: "explicit technical execution permission from ChatGPT before running"
+  main: "explicit technical execution permission from ChatGPT before running"
