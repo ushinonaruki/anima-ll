@@ -18,6 +18,10 @@
 使った合成の seed（PR に開示）：34301〜34310（SMALL）、34321〜34326（一度限りの実行・盲検の契約。dummy の計算と SMALL）、
 34390〜34392（S-1・L1・L2・SE-B6 の角の系、構造的な 0 の構成）、34399（本番の Plan で実物の runtime を通す確かめと、関門の
 run_body との照合）、構成の条件で選んだ個体（34301〜34399 の最初から順。どれになったかはテストの中で決まる）。
+
+失敗の表示に現象の値を出さない（README §9.3）：このモジュールの assert は pytest に書き換えさせない（PYTEST_DONT_REWRITE）。
+失敗しても、評価した値を表示せず、行の文と AssertionError だけを出す。assert の文の後ろに付ける文は、本体・欄の名前、report・
+ファイルの場所だけにし、合成の軌道から求めた値（Pulse の番号・数・重み・符号など）を入れない。
 """
 
 import ast
@@ -278,6 +282,15 @@ def test_raw_has_no_judgment_quantities() -> None:
     data = measured(SYN[0])
     assert not ({k for _, k in _keys(data)} & JUDGMENT_KEYS)
     assert set(data["run"]) == AN.RUN_KEYS
+
+
+def test_failures_in_this_module_show_no_evaluated_values() -> None:
+    """README §9.3：このモジュールは pytest の assert の書き換えを受けない（失敗しても評価した値を表示しない）。"""
+    assert "PYTEST_DONT_REWRITE" in __doc__
+    module = inspect.getmodule(test_failures_in_this_module_show_no_evaluated_values)
+    tests = [f for name, f in vars(module).items() if name.startswith("test_") and inspect.isfunction(f)]
+    assert len(tests) > 80
+    assert not any(v.startswith("@py_assert") for f in tests for v in f.__code__.co_varnames)
 
 
 # ---- CT-41-1 組み立て --------------------------------------------------------------------------------------
@@ -650,7 +663,7 @@ def test_ct41_7_the_four_connections_of_a_silent_source_stay_at_w0(rule_c) -> No
     for p in range(1, FORMAL.p_e + 1):
         A.advance_to(s.app, p)
         state = s.app.connections.export_state()
-        assert all(state[cid]["weight"] == W0 for cid in touching), p
+        assert all(state[cid]["weight"] == W0 for cid in touching)
         moved |= {cid for cid, v in state.items() if v["weight"] != W0}
     for cid in touching:                                              # 沈黙した源の痕跡は出生時の 0 のまま
         src, tgt = cid.split(".main->")
