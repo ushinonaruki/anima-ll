@@ -714,6 +714,52 @@ def test_ct41_7_lemma_l1_and_l2_hold_at_the_corners(rule_c) -> None:
             assert x - cues[k] >= 4 and (k + 1 == len(cues) or cues[k + 1] - x >= 19)
 
 
+@pytest.mark.parametrize("weights", ["frozen_at_w_max", "plastic"])
+@pytest.mark.parametrize("cue_corner", ["easy", "hard"])
+@pytest.mark.parametrize("silent", ["source1", "source2"])
+def test_ct41_7_lemma_l1_and_l2_hold_on_a_trajectory_with_consequence_stimuli(silent, cue_corner, weights) -> None:
+    """補題 L1・L2 を、結果の刺激が実際に成立する軌道で確かめる（Gemini の監査の指摘 1。ChatGPT #7010523106 の追補）。
+
+    上の対称な角の系は、二つの源が同じ値・同じ入力のまま同時に発火するので、窓は引き分けか決まらず、結果の刺激が成立しない。
+    そこで非対称な角を置く：一方の源を構造的に沈黙させ（g ＜ −E_S）、もう一方の源を最も発火しやすい角（θ ＝ 0.45、c ＝ 0.088）に
+    置き、規則 c を発火する源の行動 ID にする。手がかりの Unit は、最も発火しやすい角と最も発火しにくい角の両方。6 本は w_max で
+    止める場合（発火のしやすさの上限）と、可塑性のままの場合の両方。条件と seed（34392。上の角の系と同じ）は、走らせる前に決めた。
+
+    実物の runtime で、P_E までに結果の刺激が 1 つ以上成立したことを真偽だけで確かめ、同じ軌道で、L1（結果の刺激を含む R の Pulse で
+    手がかりの Unit が必ず発火する・順応 ＜ 0.441・R でない発火の間隔 ≥ 7）、L2（源の発火の間隔 ≥ 7）、結果の刺激と手がかりの距離
+    （手がかりから 4 以上、次の手がかりまで 19 以上）、沈黙した源が一度も発火しないこと（S-1）を確かめる。数・Pulse・札は表示しない。
+    """
+    firing = "source2" if silent == "source1" else "source1"
+    rule_c = {"source1": "A1", "source2": "A2"}[firing]
+    easy, hard = (THETA[0], DRIVE[1]), (THETA[1], DRIVE[0])
+    s = _corner_system(CORNER_SEEDS[2], rule_c, {"cue": easy if cue_corner == "easy" else hard, silent: _silent_values(),
+                                                 firing: easy}, freeze_at_w_max=weights == "frozen_at_w_max")
+    roles = s.roles.as_dict()
+    p_e = FORMAL.p_e
+    top = _run_recording_adaptation(s, s.roles.cue, p_e)
+    assert s.pulse == p_e
+    world = s.world.export_state()
+    consequence_rids = {r[0] for r in world["reserved"] if r[1] == A.CONSEQUENCE}
+    realized = [p for p, _r, rids, _n in world["realized"] if p <= p_e and set(rids) & consequence_rids]
+    consequence_r = {p + 1 for p in realized if p + 1 <= p_e}
+    assert consequence_r                                             # 結果の刺激が成立し、その R の Pulse が P_E までにある（真偽だけ）
+    act = s.log.activity()
+    cue_fires = [p for p, u in act if u == s.roles.cue]
+    r_pulses = {p + 1 for p, _ in s.log.sensory() if p + 1 <= p_e}
+    assert consequence_r <= r_pulses <= set(cue_fires)               # L1：結果の刺激の R の Pulse を含め、R の Pulse では必ず発火する
+    assert top < 0.441                                               # L1：順応の上界（結果の刺激で増えた発火を含む）
+    for prev, cur in itertools.pairwise(cue_fires):
+        assert cur in r_pulses or cur - prev >= 7                    # L1：R でない発火は、直前の発火から 7 以上後
+    fires = [p for p, u in act if u == roles[firing]]
+    assert len(fires) > 10 and min(_gaps(fires)) >= 7                # L2
+    assert roles[silent] not in {u for _, u in act}                  # S-1：沈黙した源は一度も発火しない
+    assert all(r["outcome"] in (rule_c, A.NONE) for r in s.decider.records)
+    cues = list(FORMAL.schedule().cues)
+    for x in sorted(r[3] for r in world["reserved"] if r[1] == A.CONSEQUENCE):
+        k = max(i for i, c in enumerate(cues) if c <= x)
+        assert x - cues[k] >= 4 and (k + 1 == len(cues) or cues[k + 1] - x >= 19)
+
+
 def test_ct41_7_the_s1_label_and_a_violation_are_reported_without_changing_the_judgment() -> None:
     s = decided_seed()
     run = measured(s)["run"]
