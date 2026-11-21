@@ -175,7 +175,9 @@ judgment:
     rule: "plus if count(plus) >= k2(m_nonzero); minus if count(minus) >= k2(m_nonzero); otherwise not established"
     alpha: {two_sided: 0.05, per_direction: 0.025}
     only_judgment: true                 # 判定はこれだけ。E_T・記述の対照・補助の記録は検定しない（多重性なし）
-    form_note: "the house form of 0039-0041 (zeros kept in m) is not used: README section 4.5 gives the reasons; if the review judges the choice to depend on 0039 values, revert to m = m_def with k2(m_def) before freezing"
+    primary_question: "conditional direction among individuals with T != 0 (is the sign of T asymmetric among changed individuals); the majority question (do more than half of the individuals with T defined move in one direction) is not judged; spread is estimated by E_T"
+    form_note: "the house form of 0039-0041 (zeros kept in m) is not used: README section 4.5 gives the structural reasons (existence is not the question in a deterministic system; the house form mixes spread and direction). Not adopted as a rescue matched to the zero counts of 0039 (BLACKBOARD da57f87). If the review judges the choice to depend on 0039 values, revert to m = m_def with k2(m_def) before freezing"
+    house_form_null: "for reference only: the house form controls each direction under p_plus <= 1/2 (and p_minus <= 1/2) with the binomial upper tail; this is not the same as p_plus = p_minus, and its success is a majority claim"
   null_hypothesis:
     status: "explicit statistical null on the post-selection population of individuals with T defined; assumed, not derived (T is label-invariant, so the swap gives no sign symmetry; the symmetric definedness condition gives none either; proposition G-11 gives no direction)"
     H0_T: "with birth states iid, P(T > 0) = P(T < 0) in the population of individuals with T defined"
