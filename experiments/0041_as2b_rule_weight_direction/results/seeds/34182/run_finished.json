@@ -1,0 +1,12 @@
+{
+  "experiment": "0041",
+  "kind": "preregistered_test",
+  "mode": "formal",
+  "seed": 34182,
+  "status": "completed",
+  "finished_at": "2026-11-21T04:37:27.935726+00:00",
+  "raw_file_sha256": "664d2986fecef5642a60d3e2aa890d9e5fe72b4e2401ee436c45aca7ac8778c7",
+  "raw_file_bytes": 29349,
+  "measurement_commit_end": "e0a9bc4c98c47552f8ae333f0dfccfb9766a326d",
+  "seconds": 0.6482453346252441
+}
