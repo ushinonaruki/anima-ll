@@ -1,0 +1,275 @@
+# 実験 0042 の実行条件と記録項目（事前登録 v0.1。ChatGPT の独立レビュー待ち・未確定。この実験の道具の実装の前に固定する）
+#
+# 候補 1（docs/as2b-post-0041-next-stage-proposal.md v0.2）：AS2b の関門の組（予定・窓・出口・世界・役。関門の宣言 v0.2）と
+# C0 の力学・可塑性のもとで、同じ個体の二つの本体（規則 c = A1 と c = A2。ほかはすべて同じ。可塑性あり・世界は結果を返す）を
+# 経験の区間 E（窓 1〜25）の終わりの境界 P_E = 1065 まで走らせ、P_E で各本体を複製して 6 本の重みだけを自分の重み W^c と
+# もう一方の本体の重み W^d とで入れ替え、試しの区間 U（窓 26〜50）で 6 本を FREEZE して閉ループで走らせる。
+# T = [s(G_A1[W_A1]) - s(G_A1[W_A2])] + [s(G_A2[W_A1]) - s(G_A2[W_A2])]（s は U の A1 の割合）の符号を個体の事象にし、
+# T が定まり 0 でない個体の中で、向きのそろいを両側で判定する（J_T。向きごとに 0.025）。T != 0 の個体の割合などの推定 E_T は、
+# 判定の成否に依らず必ず報告する。
+#
+# 実行の形式は 0039 型の事前登録の実験（README §0.1）。この案の段階では、この実験の道具の実装・smoke・本番の測定・
+# どの seed の実行もしない。0038〜0041 の記録（raw・report）は、この実験の判定にも設計にも使わない（README §11）。
+# 確定の後は、測定の結果（本番・smoke・合成のどれでも）を見てからの事後の変更は禁止。変更が要る場合は理由と見たもの・使った seed を
+# 開示し、新しい版・新しい seed の範囲で行う。
+#
+# 種別：事前登録した検証。主の判定は J_T の一つ（誤りの水準 0.05）。主の推定 E_T は判定ではない。
+# 値はどれも、この実験の手順を決める足場で、AnIma-ll の脳の生物値ではない。新しく選んだ値とその理由は README §1.2・§4.5。
+
+experiment: "0042"
+kind: preregistered_test
+execution_form: "0039-type preregistered experiment (not a 0038-type forward gate): README section 0.1"
+candidate: "1 (docs/as2b-post-0041-next-stage-proposal.md v0.2, sections 3.1 and 4.4)"
+seeds: {first: 35001, last: 35200}            # 本番。200 個体を全件記録・全件報告する。以後どの実験にも使わない
+smoke_seeds: {first: 35201, last: 35206}      # 操作の確認だけ。盲検。判定と推定の量・現象の数値は計算・表示・保存しない
+synthetic_seeds: {first: 35301, last: 35399}  # 合成の契約テスト専用
+not_used_seeds:
+  gate_synthetic: {first: 31001, last: 31040}
+  experiment_0039: {first: 32001, last: 32399}
+  experiment_0040: {first: 33001, last: 33399}
+  experiment_0041: {first: 34001, last: 34399}
+
+inherited_gate_set:                           # README §1.1。値は宣言から取り、ここにもコードにも書き込まない
+  declaration: experiments/0038_as2b_forward_gate/gate_declaration.json
+  sha256: e612efc5e6b084e1712520de64a877e0dd477d737b88695252f4cc234a64e1cb
+  version: "0.2"
+  taken_from_declaration: [schedule, exit, world, roles, bodies.per_individual, bodies.plasticity, bodies.outlet, bodies.respond,
+                           bodies.interventions, bodies.pulses]
+  not_taken: [synthetic_seeds, evaluation, one_time_execution]
+  expected_values: {cue_first: 41, cue_spacing: 41, cue_count: 50, o: 2, W: 19, tie: close_window_without_intent,
+                    L: 2, consequence_receptor: cue_receptor, multiplicity: per_reservation, lc3: null,
+                    roles_stream: "as2b-roles-{seed}", per_individual: [A1, A2], plasticity: "on", outlet: true,
+                    respond: true, interventions: none, pulses: 2072}
+
+tools:
+  base: experiments/as2b_choice/as2b.py       # build・clone・transplant・declare・switch_world・sigma・audit をそのまま使う。変えない見込み
+  base_rule: "if anything must be added to as2b.py, the default behaviour is unchanged and all AS2b contract tests pass"
+  contract_tests: [tests/integration/test_as1_contract.py, tests/integration/test_as2b_contract.py,
+                   tests/integration/test_as2b_rule_dependence_0039.py, tests/integration/test_as2b_weight_extremes_0040.py,
+                   tests/integration/test_as2b_rule_weight_direction_0041.py]
+  previous_experiments:
+    "0039": "systems B, G (transplant, own-value transplant), boundary sequence S0-S5, SE-1..SE-9, proposition S-1"
+    "0040": "extreme values X1 / X2 (section 2.3), observation classes, protocol binding, independent recheck (tools v0.3)"
+    "0041": "delta definition, record form, no evaluated values in contract-test failure output (CT-41-7 lessons, #190 / #191)"
+  contract: docs/as2b-minimal-implementation-contract.md
+  criteria: docs/s3-configuration-criteria.md
+
+brain:                                  # C0 のまま（関門と同じ）
+  manifest: experiments/0012_passive_world/neuroarchitecture.yaml
+  units: [s1, s2, s3]
+  roles: "random.Random('as2b-roles-{seed}').shuffle([s1, s2, s3]) -> (cue, source1, source2)"
+  action_ids: {source1: A1, source2: A2}
+  receptor_weight: 1.0
+  refractory_pulses: 0
+  plastic_connections: six_s_to_s
+  plasticity_rule: balanced_pair_window   # 変えない。痕跡は出生時に 0（PlasticState の既定）
+  initial_weight_w0: 0.005               # = w_max / 2（出生時の値。6 本とも）
+  w_min: 0.0
+  w_max: 0.01
+  adaptation_tau_pulses: 300
+
+timeline:                               # 1 Pulse = 1 秒。窓 k = [41k + 2, 41k + 20]
+  pulse_interval_seconds: 1.0
+  experience_E: {windows: [1, 25], pulses: [1, 1065]}
+  boundary_P_E: 1065                    # Pulse 1065 の処理の後。窓 26 の手がかり 1066 の直前
+  last_E_outcome_pulse: 1047            # 窓 25 の決定から出た意図の結果の刺激は遅くとも b_25 + L = 1047（analysis.py）
+  test_U: {windows: [26, 50], pulses: [1066, 2072], length: 1007}
+  first_U_window: [1068, 1086]
+  earliest_U_consequence_pulse: 1070    # a_26 + L（SE-T6）
+  body_pulses: 2072
+
+world:                                  # README §2.3
+  closed_loop: "B, B_rerun and G systems: rule c of the background body, the world returns a consequence only to intents of action c (L = 2)"
+  no_response: "N systems: switch_world(respond=False) called exactly once at P_E (S3'); cues still arrive; intents are recorded; no consequence; rule_c unchanged"
+  rule_c: {B_A1: A1, B_A2: A2, B_A1_rerun: A1, background: "every clone keeps the rule of the body it was cloned from"}
+  not_used: [replay, lc3, rule_change_at_boundary]
+
+systems:                                # README §2.2。c, d in {A1, A2}、c != d。W_c = B_c の P_E の 6 本の重み
+  B_c:        {build: "gate run_body construction build(seed, schedule, delay=2, rule_c=c, respond=True)", pulses: [0, 2072],
+               U_world: closed_loop, U_plasticity: rule, role: "R-7 body; clone source; natural pair difference D (descriptive)"}
+  G_c_Wc:     {build: "S2 clone of B_c at P_E", at_P_E: "S4 FREEZE six (advance); no transplant", U_world: closed_loop, role: "main (T)"}
+  G_c_Wd:     {build: "S2 clone of B_c at P_E", at_P_E: "S3 transplant six to W_d; S4 FREEZE six", U_world: closed_loop, role: "main (T)"}
+  G_c_Wc_tr:  {build: "S2 clone of B_c at P_E", at_P_E: "S3 transplant six to W_c (own values); S4 FREEZE six", U_world: closed_loop,
+               role: "transplant identity, technical check (O8); not a finding"}
+  G_c_X1:     {build: "S2 clone of B_c at P_E", at_P_E: "S3 transplant six to X1; S4 FREEZE six", U_world: closed_loop,
+               role: "artificial-extreme sensitivity control S (descriptive; a positive response is not guaranteed)"}
+  G_c_X2:     {build: "S2 clone of B_c at P_E", at_P_E: "S3 transplant six to X2; S4 FREEZE six", U_world: closed_loop, role: "same as G_c_X1"}
+  N_c_Wc:     {build: "S2 clone of B_c at P_E", at_P_E: "S3' switch_world(respond=False); S4 FREEZE six; no transplant", U_world: no_response,
+               role: "no-feedback swap T_N and feedback contrast K_c (descriptive)"}
+  N_c_Wd:     {build: "S2 clone of B_c at P_E", at_P_E: "S3 transplant six to W_d; S3' switch_world(respond=False); S4 FREEZE six",
+               U_world: no_response, role: "no-feedback swap T_N (descriptive)"}
+  B_A1_rerun: {build: "same as B_A1 without the added records", pulses: [0, 2072],
+               role: "non-interference and gate-body identity (O13)", observed: false,
+               run: "advance_to(P_E) in one call, write the full sigma, advance_to(2072) in one call, write the full sigma, then the end records (layer A, layer B, firings, sensory events); no other reading while running"}
+  per_individual: [B_A1, B_A2, B_A1_rerun,
+                   G_A1_WA1, G_A1_WA2, G_A1_WA1_tr, G_A2_WA2, G_A2_WA1, G_A2_WA2_tr,
+                   G_A1_X1, G_A1_X2, G_A2_X1, G_A2_X2,
+                   N_A1_WA1, N_A1_WA2, N_A2_WA2, N_A2_WA1]
+  pulses_per_individual: 20314          # 3 x 2072 + 14 x 1007（analysis.py）
+  transplant: "all six at once (F1 is preserved: SE-T8); never one side only"
+  trace_policy: advance                 # 全 6 本を止めている区間では軌道に効かない（SE-T9）
+  observation:
+    observed: "every system except B_A1_rerun (records of README section 9.1 measured while running)"
+    not_observed: [B_A1_rerun]          # 計算から作り直した値を実測の記録として保存しない
+
+extremes:                               # README §1.2。0040 §2.3 と同じ。w_min・w_max・w0 だけから決まる（analysis.py extremes）
+  X1: {C_to_source1: 0.01, source1_to_C: 0.0, C_to_source2: 0.0, source2_to_C: 0.01, source1_to_source2: 0.005, source2_to_source1: 0.005}
+  X2: {C_to_source1: 0.0, source1_to_C: 0.01, C_to_source2: 0.01, source2_to_C: 0.0, source1_to_source2: 0.005, source2_to_source1: 0.005}
+  contrast_in_delta_units: 0.02
+
+boundary_sequence:                      # README §2.4
+  S0: "advance B_A1 and B_A2 to the end of pulse P_E; check no open window, no pending intent and no consequence reservation"
+  S1: "read W_A1, W_A2 and the full sigma at P_E (bodies have no interventions)"
+  S2: "clone B_c -> G_c_Wc, G_c_Wd, G_c_Wc_tr, G_c_X1, G_c_X2, N_c_Wc, N_c_Wd"
+  S3: "transplant: G_c_Wd, N_c_Wd <- W_d; G_c_Wc_tr <- W_c; G_c_X1 <- X1; G_c_X2 <- X2; G_c_Wc and N_c_Wc untouched; intervention state is empty"
+  S3_prime: "switch_world(respond=False) once on N_c_Wc and N_c_Wd"
+  S4: "declare the U intervention once per clone: FREEZE six (advance); frozen values = weights at declaration"
+  S5: "advance B_A1, B_A2, B_A1_rerun and the 14 clones to pulse 2072"
+  no_pulse_between: [S1, S4]
+  effective_from: "pulse P_E + 1"
+  in_flight_drives: "drives created at pulse P_E keep the pre-transplant weights and are the same within a background"
+  compare_sigma_at: [after_S3_prime, after_S4]
+
+quantities:                             # README §3
+  arithmetic: "exact rational arithmetic (fractions.Fraction); the sign is that of the exact value"
+  s: "#A1_U / (#A1_U + #A2_U) over the decided windows (outcome A1 or A2) of windows 26..50; undefined (None, never 0) if n_U = 0"
+  s_c: "share of the action pointed to by rule c: s if c = A1, 1 - s if c = A2"
+  defined_rule: "a quantity is defined only if every s it uses is defined"
+  T_c: "s(G_c[W_A1]) - s(G_c[W_A2]) for c in {A1, A2}"
+  T: "T_A1 + T_A2"                      # J_T・E_T
+  BE_W: "s(G_A1[W]) - s(G_A2[W]) for W in {W_A1, W_A2}"
+  BE: "BE_WA1 + BE_WA2"
+  TE_F: "s(G_A1[W_A1]) - s(G_A2[W_A2])"
+  D: "s(B_A1) - s(B_A2)"
+  S_c: "s(G_c[X1]) - s(G_c[X2])"
+  S: "S_A1 + S_A2"
+  TN_c: "s(N_c[W_A1]) - s(N_c[W_A2])"
+  TN: "TN_A1 + TN_A2"
+  K_c: "s_c(G_c[W_c]) - s_c(N_c[W_c])"
+  Z_c: "s_c(B_c) - s_c(G_c[W_c])"
+  delta: "(a_1^A1 - a_1^A2) - (a_2^A1 - a_2^A2), a_j^c = W_c(C -> source j) at P_E (0041 section 3.2)"
+  plus_meaning:
+    T: "an action's share is higher with the weights formed under the rule that returns consequences to that action (summed over the two backgrounds)"
+    BE: "with the same weights, an action's share is higher in the background whose rule returns consequences to that action"
+    TE_F_D: "an action's share is higher in the body whose rule returns consequences to that action"
+    S: "the share of the action of the source whose C -> source weight is w_max is higher (same direction as 0040 D^X)"
+    K_Z: "the share of the action pointed to by rule c is higher with feedback (K) / with U plasticity (Z)"
+  label_invariance: "swapping the A1/A2 labels maps body A1 to body A2, W_A1 to W_A2, X1 to X2 and s to 1 - s; T, BE, TE_F, D, S, TN, delta are unchanged exactly; T_A1/T_A2, BE_WA1/BE_WA2, S_A1/S_A2, TN_A1/TN_A2, K_A1/K_A2, Z_A1/Z_A2 are exchanged (analysis.py label_swap_and_identity_check); not a basis for sign symmetry (the swap never maps T to -T)"
+  identity: "TE_F = (T + BE) / 2 when the four s are defined; arithmetic only, never called a true decomposition"
+  no_ratio: "no mediated proportion (T / TE_F or T / D) is computed"
+  k_star: "the first window in 1..25 whose outcome in the common part of the two bodies is A1 or A2 (none if no such window)"
+
+judgment:
+  per_individual:
+    undefined_u: "n_U = 0 in at least one of G_A1_WA1, G_A1_WA2, G_A2_WA1, G_A2_WA2 (T undefined, N/A); in neither m_nonzero nor m_def; counted by the number of undefined systems (1..4) and by background"
+    structural_zero_z: "T defined and no decided window in the E common part (k* none; sub-labels Z-1 all windows none / Z-2 ties but no decided window); W_A1 == W_A2 by SE-T2, so T = 0 exactly; a zero"
+    structural_identity: "T defined, k* exists and W_A1 == W_A2 bitwise for all six; T = 0 by SE-T7; a zero; labelled"
+    other_zero: "T defined, not one of the two classes above, and T == 0 exactly; labelled"
+    structurally_silent_source: "a source with g < -E_S (proposition S-1); labelled and counted; never removed (SE-T10: T = 0 if defined)"
+    sign: {plus: "T > 0", minus: "T < 0", zero: "T == 0", undefined: "T undefined"}
+    no_post_hoc_exclusion: "no other exclusion; labels are never used to remove an individual"
+  J_T:
+    population: "individuals with T defined and T != 0; m_nonzero = count(plus) + count(minus)"
+    min_population: 10
+    below_min: inconclusive
+    rule: "plus if count(plus) >= k2(m_nonzero); minus if count(minus) >= k2(m_nonzero); otherwise not established"
+    alpha: {two_sided: 0.05, per_direction: 0.025}
+    only_judgment: true                 # 判定はこれだけ。E_T・記述の対照・補助の記録は検定しない（多重性なし）
+    form_note: "the house form of 0039-0041 (zeros kept in m) is not used: README section 4.5 gives the reasons; if the review judges the choice to depend on 0039 values, revert to m = m_def with k2(m_def) before freezing"
+  null_hypothesis:
+    status: "explicit statistical null on the post-selection population of individuals with T defined; assumed, not derived (T is label-invariant, so the swap gives no sign symmetry; the symmetric definedness condition gives none either; proposition G-11 gives no direction)"
+    H0_T: "with birth states iid, P(T > 0) = P(T < 0) in the population of individuals with T defined"
+    conditional_exactness: "under H0_T and the iid model, given the set of nonzero individuals and m_nonzero, count(plus) ~ Bin(m_nonzero, 1/2) exactly; the level holds conditionally and hence unconditionally"
+  k2_rule: "smallest k with P(Bin(m, 1/2) >= k) <= 1/40 (exact fractions; analysis.py; same values as the 0039 table)"
+  k2_of_m: {10: 9, 11: 10, 12: 10, 13: 11, 14: 12, 15: 12, 16: 13, 17: 13, 18: 14, 19: 15, 20: 15, 21: 16, 22: 17,
+            23: 17, 24: 18, 25: 18, 26: 19, 27: 20, 28: 20, 29: 21, 30: 21, 31: 22, 32: 23, 33: 23, 34: 24,
+            35: 24, 36: 25, 37: 25, 38: 26, 39: 27, 40: 27, 41: 28, 42: 28, 43: 29, 44: 29, 45: 30, 46: 31,
+            47: 31, 48: 32, 49: 32, 50: 33, 51: 33, 52: 34, 53: 35, 54: 35, 55: 36, 56: 36, 57: 37, 58: 37,
+            59: 38, 60: 39, 61: 39, 62: 40, 63: 40, 64: 41, 65: 41, 66: 42, 67: 42, 68: 43, 69: 44, 70: 44,
+            71: 45, 72: 45, 73: 46, 74: 46, 75: 47, 76: 48, 77: 48, 78: 49, 79: 49, 80: 50, 81: 50, 82: 51,
+            83: 51, 84: 52, 85: 53, 86: 53, 87: 54, 88: 54, 89: 55, 90: 55, 91: 56, 92: 56, 93: 57, 94: 57,
+            95: 58, 96: 59, 97: 59, 98: 60, 99: 60, 100: 61, 101: 61, 102: 62, 103: 62, 104: 63, 105: 64,
+            106: 64, 107: 65, 108: 65, 109: 66, 110: 66, 111: 67, 112: 67, 113: 68, 114: 68, 115: 69,
+            116: 70, 117: 70, 118: 71, 119: 71, 120: 72, 121: 72, 122: 73, 123: 73, 124: 74, 125: 74,
+            126: 75, 127: 76, 128: 76, 129: 77, 130: 77, 131: 78, 132: 78, 133: 79, 134: 79, 135: 80,
+            136: 80, 137: 81, 138: 81, 139: 82, 140: 83, 141: 83, 142: 84, 143: 84, 144: 85, 145: 85,
+            146: 86, 147: 86, 148: 87, 149: 87, 150: 88, 151: 89, 152: 89, 153: 90, 154: 90, 155: 91,
+            156: 91, 157: 92, 158: 92, 159: 93, 160: 93, 161: 94, 162: 94, 163: 95, 164: 96, 165: 96,
+            166: 97, 167: 97, 168: 98, 169: 98, 170: 99, 171: 99, 172: 100, 173: 100, 174: 101, 175: 101,
+            176: 102, 177: 103, 178: 103, 179: 104, 180: 104, 181: 105, 182: 105, 183: 106, 184: 106,
+            185: 107, 186: 107, 187: 108, 188: 108, 189: 109, 190: 109, 191: 110, 192: 111, 193: 111,
+            194: 112, 195: 112, 196: 113, 197: 113, 198: 114, 199: 114, 200: 115}
+  interval: "Clopper-Pearson 95% (two-sided); always reported when the denominator >= 1 (D6)"
+  outcomes: [invalid, inconclusive, not_established, plus, minus]
+  negative_reading: "not established or inconclusive means only: under these bodies, P_E, this U condition and this population, a sign-aligned majority among individuals with T != 0 beyond the pre-fixed threshold was not observed; never 'weights do not affect choice', never a trigger for configuration review"
+
+estimate_E_T:                           # README §4.4。判定ではない。有効なら成否に依らず報告する
+  m_def: "number of individuals with T defined (200 minus undefined)"
+  p_change: "m_nonzero / m_def, Clopper-Pearson 95%"
+  p_plus_minus: "count(plus) / m_def and count(minus) / m_def, Clopper-Pearson 95%"
+  p_dir: "count(plus) / m_nonzero, Clopper-Pearson 95% (undefined if m_nonzero = 0)"
+  abs_T: "min, quartiles, max over individuals with T defined and over individuals with T != 0"
+  undefined_count: "200 - m_def with the breakdown of README section 4.1"
+  no_threshold: true
+
+must_report:                            # README §6.1。検定しない。各量：定まる個体の数、＋・−・0、割合と区間、0 でない中の＋の割合、分布、定まらない内訳
+  per_background: "T_A1, T_A2; (sign T_A1, sign T_A2) in 9 cells (swapping the labels transposes it)"
+  two_by_two: "distributions of the four s; BE_WA1, BE_WA2, BE, TE_F; TE_F = (T + BE) / 2 is arithmetic only"
+  natural_pair: "D (descriptive total effect; never a re-test of J_7); (sign D, sign T) in 9 cells"
+  sensitivity: "S_A1, S_A2, S; (sign S, sign T) in 9 cells; positive response not guaranteed (different background and world from 0040); few S != 0 never invalidates the main test"
+  no_feedback: "TN_A1, TN_A2, TN; (sign TN, sign T) in 9 cells; a different estimand, never replaces T"
+  feedback_contrast: "K_A1, K_A2 (with s_c)"
+  plasticity_contrast: "Z_A1, Z_A2 (with s_c; G_c[W_c] and B_c are not required to agree)"
+  delta: "plus / minus / zero and distribution of delta in this population (never a re-test of J_B); (sign delta, sign T) in 9 cells; no correlation test"
+  diverged_subpopulation: "E_T restricted to individuals with k* in E and T defined"
+  zero_table: "structural zeros (Z-1 / Z-2), structural identities, other zeros, undefined (names of undefined systems), structurally silent sources, listed by seed"
+
+records:                                # README §6.2
+  R1: "roles, birth theta and c of the 3 units, margins g, S-1 label per source, k*, labels of README section 4.1"
+  R2: "per system: decided, A1, A2, tie, none counts in E (bodies) and U, and s"
+  R3: "distributions of every quantity of README section 3.2 and of their absolute values"
+  R4: "W_A1, W_A2 and their differences; pair sums and their largest deviation from w_max; six weights and pair sums of every clone after transplant"
+  R5: "consequence stimuli received per system in E and U (B and G: equal to decided windows of action c, SE-T3; N in U: 0)"
+  R6: "first pulse at which all-unit firings and window outcomes differ: B_A1 vs B_A2; G_c_Wc vs G_c_Wd; G_c_X1 vs G_c_X2; N_c_Wc vs N_c_Wd; G_c_Wc vs N_c_Wc; number of pairs that never diverge"
+  R7: "firing counts of the 3 units per system in E and U"
+  R8: "Clopper-Pearson intervals"
+  R9: "per body, s in E and s in U (within-body before/after; not a counterfactual)"
+
+structural_equivalences: [SE-T1, SE-T2, SE-T3, SE-T4, SE-T5, SE-T6, SE-T7, SE-T8, SE-T9, SE-T10, SE-T11, SE-T12]   # README §7.1
+
+proposition_S1:                         # README §7.2（analysis.py）。実験 0039 §7.2 の命題 S-1 をそのまま引き継ぐ
+  E_S: "w_max * ((1 + lambda^4) / (1 - lambda^23) + 2 / (1 - lambda^7))"
+  E_S_value: 0.04503
+  condition: "g = c / (1 - lambda) - theta < -E_S"
+  holds_in: "every system of this experiment (weights in [0, w_max] including X1 / X2; no-response world only removes receptor events of the cue unit)"
+  per_source_share: 0.0292
+  individual_share_at_least_one: 0.0576
+  use: "labels only; never used in the judgment or the estimate. A recorded violation is disclosed and the labels are withdrawn; the judgment does not change"
+
+operation_checks: [O1, O2, O3, O4, O5, O6, O7, O8, O9, O10, O11, O12, O13, O14, O15]   # README §8。一つでも不成立なら無効
+operation_checks_note: "S-1 violations, S, TN and K values are recorded, not operation checks (D1)"
+f1_tolerance: 1.0e-12
+
+not_displayed:                          # README §9.3。契約テスト（合成の seed）と smoke では計算しても表示・保存しない
+  quantities: [s, n_U, T, T_A1, T_A2, BE, BE_WA1, BE_WA2, TE_F, D, S, S_A1, S_A2, TN, TN_A1, TN_A2, K_A1, K_A2, Z_A1, Z_A2,
+               delta, W_A1, W_A2, signs, direction_counts, m_nonzero, m_def, E_T, clopper_pearson, k_star, individual_labels,
+               choice_counts, consequence_counts, first_divergence_pulse]
+  contract_tests: "arithmetic is checked on hand-made records; values from real trajectories are checked for consistency only and never printed; test modules use PYTEST_DONT_REWRITE and assertion messages never carry evaluated values, and a test checks this mechanism (0041 CT-41-7 lessons); any new exposure path means stop, disclose and re-review"
+  smoke: "ok / fail of the operation checks only"
+
+storage:                                # README §9.1
+  raw: "seeds/<seed>/raw.json.gz (guard), copied byte for byte to results/ and checked with analyze.py --verify-copy"
+  sigma: {pulse_0: "B_A1, B_A2", k_star_intent: "B_A1, B_A2 after the intent pulse of k* (if k* exists)",
+          P_E: "B_A1, B_A2 and B_A1_rerun: full sigma and SHA-256", clones: "after S3', after S4, after pulse 1066",
+          end: "all 17 systems at pulse 2072: full sigma and SHA-256"}
+  pulse_weights: "clones only, every U pulse (FREEZE check O7)"
+  sigma_scope: "the AS2b tool sigma; it does not contain the provenance log"
+  numbers: "JSON numbers that round-trip with Python repr; equality of values (SHA-256 auxiliary)"
+  protocol_binding: "analyze.py checks meta.protocol against the canonical protocol; the independent recheck holds the canonical-JSON SHA-256 and the file SHA-256 of the frozen protocol (same form as 0040 tools v0.3 and 0041)"
+  independent_recheck: "stdlib only; does not import analyze.py, measure.py, anima_ll or the AS2b tools; rebuilds every report field from the raw records and compares all fields; checks provenance and completeness of the 200 seeds itself"
+
+one_time: "the judgment seeds run once (guard claim bound to the protocol hash before the first seed); invalid means no judgment and no rerun or filling on the same seeds; inconclusive or not established means no rerun and no added individuals; after running, README, protocol and tools are not changed"
+execution_permissions:
+  tools: "a separate tools PR after this preregistration is accepted"
+  smoke: "explicit technical execution permission from ChatGPT before running"
+  main: "explicit technical execution permission from ChatGPT before running"
