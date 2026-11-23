@@ -1,4 +1,5 @@
-"""実験 0042（AS2b の候補 1 の事前登録）の解析の部分：区間の算術、量の定義と札の入れ替えの性質、算術の恒等、
+"""実験 0042（AS2b の候補 1 の事前登録 v0.2）の解析の部分：区間の算術、量の定義と札の入れ替えの性質（s から計算する量と δ）、
+算術の恒等・打ち消し、
 沈黙の十分条件（命題 S-1 の引き継ぎ）、判定の閾値・判定の形の性質・検出力の見込み。
 
 README §1.2・§2・§3・§4.5・§5・§7。seed・乱数・既存の raw（0038〜0041 の記録を含む）は使わない。値は次だけから計算する。
@@ -114,6 +115,8 @@ def quantities(s: dict) -> dict:
     q["T_A1"] = _diff(s["G_A1_WA1"], s["G_A1_WA2"])
     q["T_A2"] = _diff(s["G_A2_WA1"], s["G_A2_WA2"])
     q["T"] = _sum(q["T_A1"], q["T_A2"])                                     # 主の量（J_T・E_T）
+    # 少なくとも一方の背景で T^(c) ≠ 0 か（p_any の個体の事象。T が定まるときだけ定める）。T ＝ 0 でも真になりうる（打ち消し）
+    q["T_any"] = None if q["T"] is None else (q["T_A1"] != 0 or q["T_A2"] != 0)
     q["BE_WA1"] = _diff(s["G_A1_WA1"], s["G_A2_WA1"])                       # 同じ重み W^{A1} で、背景だけ違う
     q["BE_WA2"] = _diff(s["G_A1_WA2"], s["G_A2_WA2"])
     q["BE"] = _sum(q["BE_WA1"], q["BE_WA2"])
@@ -139,7 +142,7 @@ SWAP = {"B_A1": "B_A2", "B_A2": "B_A1", "B_A1_rerun": "B_A2",
         "G_A1_WA1_tr": "G_A2_WA2_tr", "G_A2_WA2_tr": "G_A1_WA1_tr",
         "G_A1_X1": "G_A2_X2", "G_A2_X2": "G_A1_X1", "G_A1_X2": "G_A2_X1", "G_A2_X1": "G_A1_X2",
         "N_A1_WA1": "N_A2_WA2", "N_A2_WA2": "N_A1_WA1", "N_A1_WA2": "N_A2_WA1", "N_A2_WA1": "N_A1_WA2"}
-INVARIANT = ("T", "BE", "TE_F", "D", "S", "TN")
+INVARIANT = ("T", "T_any", "BE", "TE_F", "D", "S", "TN")
 EXCHANGED = (("T_A1", "T_A2"), ("BE_WA1", "BE_WA2"), ("S_A1", "S_A2"), ("TN_A1", "TN_A2"), ("K_A1", "K_A2"), ("Z_A1", "Z_A2"))
 
 
@@ -160,6 +163,8 @@ def label_swap_and_identity_check() -> dict:
     - INVARIANT の量は正確に同じ値のまま。EXCHANGED の組は互いに入れ替わる
     - TE_F ＝ (T ＋ BE)／2（四つの s がすべて定まるとき）。本当の内訳とは呼ばない
     - W^{A1} ＝ W^{A2} の個体（構造上の恒等）では、G^c[W^d] ＝ G^c[W^c]・N^c[W^d] ＝ N^c[W^c] なので T ＝ TN ＝ 0
+    - 打ち消し：T^{(A1)} ＝ −T^{(A2)} ≠ 0 なら、両方の背景で s が変わっていても T ＝ 0（T_any は真。README §3.2）
+    - δ は s から計算しないので、ここでは扱わない（delta_label_swap_check）
     - この性質は、T の符号が＋・−で対称であることの根拠ではない（札の入れ替えは T を −T に移さない：README §4.6）
     """
     def f(a, b):
@@ -173,8 +178,9 @@ def label_swap_and_identity_check() -> dict:
                      N_A1_WA2=base["N_A1_WA1"], N_A2_WA1=base["N_A2_WA2"])         # 構造上の恒等（W^{A1} ＝ W^{A2}）
     undefined = dict(base, G_A2_WA1=None)                                          # 四つの系のどれかが定まらない
     single_action = {k: Fraction(1) for k in base}                                 # どの系も一方の行動だけ（A7 の凍結）
+    cancel = dict(base, G_A1_WA1=f(3, 4), G_A1_WA2=f(1, 2), G_A2_WA1=f(1, 4), G_A2_WA2=f(1, 2))  # T^(A1) ＝ ＋1/4、T^(A2) ＝ −1/4
     out = []
-    for case in (base, identical, undefined, single_action):
+    for case in (base, identical, undefined, single_action, cancel):
         q = quantities(case)
         r = quantities(swapped(case))
         for k in INVARIANT:
@@ -186,9 +192,61 @@ def label_swap_and_identity_check() -> dict:
         out.append({k: (None if v is None else str(v)) for k, v in q.items()})
     assert out[1]["T"] == "0" and out[1]["TN"] == "0"
     assert out[2]["T"] is None and out[2]["T_A1"] is not None
-    assert out[3]["T"] == "0"
+    assert out[3]["T"] == "0" and out[3]["T_any"] == "False"
+    assert out[1]["T_any"] == "False" and out[2]["T_any"] is None
+    assert out[4]["T_A1"] == "1/4" and out[4]["T_A2"] == "-1/4" and out[4]["T"] == "0" and out[4]["T_any"] == "True"
     return {"cases": out, "invariant": list(INVARIANT), "exchanged": [list(p) for p in EXCHANGED],
-            "TE_F_equals_half_T_plus_BE": True, "not_a_basis_for_sign_symmetry": True}
+            "TE_F_equals_half_T_plus_BE": True, "cancellation_gives_T_zero_with_T_any_true": True,
+            "not_a_basis_for_sign_symmetry": True}
+
+
+def delta(w_a1: dict, w_a2: dict):
+    """0041 §3.2 の δ ＝ (a_1^{A1} − a_1^{A2}) − (a_2^{A1} − a_2^{A2})、a_j^c ＝ W^c(C → 源 j)。"""
+    return (w_a1["C_to_source1"] - w_a2["C_to_source1"]) - (w_a1["C_to_source2"] - w_a2["C_to_source2"])
+
+
+SOURCE_SWAP = {"C_to_source1": "C_to_source2", "C_to_source2": "C_to_source1",
+               "source1_to_C": "source2_to_C", "source2_to_C": "source1_to_C",
+               "source1_to_source2": "source2_to_source1", "source2_to_source1": "source1_to_source2"}
+
+
+def delta_label_swap_check() -> dict:
+    """δ の札の入れ替えの不変（README §3.2・SE-T11）を、手で置いた 6 本の重みの組で確かめる（seed も乱数も記録も使わない）。
+
+    札を入れ替えると、規則 c ＝ A1 の本体は規則 c ＝ A2 の本体になり（W^{A1} と W^{A2} が入れ替わる）、各本体の中で
+    源 1 と源 2 の接続の名前が入れ替わる。新しい札の W'^{A1}(x) ＝ 元の W^{A2}(SOURCE_SWAP[x])。
+    δ' ＝ (a_2^{A2} − a_2^{A1}) − (a_1^{A2} − a_1^{A1}) ＝ δ（代数）。分数では正確に、浮動小数でも差の反対称
+    fl(p − q) ＝ −fl(q − p) により正確に同じ値になることを確かめる。実際の記録での確かめは道具の契約テスト（CT-42-9）。
+    """
+    def swap(w_a1, w_a2):
+        return ({x: w_a2[SOURCE_SWAP[x]] for x in ROLES6}, {x: w_a1[SOURCE_SWAP[x]] for x in ROLES6})
+
+    def frac(d):
+        return {k: Fraction(v) for k, v in d.items()}
+    sets = [
+        ({"C_to_source1": 0.0047, "source1_to_C": 0.0053, "C_to_source2": 0.0051, "source2_to_C": 0.0049,
+          "source1_to_source2": 0.0044, "source2_to_source1": 0.0056},
+         {"C_to_source1": 0.00512, "source1_to_C": 0.00488, "C_to_source2": 0.00497, "source2_to_C": 0.00503,
+          "source1_to_source2": 0.0046, "source2_to_source1": 0.0054}),
+        ({"C_to_source1": 0.004812345678, "source1_to_C": 0.005187654322, "C_to_source2": 0.005003, "source2_to_C": 0.004997,
+          "source1_to_source2": 0.005, "source2_to_source1": 0.005},
+         {"C_to_source1": 0.005231, "source1_to_C": 0.004769, "C_to_source2": 0.004801999, "source2_to_C": 0.005198001,
+          "source1_to_source2": 0.005, "source2_to_source1": 0.005}),
+    ]
+    sets.append((dict(sets[0][0]), dict(sets[0][0])))                                # W^{A1} ＝ W^{A2}：δ ＝ 0
+    out = []
+    for w1, w2 in sets:
+        f1, f2 = frac(w1), frac(w2)
+        d_frac = delta(f1, f2)
+        s1, s2 = swap(f1, f2)
+        assert delta(s1, s2) == d_frac                                                # 分数で正確に同じ
+        d_float = delta(w1, w2)
+        t1, t2 = swap(w1, w2)
+        assert delta(t1, t2) == d_float                                               # 浮動小数でも正確に同じ値
+        assert (d_float > 0) == (d_frac > 0) and (d_float < 0) == (d_frac < 0)        # 手で置いた値では符号も一致
+        out.append({"delta_fraction": str(d_frac), "delta_float": repr(d_float)})
+    assert out[2]["delta_fraction"] == "0"
+    return {"cases": out, "delta_invariant_under_label_swap": True, "scope": "algebra on hand-placed weights only"}
 
 
 def extremes(p: dict) -> dict:
@@ -288,6 +346,7 @@ def main() -> None:
     sb = silence_bound(p, g)
     out = {"c0": p, "gate_set": g, "intervals": intervals(g), "systems": {"full": list(FULL_BODIES), "U_only": list(U_SYSTEMS)},
            "extremes": extremes(p), "label_swap_and_identity": label_swap_and_identity_check(),
+           "delta_label_swap": delta_label_swap_check(),
            "silence_bound": sb, "silence_probability": silence_probability(p, sb["E_S"]),
            "min_m": MIN_M, "k2_of_m": {m: k2(m) for m in range(MIN_M, INDIVIDUALS + 1)},
            "house_form_ceiling": house_form_ceiling(), "power_J_T": power_sign_among_nonzero(),

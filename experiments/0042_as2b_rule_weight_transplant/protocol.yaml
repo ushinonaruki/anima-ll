@@ -1,11 +1,12 @@
-# 実験 0042 の実行条件と記録項目（事前登録 v0.1。ChatGPT の独立レビュー待ち・未確定。この実験の道具の実装の前に固定する）
+# 実験 0042 の実行条件と記録項目（事前登録 v0.2。#195 の初回レビュー 6006770113 の修正必須 3 件を反映。ChatGPT の再レビュー待ち・未確定。この実験の道具の実装の前に固定する）
 #
 # 候補 1（docs/as2b-post-0041-next-stage-proposal.md v0.2）：AS2b の関門の組（予定・窓・出口・世界・役。関門の宣言 v0.2）と
 # C0 の力学・可塑性のもとで、同じ個体の二つの本体（規則 c = A1 と c = A2。ほかはすべて同じ。可塑性あり・世界は結果を返す）を
 # 経験の区間 E（窓 1〜25）の終わりの境界 P_E = 1065 まで走らせ、P_E で各本体を複製して 6 本の重みだけを自分の重み W^c と
 # もう一方の本体の重み W^d とで入れ替え、試しの区間 U（窓 26〜50）で 6 本を FREEZE して閉ループで走らせる。
 # T = [s(G_A1[W_A1]) - s(G_A1[W_A2])] + [s(G_A2[W_A1]) - s(G_A2[W_A2])]（s は U の A1 の割合）の符号を個体の事象にし、
-# T が定まり 0 でない個体の中で、向きのそろいを両側で判定する（J_T。向きごとに 0.025）。T != 0 の個体の割合などの推定 E_T は、
+# 合算の T が定まり 0 でない個体の中で、向きのそろいを両側で判定する（J_T。向きごとに 0.025）。T = 0 は打ち消し（T_A1 = -T_A2 != 0）を含み、
+# 「選択が変わらなかった」と同じではない。合算の T が 0 でない個体の割合 p_nz と、少なくとも一方の背景で T_c != 0 の個体の割合 p_any などの推定 E_T は、
 # 判定の成否に依らず必ず報告する。
 #
 # 実行の形式は 0039 型の事前登録の実験（README §0.1）。この案の段階では、この実験の道具の実装・smoke・本番の測定・
@@ -137,6 +138,8 @@ quantities:                             # README §3
   defined_rule: "a quantity is defined only if every s it uses is defined"
   T_c: "s(G_c[W_A1]) - s(G_c[W_A2]) for c in {A1, A2}"
   T: "T_A1 + T_A2"                      # J_T・E_T
+  T_any: "defined iff T is defined; true iff T_A1 != 0 or T_A2 != 0 (an individual event for p_any; true even when T = 0 by cancellation)"
+  T_zero_meaning: "T = 0 contains both-zero (T_A1 = T_A2 = 0) and cancellation (T_A1 = -T_A2 != 0, both backgrounds changed); T = 0 is never called 'choice did not change'"
   BE_W: "s(G_A1[W]) - s(G_A2[W]) for W in {W_A1, W_A2}"
   BE: "BE_WA1 + BE_WA2"
   TE_F: "s(G_A1[W_A1]) - s(G_A2[W_A2])"
@@ -154,7 +157,7 @@ quantities:                             # README §3
     TE_F_D: "an action's share is higher in the body whose rule returns consequences to that action"
     S: "the share of the action of the source whose C -> source weight is w_max is higher (same direction as 0040 D^X)"
     K_Z: "the share of the action pointed to by rule c is higher with feedback (K) / with U plasticity (Z)"
-  label_invariance: "swapping the A1/A2 labels maps body A1 to body A2, W_A1 to W_A2, X1 to X2 and s to 1 - s; T, BE, TE_F, D, S, TN, delta are unchanged exactly; T_A1/T_A2, BE_WA1/BE_WA2, S_A1/S_A2, TN_A1/TN_A2, K_A1/K_A2, Z_A1/Z_A2 are exchanged (analysis.py label_swap_and_identity_check); not a basis for sign symmetry (the swap never maps T to -T)"
+  label_invariance: "swapping the A1/A2 labels maps body A1 to body A2, W_A1 to W_A2, X1 to X2 and s to 1 - s; T, BE, TE_F, D, S, TN, delta are unchanged exactly; T_A1/T_A2, BE_WA1/BE_WA2, S_A1/S_A2, TN_A1/TN_A2, K_A1/K_A2, Z_A1/Z_A2 are exchanged and T_any is unchanged (analysis.py label_swap_and_identity_check on hand-placed s values); delta is unchanged exactly (analysis.py delta_label_swap_check on hand-placed weights, in fractions and in floats); checks on the quantities computed by the tools from records are done by the tools contract tests (CT-42-9), not by analysis.py; not a basis for sign symmetry (the swap never maps T to -T)"
   identity: "TE_F = (T + BE) / 2 when the four s are defined; arithmetic only, never called a true decomposition"
   no_ratio: "no mediated proportion (T / TE_F or T / D) is computed"
   k_star: "the first window in 1..25 whose outcome in the common part of the two bodies is A1 or A2 (none if no such window)"
@@ -164,7 +167,7 @@ judgment:
     undefined_u: "n_U = 0 in at least one of G_A1_WA1, G_A1_WA2, G_A2_WA1, G_A2_WA2 (T undefined, N/A); in neither m_nonzero nor m_def; counted by the number of undefined systems (1..4) and by background"
     structural_zero_z: "T defined and no decided window in the E common part (k* none; sub-labels Z-1 all windows none / Z-2 ties but no decided window); W_A1 == W_A2 by SE-T2, so T = 0 exactly; a zero"
     structural_identity: "T defined, k* exists and W_A1 == W_A2 bitwise for all six; T = 0 by SE-T7; a zero; labelled"
-    other_zero: "T defined, not one of the two classes above, and T == 0 exactly; labelled"
+    other_zero: "T defined, not one of the two classes above, and T == 0 exactly; labelled and split into both_zero (T_A1 == T_A2 == 0) and cancellation (T_A1 == -T_A2 != 0)"
     structurally_silent_source: "a source with g < -E_S (proposition S-1); labelled and counted; never removed (SE-T10: T = 0 if defined)"
     sign: {plus: "T > 0", minus: "T < 0", zero: "T == 0", undefined: "T undefined"}
     no_post_hoc_exclusion: "no other exclusion; labels are never used to remove an individual"
@@ -175,8 +178,10 @@ judgment:
     rule: "plus if count(plus) >= k2(m_nonzero); minus if count(minus) >= k2(m_nonzero); otherwise not established"
     alpha: {two_sided: 0.05, per_direction: 0.025}
     only_judgment: true                 # 判定はこれだけ。E_T・記述の対照・補助の記録は検定しない（多重性なし）
-    primary_question: "conditional direction among individuals with T != 0 (is the sign of T asymmetric among changed individuals); the majority question (do more than half of the individuals with T defined move in one direction) is not judged; spread is estimated by E_T"
-    form_note: "the house form of 0039-0041 (zeros kept in m) is not used: README section 4.5 gives the structural reasons (existence is not the question in a deterministic system; the house form mixes spread and direction). Not adopted as a rescue matched to the zero counts of 0039 (BLACKBOARD da57f87). If the review judges the choice to depend on 0039 values, revert to m = m_def with k2(m_def) before freezing"
+    primary_question: "conditional direction among individuals with summed T != 0 (is the sign of T asymmetric among them); the majority question (do more than half of the individuals with T defined move in one direction) is not judged; spread is estimated by E_T (p_nz, p_any)"
+    form_reasons: "README section 4.5: (a) research purpose: after J_B (0041) established a sign-aligned rule-dependent weight difference, ask first whether that difference pushes choice in a consistent direction when the summed T is nonzero; (b) cost: the majority / spread judgment is deliberately given up, the claim is narrower than the house form and is about the selected nonzero individuals; (c) the switch from the #194 first candidate was made after knowing the 0039 results (the four systems are the same construction and the published 9-cell table carries partial sign information on T), so motivation or selection bias cannot be excluded; the test is a prospective confirmation on the unused 0042 seeds only, never applied to 0039, without reanalysis of 0039"
+    retracted_v0_1_reason: "v0.1 claimed that determinism makes individual-level existence a non-question; retracted: spread in a new population (p_any, p_nz) is a statistical question even in a deterministic model, and determinism forces neither judgment form"
+    form_note: "if the review judges that the choice cannot be reasonably defended, revert to m = m_def with k2(m_def) (house form) before freezing"
     house_form_null: "for reference only: the house form controls each direction under p_plus <= 1/2 (and p_minus <= 1/2) with the binomial upper tail; this is not the same as p_plus = p_minus, and its success is a majority claim"
   null_hypothesis:
     status: "explicit statistical null on the post-selection population of individuals with T defined; assumed, not derived (T is label-invariant, so the swap gives no sign symmetry; the symmetric definedness condition gives none either; proposition G-11 gives no direction)"
@@ -207,15 +212,18 @@ judgment:
 
 estimate_E_T:                           # README §4.4。判定ではない。有効なら成否に依らず報告する
   m_def: "number of individuals with T defined (200 minus undefined)"
-  p_change: "m_nonzero / m_def, Clopper-Pearson 95%"
+  p_nz: "m_nonzero / m_def: share of individuals whose summed T is nonzero, Clopper-Pearson 95%; not the share whose choice changed (cancellations are T = 0)"
+  p_any: "count(T_any) / m_def: share of individuals in which the weight swap changed the U share in at least one background, Clopper-Pearson 95%; descriptive estimate, not judged"
+  cancellations: "count of T_A1 = -T_A2 != 0 (= m_def * (p_any - p_nz))"
   p_plus_minus: "count(plus) / m_def and count(minus) / m_def, Clopper-Pearson 95%"
   p_dir: "count(plus) / m_nonzero, Clopper-Pearson 95% (undefined if m_nonzero = 0)"
   abs_T: "min, quartiles, max over individuals with T defined and over individuals with T != 0"
   undefined_count: "200 - m_def with the breakdown of README section 4.1"
   no_threshold: true
+  reporting_prominence: "whenever J_T is reported, m_nonzero / m_def, p_nz and p_any with their intervals are shown in the same table and paragraph with the same prominence as the J_T direction"
 
 must_report:                            # README §6.1。検定しない。各量：定まる個体の数、＋・−・0、割合と区間、0 でない中の＋の割合、分布、定まらない内訳
-  per_background: "T_A1, T_A2; (sign T_A1, sign T_A2) in 9 cells (swapping the labels transposes it)"
+  per_background: "T_A1, T_A2; (sign T_A1, sign T_A2) in 9 cells (swapping the labels transposes it); among the (+,-) and (-,+) cells, counts whose summed T is +, - and 0 (cancellation)"
   two_by_two: "distributions of the four s; BE_WA1, BE_WA2, BE, TE_F; TE_F = (T + BE) / 2 is arithmetic only"
   natural_pair: "D (descriptive total effect; never a re-test of J_7); (sign D, sign T) in 9 cells"
   sensitivity: "S_A1, S_A2, S; (sign S, sign T) in 9 cells; positive response not guaranteed (different background and world from 0040); few S != 0 never invalidates the main test"
@@ -253,8 +261,8 @@ operation_checks_note: "S-1 violations, S, TN and K values are recorded, not ope
 f1_tolerance: 1.0e-12
 
 not_displayed:                          # README §9.3。契約テスト（合成の seed）と smoke では計算しても表示・保存しない
-  quantities: [s, n_U, T, T_A1, T_A2, BE, BE_WA1, BE_WA2, TE_F, D, S, S_A1, S_A2, TN, TN_A1, TN_A2, K_A1, K_A2, Z_A1, Z_A2,
-               delta, W_A1, W_A2, signs, direction_counts, m_nonzero, m_def, E_T, clopper_pearson, k_star, individual_labels,
+  quantities: [s, n_U, T, T_any, T_A1, T_A2, BE, BE_WA1, BE_WA2, TE_F, D, S, S_A1, S_A2, TN, TN_A1, TN_A2, K_A1, K_A2, Z_A1, Z_A2,
+               delta, W_A1, W_A2, signs, direction_counts, m_nonzero, m_def, E_T, p_nz, p_any, cancellations, clopper_pearson, k_star, individual_labels,
                choice_counts, consequence_counts, first_divergence_pulse]
   contract_tests: "arithmetic is checked on hand-made records; values from real trajectories are checked for consistency only and never printed; test modules use PYTEST_DONT_REWRITE and assertion messages never carry evaluated values, and a test checks this mechanism (0041 CT-41-7 lessons); any new exposure path means stop, disclose and re-review"
   smoke: "ok / fail of the operation checks only"
