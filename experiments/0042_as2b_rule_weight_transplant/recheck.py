@@ -726,6 +726,15 @@ def operation_problems(data: dict) -> list[str]:
         if conn_weights(sp) != w[RULE[n]] or b["sigma_p_e_sha256"][n] != _sha(sp) \
                 or sp["interventions"] != {"active": [], "frozen": {}} or rec[n]["history"] != []:
             problems.append(f"O12 {n}: W・Σ")
+        # 残る予約の全件：予定の手がかりのうち Pulse ＞ P_E のものが一つずつ（並べた行の文字列の列で照合）。識別子が重ならず、
+        # 予約の記録にあり、予約の記録の手がかりが全窓の予定と同じ
+        future = sorted(json.dumps(["cue", cue_r, c, None]) for c in geo["cues"] if c > p_e)
+        left = sorted(json.dumps(row[1:]) for row in sp["world"]["pending"])
+        ids = [row[0] for row in sp["world"]["pending"]]
+        all_cues = sorted(json.dumps(row[1:]) for row in sp["world"]["reserved"] if row[1] == "cue")
+        if left != future or len(set(ids)) != len(ids) or any(row not in sp["world"]["reserved"] for row in sp["world"]["pending"]) \
+                or all_cues != sorted(json.dumps(["cue", cue_r, c, None]) for c in geo["cues"]):
+            problems.append(f"O12 {n}: 残る予約")
     # O6：境界の順序と差の目録
     six = sorted(order)
     want = [["S0", n, p_e, "advance_to", {"from": 0}] for n in BODIES]

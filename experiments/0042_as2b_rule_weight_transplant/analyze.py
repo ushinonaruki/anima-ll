@@ -963,8 +963,35 @@ def _o11(run, out) -> None:
             out.append(f"{label}：組の和が w_max から離れている")
 
 
+def future_cue_rows(run) -> Counter:
+    """P_E の世界に残るべき予約の多重集合：宣言の予定の手がかりのうち Pulse ＞ P_E のものが、ちょうど一つずつ
+    （種類・Receptor・Pulse・由来。U の窓の手がかりだけで、結果の予約はない）。"""
+    plan = _plan(run)
+    cue_r = run["roles"]["cue_receptor"]
+    return Counter((A.CUE, cue_r, c, None) for c in plan.schedule().cues if c > plan.p_e)
+
+
+def pending_problems(run, sigma: Mapping) -> list[str]:
+    """保存した P_E の Σ の世界の予約の、宣言の予定との全件の照合（欠け・重複・余分・Pulse の違い・結果の予約の混入）。"""
+    plan = _plan(run)
+    cue_r = run["roles"]["cue_receptor"]
+    w = sigma["world"]
+    pending, reserved = w["pending"], w["reserved"]
+    problems = []
+    if Counter((r[1], r[2], r[3], r[4]) for r in pending) != future_cue_rows(run):
+        problems.append("残る予約が、宣言の予定の U の手がかりちょうど（種類・Receptor・Pulse・由来）ではない")
+    rids = [r[0] for r in pending]
+    if len(rids) != len(set(rids)) or any(r not in reserved for r in pending):
+        problems.append("残る予約の識別子が重複しているか、予約の記録にない")
+    if sorted(r[3] for r in reserved if r[1] == A.CUE) != list(plan.schedule().cues) \
+            or any(r[2] != cue_r or r[4] is not None for r in reserved if r[1] == A.CUE):
+        problems.append("手がかりの予約の記録が、宣言の予定（全窓）と違う")
+    return problems
+
+
 def _o12(run, out) -> None:
-    """境界 P_E（SE-T1）：本体の Pulse の番号が P_E で、未決の窓・出す予定の意図・結果の予約がない。重みと Σ の記録が一致する。"""
+    """境界 P_E（SE-T1）：本体の Pulse の番号が P_E で、未決の窓・出す予定の意図・結果の予約がない。世界に残る予約は、宣言の予定の
+    U の手がかりちょうど（全件・多重集合で照合）。重みと Σ の記録が一致する。"""
     plan = _plan(run)
     b = run["boundary"]
     for n in M.BODIES:
@@ -975,6 +1002,7 @@ def _o12(run, out) -> None:
             out.append(f"S0：{n} に未決の窓・出す予定の意図があるか、P_E の Σ ではない")
         if any(r[1] != A.CUE for r in s["world"]["pending"]):
             out.append(f"S0：{n} の世界に、手がかりのほかの予約（結果の予約）が残っている")
+        out.extend(f"S0：{n} の P_E の世界の{p}" for p in pending_problems(run, s))
         if b["W"][M.RULE_OF[n]] != _weights_of(s) or s["interventions"] != EMPTY_INTERVENTIONS:
             out.append(f"S1：{n} の重みが記録した W と違うか、本体に介入がある")
         if b["sigma_p_e_sha256"][n] != M.sigma_sha256(s):

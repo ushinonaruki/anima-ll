@@ -22,8 +22,8 @@ m≠・m_def、E_T、区間、k*、§4.1 の札、W^{A1}・W^{A2} と δ、選�
 置き方は 0039 の CT-39-8・0041 の CT-41-7 と同じで、AS2b の道具も Core も変えない（契約テストだけ）。
 
 使った合成の seed（PR に開示）：35301〜35310（SMALL）、35321〜35326（一度限りの実行・盲検の契約。dummy の計算と SMALL）、
-35390〜35393（角の系と、構造的な 0・Pulse P_E ＋ 1 の駆動・痕跡の扱い・自分の値の移植の構成）、35399（本番の Plan で実物の
-runtime を通す確かめと、関門の run_body との照合）、構成の条件で選んだ個体（35301〜35399 の最初から順。どれになったかはテストの中で
+35390〜35393（角の系と、構造的な 0・Pulse P_E ＋ 1 の駆動・痕跡の扱い・自分の値の移植の構成）、35398・35399（本番の
+Plan で実物の runtime を通す確かめと、関門の run_body を一度の advance_to で走らせた本体との照合）、構成の条件で選んだ個体（35301〜35399 の最初から順。どれになったかはテストの中で
 決まる）。
 
 失敗の表示に現象の値を出さない（README §9.3）：このモジュールの assert は pytest に書き換えさせない（PYTEST_DONT_REWRITE）。
@@ -45,6 +45,7 @@ import re
 import shutil
 import subprocess
 import sys
+from collections import Counter
 from concurrent.futures import Future
 from fractions import Fraction
 from pathlib import Path
@@ -79,6 +80,7 @@ SYN_ALL = list(range(35301, 35400))
 GUARD_SEEDS = list(range(35321, 35327))
 CORNER_SEEDS = (35390, 35391, 35392, 35393)
 FORMAL_SEED = 35399
+ONE_SHOT_SEEDS = (35399, 35398)                                      # 関門の run_body を一度の advance_to で走らせる照合（O13）
 W_MAX, W0 = PROTOCOL["brain"]["w_max"], PROTOCOL["brain"]["initial_weight_w0"]
 THETA = (0.45, 0.55)                                                 # 出生時の θ の範囲（0.5 ± 10%）
 DRIVE = (0.072, 0.088)                                               # 出生時の c の範囲（0.08 ± 10%）
@@ -389,6 +391,63 @@ def test_ct42_1_the_bodies_equal_the_gate_run_body() -> None:
         assert audit["layer_a"] == run["bodies"][n]["layer_a"] and audit["reached_windows"] == 50
 
 
+class _GateSpy:
+    """関門の `run_body` に渡す AS2b の道具の代わり（契約テストだけ）。build が作った系を残し、advance_to と sigma の呼び出しを
+    記録する。ほかの名前は、すべて AS2b の道具そのもの（__getattr__）。"""
+
+    def __init__(self) -> None:
+        self.systems, self.advances, self.sigma_reads = [], [], 0
+
+    def __getattr__(self, name):
+        return getattr(A, name)
+
+    def build(self, *args, **kwargs):
+        system = A.build(*args, **kwargs)
+        self.systems.append(system)
+        return system
+
+    def advance_to(self, app, pulse):
+        self.advances.append(pulse)
+        return A.advance_to(app, pulse)
+
+    def sigma(self, *args, **kwargs):
+        self.sigma_reads += 1
+        return A.sigma(*args, **kwargs)
+
+
+def _j(x):
+    """記録と同じ JSON の形。"""
+    return json.loads(json.dumps(M._jsonable(x)))
+
+
+@pytest.mark.parametrize("seed", ONE_SHOT_SEEDS)
+def test_ct42_1_every_full_length_body_equals_an_uninterrupted_gate_run_body(seed) -> None:
+    """O13・SE-T12（#196 初回レビューの修正必須 1）：関門の宣言 v0.2 の `run_body` そのもので、新たに組み立てた本体を、P_E で
+    止めず、途中の状態も Σ も読まずに、一度の advance_to(終わり) で走らせる（spy で、組み立てが一つ・advance_to が終わりへの一度だけ・
+    途中の sigma の読み出しが 0 回であることを確かめる）。その本体の終わりの Σ の値の全体・層 A・層 B・発火・感覚の出来事・来歴のログ・
+    世界の記録が、P_E で止めて Σ を読んだ B′^{A1}（と、k* の意図の Pulse・P_E でも Σ を読んだ B^{A1}・B^{A2}）の記録と同じ。真偽だけ。"""
+    decl, _ = M.gate_declaration(PROTOCOL)
+    run = measured(seed, FORMAL)["run"]
+    for n in (M.RERUN,) + M.BODIES:
+        spy = _GateSpy()
+        _row, gate_audit = GATE.run_body(spy, decl, seed, M.RULE_OF[n])
+        assert len(spy.systems) == 1 and spy.advances == [FORMAL.end] and spy.sigma_reads == 0, n
+        ref, rec = spy.systems[0], run["bodies"][n]
+        assert ref.pulse == FORMAL.end and ref.meta["rule_c"] == M.RULE_OF[n] and ref.meta["respond"] is True
+        at_end = _j(A.sigma(ref))                                       # 終わりの後で、はじめて読む
+        assert at_end == rec["sigma_end"], n                             # Σ の値の全体
+        assert AS1.sigma_diff(at_end, rec["sigma_end"]) == [] and M.sigma_sha256(at_end) == rec["sigma_end_sha256"]
+        assert _j(ref.decider.records) == rec["layer_a"] == _j(gate_audit["layer_a"]), n
+        assert _j(ref.world.intents) == rec["layer_b"] == _j(gate_audit["layer_b"]), n
+        assert _j(ref.log.activity()) == rec["activity"] and _j(ref.log.sensory()) == rec["sensory"], n
+        assert _j(M._intent_log(ref)) == rec["delta_log"] and _j(ref.world.export_state()) == rec["world_end"], n
+        assert _j(gate_audit["audit"]) == rec["audit"] and _j(gate_audit["roles"]) == run["roles"], n
+        assert rec["layer_a"] and rec["activity"] and rec["sensory"] and rec["layer_b"]       # 確かめが空でない
+    rerun = run["bodies"][M.RERUN]
+    assert rerun["sigma_end"] == run["bodies"]["B_A1"]["sigma_end"]      # 既存の O13（二点で止めた系どうし）も残す
+    assert failures(measured(seed, FORMAL), seed, FORMAL) == {}
+
+
 def test_the_gate_and_earlier_and_formal_seeds_are_never_run_by_the_tests(repo, tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(R, "REPO", repo)
     commit = _git(repo, "rev-parse", "HEAD")
@@ -553,6 +612,82 @@ def test_ct42_3_at_p_e_nothing_is_open_or_reserved() -> None:
             assert s["exit"]["reports"] == {}
             assert sorted(r[3] for r in s["world"]["pending"]) == [c for c in plan.schedule().cues if c > plan.p_e]
             assert {r[1] for r in s["world"]["pending"]} == {A.CUE}
+            cue_r = run["roles"]["cue_receptor"]                            # 全件：多重集合で、種類・Receptor・Pulse・由来まで
+            want = Counter((A.CUE, cue_r, c, None) for c in plan.schedule().cues if c > plan.p_e)
+            assert Counter(tuple(r[1:]) for r in s["world"]["pending"]) == want == AN.future_cue_rows(run)
+            assert sum(want.values()) == plan.count - plan.e_windows and AN.pending_problems(run, s) == []
+
+
+def _same_row_in_reserved(sigma: dict, row: list) -> list:
+    return next(r for r in sigma["world"]["reserved"] if r[0] == row[0])
+
+
+def _cue_edit(index: int, field: int, value):
+    """残る予約の index 番目の欄 field を value にし、予約の記録の同じ識別子の行も同じに変える（記録の中では辻褄が合う改変）。"""
+    def edit(sigma, run, plan):
+        row = sigma["world"]["pending"][index]
+        target = _same_row_in_reserved(sigma, row)
+        v = value(plan, run) if callable(value) else value
+        row[field] = target[field] = v
+    return edit
+
+
+def _cue_add(kind: str, pulse, origin=None, *, in_reserved: bool = True):
+    """新しい識別子の予約を、残る予約（と予約の記録）に足す。"""
+    def edit(sigma, run, plan):
+        w = sigma["world"]
+        row = [w["next_rid"], kind, run["roles"]["cue_receptor"], pulse(plan) if callable(pulse) else pulse, origin]
+        w["pending"].append(row)
+        if in_reserved:
+            w["reserved"].append(list(row))
+        w["next_rid"] += 1
+    return edit
+
+
+def _cue_drop(*, from_reserved: bool):
+    def edit(sigma, run, plan):
+        row = sigma["world"]["pending"].pop()
+        if from_reserved:
+            sigma["world"]["reserved"].remove(row)
+    return edit
+
+
+FUTURE_CUE_TAMPERS = {
+    "missing_cue": _cue_drop(from_reserved=False),
+    "missing_cue_and_its_reservation": _cue_drop(from_reserved=True),
+    "duplicated_cue_same_id": lambda s, r, p: s["world"]["pending"].append(list(s["world"]["pending"][0])),
+    "duplicated_cue_new_id": lambda s, r, p: _cue_add(A.CUE, s["world"]["pending"][0][3])(s, r, p),
+    "cue_pulse_shifted": _cue_edit(1, 3, lambda plan, run: plan.schedule().cues[plan.e_windows + 1] + 1),
+    "cue_moved_into_E": _cue_edit(0, 3, lambda plan, run: plan.p_e),
+    "cue_receptor_changed": _cue_edit(0, 2, "r-other"),
+    "cue_origin_changed": _cue_edit(2, 4, "d-x"),
+    "extra_cue_off_schedule": _cue_add(A.CUE, lambda plan: plan.end),
+    "consequence_reservation_mixed_in": _cue_add(A.CONSEQUENCE, lambda plan: plan.p_e + plan.delay, "d-x"),
+}
+
+
+@pytest.mark.parametrize("case", ["small", "formal"])
+@pytest.mark.parametrize("tamper", sorted(FUTURE_CUE_TAMPERS))
+def test_o12_finds_any_change_of_the_future_cue_reservations_at_p_e(case, tamper) -> None:
+    """#196 初回レビューの修正必須 2：保存した P_E の Σ の世界に残る予約が、宣言の予定の U の手がかりちょうど（多重集合）でなければ、
+    解析の O12 と独立の検算の O12 が、それぞれ見つける（欠け・重複・Pulse の違い・Receptor・由来・予定にない手がかり・結果の予約の混入）。
+    改変の後に Σ の SHA-256 を計算し直すので、SHA-256 の照合では見つからない。種類だけを見る従来の確かめでは見つからない改変も含む。
+    SMALL と本番の Plan の両方で。どの系・どの seed にするかは結果を見ずに決めてある。"""
+    seed, plan = (decided_seed(), SMALL) if case == "small" else (FORMAL_SEED, FORMAL)
+    name = "B_A1" if case == "small" else "B_A2"
+    data = measured(seed, plan)
+    assert failures(data, seed, plan) == {} and RC.operation_problems(data) == []
+    run = data["run"]
+    sigma = run["boundary"]["sigma_p_e"][name]
+    FUTURE_CUE_TAMPERS[tamper](sigma, run, plan)
+    run["boundary"]["sigma_p_e_sha256"][name] = M.sigma_sha256(sigma)
+    o12 = AN.check_seed(data, "synthetic", seed, plan)["O12"]
+    assert any(m.startswith(f"S0：{name} の P_E の世界の") for m in o12), tamper
+    assert not any("SHA-256" in m for m in o12)
+    assert f"O12 {name}: 残る予約" in RC.operation_problems(data), tamper
+    if tamper != "consequence_reservation_mixed_in":                     # 種類は手がかりのまま（種類だけの確かめでは見えない）
+        assert all(r[1] == A.CUE for r in sigma["world"]["pending"])
+        assert not any("手がかりのほかの予約" in m for m in o12)
 
 
 def test_o6_detects_tampering() -> None:
