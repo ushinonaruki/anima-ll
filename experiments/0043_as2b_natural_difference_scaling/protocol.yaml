@@ -1,4 +1,4 @@
-# 実験 0043 の実行条件と記録項目（事前登録 v0.1。ChatGPT の独立レビュー待ち・未確定。この実験の道具の実装の前に固定する）
+# 実験 0043 の実行条件と記録項目（事前登録 v0.2。#200 のレビュー 6088937430 の修正必須 4 件を反映。ChatGPT の再レビュー待ち・未確定。この実験の道具の実装の前に固定する）
 #
 # 候補 A（docs/as2b-post-0042-next-stage-proposal.md v0.3）：AS2b の関門の組（予定・窓・出口・世界・役。関門の宣言 v0.2）と
 # C0 の力学・可塑性のもとで、同じ個体の二つの本体（規則 c = A1 と c = A2）を、経験の区間 E（窓 1〜25）の終わりの境界 P_E = 1065 まで
@@ -103,6 +103,8 @@ weights:                                # README §2.2
   range: "an endpoint is out of range if the exact value of any of its six weights is outside [0, w_max] (w_max = the exact value of the float 0.01); an out-of-range endpoint is never clipped, its system is not built and not run; the names of the out-of-range weights and the side (below / above) are recorded"
   no_clip_reason: "clipping would lose the guarantee of the specified direction of e, the multiple k and the symmetry of the two endpoints about W_c (for F1 pairs clip(w_max - x) = w_max - clip(x), so clipping would not break the pair sum)"
   nesting: "per background, in range at k implies in range at every smaller level; both backgrounds' natural endpoints are in range iff W_A1 + k e and W_A2 - k e are in range (SE-C10)"
+  f1_real: "F1 is an equality in real arithmetic (G-8): the pair sums of W_A1 and W_A2 are w_max, the pair sums of e and of u are 0, so V and Y keep the pair sum w_max exactly (SE-C9)"
+  f1_float: "in floats the pair sums of W_A1, W_A2 carry rounding residuals r_A1, r_A2; the residual of V_c_plus_minus_k before rounding is r_c +/- k (r_A1 - r_A2) and of Y_c_plus_minus_k is r_c, plus at most half an ulp per weight from rounding; natural residuals within 1e-12 therefore do not imply endpoint residuals within 1e-12 (analysis.py f1_residual_example: +/-4e-13 gives about 2e-12 at k = 2; an arithmetic example against an inference from the tolerance, not a reachable body and not a violation in any individual)"
 
 systems:                                # README §2.3。c in {A1, A2}
   B_c:        {build: "gate run_body construction build(seed, schedule, delay=2, rule_c=c, respond=True)", pulses: [0, 2072],
@@ -139,6 +141,7 @@ level_choice:                           # README §4.6（analysis.py range_guide
   k4_width: "2 x 4 x 0.001321 = 0.010568 > w_max: the 0042 individual with the largest C_to_source2 difference cannot be in range at k = 4 whatever its centre"
   rough_guide: "min over connections of min(median, w_max - median) / Q3|diff| = 10.883 (C_to_source1); marginal combination, not the joint distribution"
   k0_rule: "the largest level in {1, 2, 4, 8} with (i) k > 1 (both endpoints artificial) and (ii) k <= the conservative bound -> 2; margin 3.1347 / 2 = 1.57"
+  limitation: "(ii) is a sufficient condition for the 0042 published values only; it does not guarantee that no individual of the new 0043 population is out of range at k = 2; the number is unknown beforehand and is reported"
   top_rule: "the largest doubling level not above the rough guide -> 8"
   not_from_power: "k0 is not chosen from expected power or from any 0042 selection result (T, S, delta x T tables)"
 
@@ -158,13 +161,13 @@ quantities:                             # README §3
   s: "#A1_U / (#A1_U + #A2_U) over the decided windows of windows 26..50; undefined (None, never 0) if n_U = 0"
   s_c: "s if c = A1, 1 - s if c = A2"
   defined_rule: "a quantity is defined only if every system it uses is built and every s it uses is defined"
-  C_k_c: "s(G_c_Pk) - s(G_c_Mk)"
+  C_k_c: "s(G_c_Pk) - s(G_c_Mk); uses only the two endpoint systems and is defined even when s(G_c_base) is undefined (e.g. 3/4 and 1/4 give 1/2); up_k_c, dn_k_c, T_c and Z_c, which use G_c_base, are then undefined"
   C_k: "C_k_A1 + C_k_A2 (individual value only if both backgrounds are in value classes 3..5; README section 4.2)"
   C_k_any: "defined iff C_k is defined; true iff C_k_A1 != 0 or C_k_A2 != 0"
   up_k_c: "s(G_c_Pk) - s(G_c_base)"
   dn_k_c: "s(G_c_base) - s(G_c_Mk)"
-  identity: "C_k_c = up_k_c + dn_k_c when the three systems are built and defined; arithmetic only"
-  Du_k_c: "s(G_c_UPk) - s(G_c_UMk)"
+  identity: "C_k_c = up_k_c + dn_k_c only when G_c_base, G_c_Pk and G_c_Mk are all built and all three s are defined; arithmetic only (analysis.py checks it only in that case)"
+  Du_k_c: "s(G_c_UPk) - s(G_c_UMk); uses only the two endpoint systems"
   Du_k: "Du_k_A1 + Du_k_A2 (same summation condition as C_k)"
   T_A1: "s(G_A1_base) - s(G_A1_M1)   # V_A1_minus_1 = W_A2"
   T_A2: "s(G_A2_P1) - s(G_A2_base)   # V_A2_plus_1 = W_A1"
@@ -185,7 +188,7 @@ value_classes:                          # README §4.1。(individual, c, k) ご�
   order: [out_of_range, s_undefined, structural_zero, measured_zero, nonzero]
   out_of_range: "at least one of the two endpoints is out of range; its system is not built"
   s_undefined: "both endpoint systems are built and n_U = 0 in at least one"
-  structural_zero: "the two endpoints' six weights are bitwise identical after rounding and s is defined (exactly 0); C: e = 0 (labels Z-1, Z-2, identity); Du: delta(e) = 0; any other coincidence by rounding is labelled rounding_coincidence and disclosed"
+  structural_zero: "the two endpoints' six weights are bitwise identical after rounding and s is defined (exactly 0); C: e = 0 (labels Z-1, Z-2, identity); Du: delta(e) = 0; any other coincidence by rounding is labelled rounding_coincidence and disclosed; if s of the endpoint systems is undefined the class is s_undefined, never structural_zero, even when e = 0"
   measured_zero: "the endpoints differ, s is defined and the difference is 0"
   nonzero: "the endpoints differ, s is defined and the difference is not 0"
   not_occurring: "factor_undefined and not_run of the proposal do not occur under the multiple scheme"
@@ -193,11 +196,11 @@ value_classes:                          # README §4.1。(individual, c, k) ご�
 judgment:
   per_individual:                       # README §4.3（k = 2）
     undefined_u: "C_2 undefined (either background out of range or s undefined); in neither m_nonzero nor m_def; counted by reason and background"
-    structural_zero: "C_2 defined and both backgrounds structural zero (e = 0); a zero; labels Z-1 / Z-2 / identity / rounding_coincidence"
+    structural_zero: "C_2 defined (both backgrounds' endpoint systems have s defined) and both backgrounds structural zero (e = 0); a zero; labels Z-1 / Z-2 / identity / rounding_coincidence; e = 0 with undefined endpoint s is undefined_u (s_undefined)"
     other_zero: "C_2 defined, not structural, C_2 == 0; split into both_zero and cancellation (C_2_A1 == -C_2_A2 != 0)"
     structurally_silent_source: "a source with g < -E_S (proposition S-1); labelled and counted; never removed (SE-C13)"
     sign: {plus: "C_2 > 0", minus: "C_2 < 0", zero: "C_2 == 0", undefined: "C_2 undefined"}
-    out_of_range_at_k0: "counted as undefined; no threshold on its count; the judgment form does not change"
+    out_of_range_at_k0: "counted as undefined; no threshold on its count; the judgment form does not change; that k = 2 is in range is a sufficient condition for the 0042 published values only, and the number of out-of-range individuals in the new 0043 population is unknown beforehand and is reported by reason, background and endpoint"
     no_post_hoc_exclusion: "no other exclusion; labels are never used to remove an individual"
   J_C:
     level: 2
@@ -234,7 +237,14 @@ judgment:
             194: 112, 195: 112, 196: 113, 197: 113, 198: 114, 199: 114, 200: 115}
   interval: "Clopper-Pearson 95% (two-sided); always reported when the denominator >= 1 (D6)"
   outcomes: [invalid, inconclusive, not_established, plus, minus]
-  negative_reading: "not established or inconclusive means only: under these bodies, P_E, this U condition, level k = 2 and this population, a sign-aligned majority among individuals with C_2 != 0 beyond the pre-fixed threshold was not observed; never 'stretched weights do not reach choice', never a statement about larger levels or about the reason of the 0042 result, never a trigger for configuration review"
+  outcome_rules:
+    invalid: "at least one operation check fails: report only which checks failed; the judgment, the estimate and the must-report descriptions are not computed or displayed"
+    inconclusive: "valid and m_nonzero < 10: the direction is not judged and is not compared with any threshold (e.g. 9 nonzero individuals all plus is inconclusive)"
+    not_established: "valid, m_nonzero >= 10 and neither count(plus) nor count(minus) reaches k2(m_nonzero)"
+    plus_minus: "valid, m_nonzero >= 10 and count(plus) (or count(minus)) >= k2(m_nonzero)"
+    valid_outputs: "for inconclusive, not_established, plus and minus: E_C and the must-report descriptions are always shown; a ratio or interval whose denominator is 0 is undefined (never 0)"
+  inconclusive_reading: "only that the direction question has no answer (fewer than 10 individuals with C_2 != 0); never 'directions did not align', never 'stretched weights do not reach choice'"
+  not_established_reading: "only that, under these bodies, P_E, this U condition, level k = 2 and this population, a sign-aligned majority among individuals with C_2 != 0 beyond the pre-fixed threshold was not observed; never 'stretched weights do not reach choice', never a statement about larger levels or about the reason of the 0042 result, never a trigger for configuration review"
 
 estimate_E_C:                           # README §4.5。判定ではない。有効なら成否に依らず報告する
   m_def: "number of individuals with C_2 defined (200 minus undefined)"
@@ -246,6 +256,8 @@ estimate_E_C:                           # README §4.5。判定ではない。�
   abs_C2: "min, quartiles, max over individuals with C_2 defined and over individuals with C_2 != 0"
   undefined_count: "200 - m_def with the breakdown by reason and background"
   no_threshold: true
+  zero_denominator: "a ratio or interval whose denominator is 0 is undefined (e.g. p_dir when m_nonzero = 0)"
+  shown_only_when_valid: true
   reporting_prominence: "whenever J_C is reported, m_nonzero / m_def, p_nz and p_any with their intervals are shown in the same table and paragraph with the same prominence as the J_C direction"
 
 must_report:                            # README §6。検定しない。各量：分母、＋・−・0、割合と区間、0 でない中の＋の割合、分布、定まらない理由の内訳
@@ -293,6 +305,7 @@ proposition_S1:                         # README §7.2（analysis.py）。実験
 
 operation_checks: [O1, O2, O3, O4, O5, O6, O7, O8, O9, O10, O11, O12, O13, O14, O15]   # README §8。一つでも不成立なら無効
 operation_checks_note: "S-1 violations, out-of-range counts, S and Du values are recorded, not operation checks (D1)"
+O11_tolerance_status: "1e-12 on the rounded pair sums of every built system is a fixed operational condition (same width as 0041 and 0042), not a bound derived for reachable bodies (SE-C9 is an equality in real arithmetic); any built system beyond it makes the whole run invalid, as in v0.1"
 O10_weight_arithmetic: "recompute e, delta(e), m_k and every endpoint (exact value, range, rounded value) from the saved P_E sigma: (a) transplanted values of built systems agree bitwise, (b) the set of built systems equals the set of in-range endpoints and the recorded out-of-range names and sides agree, (c) V_A1_minus_1 == W_A2 and V_A2_plus_1 == W_A1 bitwise"
 f1_tolerance: 1.0e-12
 

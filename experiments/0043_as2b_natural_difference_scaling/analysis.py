@@ -1,5 +1,5 @@
-"""実験 0043（AS2b の候補 A の事前登録 v0.1）の解析の部分：区間の算術、重みの算術（自然な差の倍数・δ をそろえた対称な介入・
-範囲・F1・札の入れ替え・入れ子）、量の定義と札の入れ替えの性質、主の段 k₀ を選ぶ算術、沈黙の十分条件（命題 S-1 の引き継ぎ）、
+"""実験 0043（AS2b の候補 A の事前登録 v0.2）の解析の部分：区間の算術、重みの算術（自然な差の倍数・δ をそろえた対称な介入・
+範囲・F1 の残差・札の入れ替え・入れ子）、量の定義と札の入れ替えの性質、値の区分・合算・判定の出力、主の段 k₀ を選ぶ算術、沈黙の十分条件（命題 S-1 の引き継ぎ）、
 判定の閾値・検出力の見込み。
 
 README §1.2・§2・§3・§4・§5・§7。seed・乱数・既存の raw（0038〜0042 の記録を含む）は使わない。値は次だけから計算する。
@@ -162,6 +162,37 @@ def endpoints(w_a1: dict, w_a2: dict, c: str, k: int, w_max: float, kind: str) -
     return out
 
 
+def residuals(w: dict, w_max: float) -> dict:
+    """各組の和から w_max を引いた残差（有理数で正確に）。組の最初の重みの名前で引く。"""
+    return {a: Fraction(w[a]) + Fraction(w[b]) - Fraction(w_max) for a, b in PAIRS}
+
+
+def f1_residual_example(p: dict) -> dict:
+    """README §2.2・SE-C9 の算術例（レビュー 6088937430 の 3）。F1 は実数の算術での保存則（G-8）で、浮動小数の重みの組の和には
+    丸めの残差 r がある。自然な差の端の丸めの前の残差は r_c ± k (r_A1 − r_A2) なので、W^{A1}・W^{A2} の残差がどちらも
+    許容 1e-12 の内にあっても、延ばした端では許容を超えうる。これは許容からの推論に対する算術例で、到達可能な本体の値でも、
+    実際の個体での違反を示すものでもない。O11 の 1e-12 は、作った系に課す固定の操作の条件である。
+    """
+    w_max = p["w_max"]
+    w1 = {x: 0.005 for x in ROLES6}
+    w2 = {x: 0.005 for x in ROLES6}
+    w1["source1_to_C"] = 0.005 + 4e-13
+    w2["source1_to_C"] = 0.005 - 4e-13
+    r1, r2 = residuals(w1, w_max), residuals(w2, w_max)
+    assert abs(r1["C_to_source1"]) <= F1_TOLERANCE and abs(r2["C_to_source1"]) <= F1_TOLERANCE
+    nat = endpoints(w1, w2, "A1", 2, w_max, "natural")
+    assert nat["plus"]["in_range"]
+    r_end = nat["plus"]["exact"]["C_to_source1"] + nat["plus"]["exact"]["source1_to_C"] - Fraction(w_max)
+    assert r_end == r1["C_to_source1"] + 2 * (r1["C_to_source1"] - r2["C_to_source1"])
+    assert abs(r_end) > F1_TOLERANCE
+    dev_rounded = pair_sum_deviation(nat["plus"]["weights"], w_max)
+    assert dev_rounded > F1_TOLERANCE
+    return {"natural_residuals": [float(r1["C_to_source1"]), float(r2["C_to_source1"])],
+            "endpoint_A1_plus_2_residual_exact": float(r_end), "endpoint_A1_plus_2_deviation_rounded": dev_rounded,
+            "tolerance": F1_TOLERANCE, "exceeds_tolerance": True,
+            "scope": "arithmetic example against an inference from the tolerance; not a reachable body, not a violation in any individual"}
+
+
 def pair_sum_deviation(w: dict, w_max: float) -> float:
     return max(abs(float(Fraction(w[a]) + Fraction(w[b]) - Fraction(w_max))) for a, b in PAIRS)
 
@@ -229,7 +260,14 @@ def weight_arithmetic_check(p: dict) -> dict:
                 for end in ("plus", "minus"):
                     for a, b in PAIRS:
                         assert sym[end]["exact"][a] + sym[end]["exact"][b] == base[a] + base[b]
-                # F1：範囲の中の端の組の和
+                # F1：丸めの前の残差の式（実数の算術の恒等）。自然な差の端 r_c ± k (r_A1 − r_A2)、対称な介入の端 r_c
+                r1, r2, rc = residuals(w1, w_max), residuals(w2, w_max), residuals(w1 if c == "A1" else w2, w_max)
+                for a, b in PAIRS:
+                    for end, sign in (("plus", 1), ("minus", -1)):
+                        got = nat[end]["exact"][a] + nat[end]["exact"][b] - Fraction(w_max)
+                        assert got == rc[a] + sign * k * (r1[a] - r2[a])
+                        assert sym[end]["exact"][a] + sym[end]["exact"][b] - Fraction(w_max) == rc[a]
+                # これらの手で置いた組（残差が丸めの桁）では、丸めた端も O11 の許容の内にある。一般の保証ではない（f1_residual_example）
                 for kind in (nat, sym):
                     for end in ("plus", "minus"):
                         if kind[end]["in_range"]:
@@ -443,9 +481,11 @@ def label_swap_and_identity_check() -> dict:
     out_of_range = dict(base, G_A1_P8=None)                # 範囲の外の系は作らない（割合なし）
     cancel = dict(base)
     cancel.update({"G_A1_P2": Fraction(3, 4), "G_A1_M2": Fraction(1, 2), "G_A2_P2": Fraction(1, 4), "G_A2_M2": Fraction(1, 2)})
+    # 基の系の s だけが定まらない：両端の s から中心の差は定まり、片側の差は定まらない（README §3.2。レビュー 6088937430 の 1）
+    base_undefined = dict(base, G_A1_base=None, G_A1_P2=Fraction(3, 4), G_A1_M2=Fraction(1, 4))
     out = {}
     for name, case in (("base", base), ("e_zero", e_zero), ("delta_zero", delta_zero), ("anti_u", anti_u),
-                       ("out_of_range", out_of_range), ("cancel", cancel)):
+                       ("out_of_range", out_of_range), ("cancel", cancel), ("base_undefined", base_undefined)):
         q = quantities(case)
         r = quantities(swapped(case))
         for x in inv:
@@ -454,8 +494,11 @@ def label_swap_and_identity_check() -> dict:
             assert (r[a], r[b]) == (q[b], q[a]), (a, b)
         for k in LEVELS:
             for c in ("A1", "A2"):
-                if q[f"C{k}_{c}"] is not None:
+                # 恒等式は、基の系と二つの端の系の s がすべて定まるときだけ確かめる
+                if None not in (q[f"up{k}_{c}"], q[f"dn{k}_{c}"]):
                     assert q[f"C{k}_{c}"] == q[f"up{k}_{c}"] + q[f"dn{k}_{c}"]
+                # 中心の差は二つの端の系だけを使う（基の系の s に依らない）
+                assert (q[f"C{k}_{c}"] is None) == (case[f"G_{c}_P{k}"] is None or case[f"G_{c}_M{k}"] is None)
         out[name] = {x: (None if v is None else str(v)) for x, v in q.items()}
     assert all(out["e_zero"][f"C{k}"] == "0" and out["e_zero"][f"Du{k}"] == "0" for k in LEVELS)
     assert all(out["e_zero"][f"C{k}_any"] == "False" for k in LEVELS)
@@ -464,9 +507,107 @@ def label_swap_and_identity_check() -> dict:
     assert out["out_of_range"]["C8"] is None and out["out_of_range"]["C8_A2"] is not None and out["out_of_range"]["C4"] is not None
     assert out["cancel"]["C2_A1"] == "1/4" and out["cancel"]["C2_A2"] == "-1/4" and out["cancel"]["C2"] == "0"
     assert out["cancel"]["C2_any"] == "True"
+    bu = out["base_undefined"]
+    assert bu["C2_A1"] == "1/2" and bu["up2_A1"] is None and bu["dn2_A1"] is None
+    assert bu["C2"] is not None and bu["T_A1"] is None and bu["T"] is None and bu["Z_A1"] is None
     return {"cases": out, "invariant": list(inv), "exchanged": [list(x) for x in exc],
-            "C_equals_up_plus_down": True, "anti_u_gives_C_equal_minus_Du": True,
+            "C_equals_up_plus_down_when_all_three_defined": True, "C_defined_without_base": True,
+            "anti_u_gives_C_equal_minus_Du": True,
             "not_a_basis_for_sign_symmetry": True}
+
+
+# ---------------------------------------------------------------- 値の区分・合算・判定の出力（README §4.1〜§4.4・§4.9）
+
+VALUE_CLASSES = ("out_of_range", "s_undefined", "structural_zero", "measured_zero", "nonzero")
+DEFINED_CLASSES = ("structural_zero", "measured_zero", "nonzero")
+ELIGIBLE_CLASSES = ("measured_zero", "nonzero")
+
+
+def value_class(plus_in_range: bool, minus_in_range: bool, s_plus, s_minus, identical_endpoints: bool) -> tuple:
+    """README §4.1 の区分を、範囲 → s の定義 → 両端の一致 → 測った値、の順に決める。返す値は (区分, 値か None)。"""
+    if not (plus_in_range and minus_in_range):
+        return "out_of_range", None
+    if s_plus is None or s_minus is None:
+        return "s_undefined", None
+    if identical_endpoints:
+        assert s_plus == s_minus                       # 同じ系なので同じ s
+        return "structural_zero", Fraction(0)
+    d = s_plus - s_minus
+    return ("measured_zero" if d == 0 else "nonzero"), d
+
+
+def individual_value(a1: tuple, a2: tuple):
+    """README §4.2 の合算の条件：二つの背景の両方が区分 3〜5 のときだけ和を定める。"""
+    if a1[0] in DEFINED_CLASSES and a2[0] in DEFINED_CLASSES:
+        return a1[1] + a2[1]
+    return None
+
+
+def comparison_eligible(c_cls: str, du_cls: str) -> bool:
+    """README §6.2：C と D^u の両方が「測った 0」か「0 でない」（両端が違う重みで、s が定まる）。"""
+    return c_cls in ELIGIBLE_CLASSES and du_cls in ELIGIBLE_CLASSES
+
+
+def ratio_or_none(num: int, den: int):
+    """分母が 0 の割合は定めない（0 にしない。README §4.9・§5.2）。"""
+    return None if den == 0 else Fraction(num, den)
+
+
+def judgment_status(valid: bool, n_plus: int, n_minus: int) -> str:
+    """README §4.4・§4.9：無効 → 判定不能（m≠ ＜ 10。閾値と比べない）→ ＋／− → 不成立。"""
+    if not valid:
+        return "invalid"
+    m = n_plus + n_minus
+    if m < MIN_M:
+        return "inconclusive"
+    if n_plus >= k2(m):
+        return "plus"
+    if n_minus >= k2(m):
+        return "minus"
+    return "not_established"
+
+
+def classification_check() -> dict:
+    """値の区分・合算・比べへの適格・判定の出力を、手で置いた値で確かめる（seed も乱数も記録も使わない）。"""
+    h = Fraction(1, 2)
+    cases = {
+        "out_of_range": value_class(False, True, None, h, False),
+        "s_undefined": value_class(True, True, None, h, False),
+        "identical_but_s_undefined": value_class(True, True, None, None, True),   # e ＝ 0 でも s が定まらなければ構造上の 0 でない
+        "structural_zero": value_class(True, True, h, h, True),
+        "measured_zero": value_class(True, True, h, h, False),
+        "nonzero": value_class(True, True, Fraction(3, 4), Fraction(1, 4), False),
+    }
+    assert [cases[x][0] for x in ("out_of_range", "s_undefined", "structural_zero", "measured_zero", "nonzero")] == list(VALUE_CLASSES)
+    assert cases["identical_but_s_undefined"][0] == "s_undefined"
+    assert cases["nonzero"][1] == Fraction(1, 2)
+    # 合算の条件
+    assert individual_value(cases["nonzero"], cases["measured_zero"]) == Fraction(1, 2)
+    assert individual_value(cases["nonzero"], cases["out_of_range"]) is None
+    assert individual_value(cases["nonzero"], cases["s_undefined"]) is None
+    assert individual_value(cases["structural_zero"], cases["structural_zero"]) == 0
+    cancel = individual_value(value_class(True, True, Fraction(3, 4), h, False), value_class(True, True, Fraction(1, 4), h, False))
+    assert cancel == 0
+    # 比べへの適格
+    assert comparison_eligible("nonzero", "measured_zero") and not comparison_eligible("nonzero", "structural_zero")
+    assert not comparison_eligible("structural_zero", "nonzero") and not comparison_eligible("nonzero", "s_undefined")
+    # 判定の出力
+    status = {
+        "invalid": judgment_status(False, 50, 0),
+        "nine_all_plus": judgment_status(True, 9, 0),
+        "zero_nonzero": judgment_status(True, 0, 0),
+        "ten_nine_plus": judgment_status(True, 9, 1),
+        "ten_eight_plus": judgment_status(True, 8, 2),
+        "minus": judgment_status(True, 20, 60),
+        "split_70": judgment_status(True, 30, 40),
+    }
+    assert status == {"invalid": "invalid", "nine_all_plus": "inconclusive", "zero_nonzero": "inconclusive",
+                      "ten_nine_plus": "plus", "ten_eight_plus": "not_established", "minus": "minus",
+                      "split_70": "not_established"}
+    assert ratio_or_none(0, 0) is None and ratio_or_none(3, 4) == Fraction(3, 4)
+    return {"value_classes": {x: [v[0], (None if v[1] is None else str(v[1]))] for x, v in cases.items()},
+            "judgment_status": status, "zero_denominator_ratio": None,
+            "order": list(VALUE_CLASSES), "scope": "hand-placed values only"}
 
 
 def extremes(p: dict) -> dict:
@@ -552,7 +693,8 @@ def main() -> None:
            "systems": {"full": list(FULL_BODIES), "U_only": list(U_SYSTEMS)},
            "levels": list(LEVELS), "k0": K0,
            "extremes": extremes(p), "weight_arithmetic": weight_arithmetic_check(p), "range_guide": range_guide(p),
-           "label_swap_and_identity": label_swap_and_identity_check(),
+           "label_swap_and_identity": label_swap_and_identity_check(), "classification": classification_check(),
+           "f1_residual_example": f1_residual_example(p),
            "silence_bound": sb, "silence_probability": silence_probability(p, sb["E_S"]),
            "min_m": MIN_M, "k2_of_m": {m: k2(m) for m in range(MIN_M, INDIVIDUALS + 1)},
            "power_J_C": power_sign_among_nonzero()}
