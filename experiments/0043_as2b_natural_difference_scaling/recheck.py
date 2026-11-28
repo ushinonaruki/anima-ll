@@ -63,7 +63,7 @@ NOTES = {"estimate": "estimate only; no threshold; not a judgment (README sectio
          "levels": "levels other than k0 = 2 are descriptive; differences between levels include the change of the surviving individuals (README section 6.1)",
          "comparison": "C_k (rule meaning) and D^u_k (weight-direction meaning) have different sign meanings; only tables split by the sign of delta(e) are shown; only the magnitude of delta is matched (README section 6.2)",
          "R8": "Clopper-Pearson 95% intervals are in judgment.J_C, estimate and descriptive",
-         "R4": "the six weights of every built clone after S3 are its endpoint, X1, X2 or W_c (O6 (a), O10, O11)",
+         "R4": "a description, not the measured values: the six weights of every built clone after S3 are kept in the raw (boundary.sigma_a) and equal its endpoint, X1, X2 or W_c (O6 (a), O10, O11)",
          "R9": "within-body before/after; not a counterfactual contrast",
          "T": "0042-type natural swap in this population; never a re-test of 0042 J_T, never merged",
          "S": "midpoint w0 (not W_c); a positive response is not guaranteed; material for reading a negative only",
@@ -411,14 +411,15 @@ def individual(data: dict) -> dict:
                              "window": first_outcome_split(rec[a]["layer_a"], rec[b]["layer_a"])}
     firing = {}
     for n in systems:
-        by_part = {"U": dict.fromkeys(ROLES3, 0)}
-        if n in BODIES or n == RERUN:
-            by_part["E"] = dict.fromkeys(ROLES3, 0)
+        by_part = {"E": dict.fromkeys(ROLES3, 0), "U": dict.fromkeys(ROLES3, 0)}
         for p, u in rec[n]["activity"]:
-            part = "U" if p > p_e else "E"
-            if part in by_part and u in name_of:
-                by_part[part][name_of[u]] += 1
-        firing[n] = by_part
+            if p > p_e and u in name_of:
+                by_part["U"][name_of[u]] += 1
+        origin = n if n in BODIES or n == RERUN else "B_" + n[2:4]     # 複製の系の E は、複製の元の本体の共通の履歴
+        for p, u in rec[origin]["activity"]:
+            if p <= p_e and u in name_of:
+                by_part["E"][name_of[u]] += 1
+        firing[n] = by_part | {"E_from": origin}
 
     def base_kind(x):
         return "undefined" if x is None else ("0" if x == 0 else "1" if x == 1 else "between")
@@ -552,16 +553,48 @@ def estimate(people: list[dict]) -> dict:
     return out
 
 
-def table_of(vs: list[dict]) -> dict:
+WHY = ("out_of_range", "s_undefined")
+
+
+def table_of(vs: list[dict], why: list | None = None) -> dict:
+    """README §6 の報告の形。why は vs と同じ順の、定まらない理由の集合（理由を渡さない表に定まらない個体があれば、理由は null）。"""
     defined = [x for x in vs if x["sign"] is not None]
     n = len(defined)
     c = Counter(x["sign"] for x in defined)
     counts = {s: c[s] for s in SIGNS}
     values = [x["value"]["value"] for x in defined]
+    if why is None:
+        reasons = dict.fromkeys(WHY, 0) if n == len(vs) else None
+    else:
+        reasons = {r: sum(1 for w in why if r in w) for r in WHY}
     return {"defined": n, "undefined": len(vs) - n, "counts": counts,
-            "proportion": {s: share_of(counts[s], n) for s in ("+", "-")},
+            "proportion": {s: share_of(counts[s], n) for s in SIGNS},
             "plus_among_nonzero": share_of(counts["+"], counts["+"] + counts["-"]),
-            "distribution": five(values), "abs_distribution": five([abs(v) for v in values])}
+            "distribution": five(values), "abs_distribution": five([abs(v) for v in values]),
+            "undefined_reasons": reasons}
+
+
+def class_reason(cls: str) -> set:
+    """§4.1 の区分から、定まらない理由（範囲の外・s が定まらない）。定まる区分は空。"""
+    return {cls} if cls in WHY else set()
+
+
+def made_or_not(p: dict, uses: list) -> set:
+    """系の名前の対の列を使う量の、定まらない理由（作らない系があれば範囲の外、作った系の s が定まらなければ s が定まらない）。"""
+    out = set()
+    for pair in uses:
+        if any(x not in p["s_U"] for x in pair):        # s_U は、本体と作った系だけを持つ
+            out.add("out_of_range")
+        elif any(p["s_U"][x] is None for x in pair):
+            out.add("s_undefined")
+    return out
+
+
+OTHER_USES = {"T_A1": [("G_A1_base", "G_A1_M1")], "T_A2": [("G_A2_P1", "G_A2_base")],
+              "T": [("G_A1_base", "G_A1_M1"), ("G_A2_P1", "G_A2_base")],
+              "S_A1": [("G_A1_X1", "G_A1_X2")], "S_A2": [("G_A2_X1", "G_A2_X2")],
+              "S": [("G_A1_X1", "G_A1_X2"), ("G_A2_X1", "G_A2_X2")], "D": [("B_A1", "B_A2")],
+              "Z_A1": [("B_A1", "G_A1_base")], "Z_A2": [("B_A2", "G_A2_base")]}
 
 
 def nine(pairs: list[tuple]) -> dict:
@@ -585,11 +618,19 @@ def describe(people: dict) -> dict:
     group = list(people.values())
     levels = sorted(int(k) for k in group[0]["levels"]) if group else []
     out: dict = {"notes": {k: NOTES[k] for k in ("levels", "comparison", "artificial")}}
-    out["levels"] = {str(k): spread([at(p, k)["C"] for p in group]) | {"C": table_of([at(p, k)["C"]["value"] for p in group])}
-                     for k in levels}
+    def c_why(p, k, c=None):
+        bgs = [c] if c else list(ACTIONS)
+        return set().union(*(class_reason(at(p, k)["C"][b]["class"]) for b in bgs))
+
+    def du_why(p, k, c=None):
+        bgs = [c] if c else list(ACTIONS)
+        return set().union(*(class_reason(at(p, k)["Du"][b]["class"]) for b in bgs))
+    out["levels"] = {str(k): spread([at(p, k)["C"] for p in group])
+                     | {"C": table_of([at(p, k)["C"]["value"] for p in group], [c_why(p, k) for p in group])} for k in levels}
     common = sorted(s for s, p in people.items() if all(at(p, k)["C"]["class"] != "undefined" for k in levels))
     out["common_all_levels"] = {"seeds": common, "count": len(common),
-                                "by_level": {str(k): spread([at(people[s], k)["C"] for s in common]) for k in levels}}
+                                "by_level": {str(k): spread([at(people[s], k)["C"] for s in common])
+                                             | {"C": table_of([at(people[s], k)["C"]["value"] for s in common])} for k in levels}}
     systems = {}
     for k in levels:
         for c in ACTIONS:
@@ -606,7 +647,7 @@ def describe(people: dict) -> dict:
                            "nesting_holds": all(nested(set(p["built"]), levels) for p in group)}
     out["per_background"] = {}
     for k in levels:
-        row = {c: table_of([at(p, k)["C"][c]["value"] for p in group]) for c in ACTIONS}
+        row = {c: table_of([at(p, k)["C"][c]["value"] for p in group], [c_why(p, k, c) for p in group]) for c in ACTIONS}
         sg = [(at(p, k)["C"]["A1"]["value"]["sign"], at(p, k)["C"]["A2"]["value"]["sign"]) for p in group]
         full = [(a, b) for a, b in sg if a is not None and b is not None]
         row["cells_A1_A2"] = nine(full)
@@ -650,6 +691,9 @@ def describe(people: dict) -> dict:
         for c in ACTIONS:
             inel[c] = {r: sum(1 for p in group if r in at(p, k)["ineligible_reasons"][c]) for r in REASONS}
             inel[c]["ineligible"] = sum(1 for p in group if not at(p, k)["eligible"][c])
+        union = [set(at(p, k)["ineligible_reasons"]["A1"]) | set(at(p, k)["ineligible_reasons"]["A2"]) for p in group]
+        inel["individual"] = {r: sum(1 for u in union if r in u) for r in REASONS}
+        inel["individual"]["ineligible"] = sum(1 for p in group if not at(p, k)["eligible"]["individual"])
         split = {"undefined": 0, "neither_structural": 0, "one_structural": {c: dict.fromkeys(DU_LABELS, 0) for c in ACTIONS},
                  "both_structural": dict.fromkeys(DU_LABELS, 0)}
         for d in dus:
@@ -662,8 +706,16 @@ def describe(people: dict) -> dict:
                 split["one_structural"][zero_in[0]][d[zero_in[0]]["label"]] += 1
             else:
                 split["neither_structural"] += 1
+        out_of_denominator = [d["value"]["sign"] is not None and d["structural"] for d in dus]
+        per_bg_du = {}
+        for c in ACTIONS:
+            left = [p for p in group if at(p, k)["Du"][c]["class"] != "structural_zero"]
+            per_bg_du[c] = table_of([at(p, k)["Du"][c]["value"] for p in left], [du_why(p, k, c) for p in left])
+            per_bg_du[c]["structural_zero"] = len(group) - len(left)
         sym[str(k)] = {
-            "Du": table_of([d["value"] for d in dus if d["value"]["sign"] is not None and not d["structural"]]),
+            "Du": table_of([d["value"] for d, x in zip(dus, out_of_denominator) if not x],
+                           [du_why(p, k) for p, x in zip(group, out_of_denominator) if not x]),
+            "Du_per_background": per_bg_du,
             "Du_defined_with_structural_zero": sum(1 for d in dus if d["value"]["sign"] is not None and d["structural"]),
             "Du_partition": split,
             "Du_structural_labels": {lab: sum(1 for d in dus for c in ACTIONS if d[c]["label"] == lab) for lab in DU_LABELS},
@@ -678,7 +730,8 @@ def describe(people: dict) -> dict:
                                         for s in every if people[s]["delta_e"]["sign"] == want])
                               for nm, want in (("delta_plus", "+"), ("delta_minus", "-"))} for k in levels}}
     out["symmetric_control"] = sym
-    tq = {k: table_of([p["quantities"][k] for p in group]) for k in OTHERS}
+    tq = {k: table_of([p["quantities"][k] for p in group], [made_or_not(p, OTHER_USES[k]) if p["quantities"][k]["sign"] is None
+                                                             else set() for p in group]) for k in OTHERS}
     tt = [(p["quantities"]["T_A1"]["sign"], p["quantities"]["T_A2"]["sign"]) for p in group]
     out["T"] = {"T": tq["T"], "T_A1": tq["T_A1"], "T_A2": tq["T_A2"],
                 "cells_A1_A2": nine([(a, b) for a, b in tt if a is not None and b is not None]), "note": NOTES["T"]}
@@ -728,10 +781,18 @@ def auxiliary(people: dict, e_s: float | None) -> dict:
         out["R2"][n]["s_U"] = five([p["s_U"][n]["value"] for p in having if p["s_U"][n] is not None])
         out["R2"][n]["built"] = len(having)
     out["R3"] = {}
+
+    def dist(values: list) -> dict:
+        xs = [x["value"]["value"] for x in values if x["value"] is not None]
+        return {"value": five(xs), "abs_value": five([abs(x) for x in xs])}
     for k in levels:
         for kind in ("C", "Du"):
-            xs = [at(p, k)[kind]["value"]["value"]["value"] for p in vals if at(p, k)[kind]["value"]["value"] is not None]
-            out["R3"][f"{kind}{k}"] = {"value": five(xs), "abs_value": five([abs(x) for x in xs])}
+            out["R3"][f"{kind}{k}"] = dist([at(p, k)[kind]["value"] for p in vals])
+        for c in ACTIONS:
+            out["R3"][f"C{k}_{c}"] = dist([at(p, k)["C"][c]["value"] for p in vals])
+            out["R3"][f"Du{k}_{c}"] = dist([at(p, k)["Du"][c]["value"] for p in vals])
+            out["R3"][f"up{k}_{c}"] = dist([at(p, k)["up"][c] for p in vals])
+            out["R3"][f"dn{k}_{c}"] = dist([at(p, k)["dn"][c] for p in vals])
     for k in OTHERS:
         xs = [p["quantities"][k]["value"]["value"] for p in vals if p["quantities"][k]["value"] is not None]
         out["R3"][k] = {"value": five(xs), "abs_value": five([abs(x) for x in xs])}
@@ -761,7 +822,7 @@ def auxiliary(people: dict, e_s: float | None) -> dict:
                           "firing": {"none": f.count(None), "pulses": five([x for x in f if x is not None])},
                           "window": {"none": w.count(None), "windows": five([x for x in w if x is not None])}}
     out["R7"] = {n: {part: {r: five([p["firing"][n][part][r] for p in vals if n in p["firing"]]) for r in ROLES3}
-                     for part in (("E", "U") if n in BODIES + [RERUN] else ("U",))} for n in every}
+                     for part in ("E", "U")} | {"E_from": n if n in BODIES + [RERUN] else "B_" + n[2:4]} for n in every}
     out["R8"] = NOTES["R8"]
     out["R9"] = {n: {"s_E": five([p["s_E"][n]["value"] for p in vals if p["s_E"][n] is not None]),
                      "s_U": five([p["s_U"][n]["value"] for p in vals if p["s_U"][n] is not None]),

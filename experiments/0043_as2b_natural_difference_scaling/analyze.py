@@ -385,13 +385,17 @@ def individual(run: Mapping) -> dict:
         divergence[f"{a}|{b}"] = {"firing": first_divergence(run["clones"][a]["activity"], run["clones"][b]["activity"],
                                                              p_e + 1, end),
                                   "window": first_window_divergence(layer[a], layer[b])}
-    # R7：発火の数（役ごと）。複製の系の記録は U だけ
+    # R7：発火の数（役ごと）。複製の系の来歴のログは複製の後（U）だけを持つので、複製の系の E は、複製の元の同じ背景の本体の
+    # E の記録（共通の履歴）から数え直し、その由来を E_from に書く（新しい測定・ログは足さない。#201 初回審査の修正必須 3）
     firing = {}
     for n in systems:
         act = record_of(run, n)["activity"]
-        firing[n] = {"U": {names[u]: sum(1 for p, x in act if x == u and p > p_e) for u in names}}
-        if n in M.BODIES or n == M.RERUN:
-            firing[n]["E"] = {names[u]: sum(1 for p, x in act if x == u and p <= p_e) for u in names}
+        own = n in M.BODIES or n == M.RERUN
+        source = n if own else M.background_of(n)
+        history = act if own else run["bodies"][source]["activity"]
+        firing[n] = {"E": {names[u]: sum(1 for p, x in history if x == u and p <= p_e) for u in names},
+                     "U": {names[u]: sum(1 for p, x in act if x == u and p > p_e) for u in names},
+                     "E_from": source}
     main = per_level[str(K0)]["C"] if str(K0) in per_level else {"class": "undefined"}
     return {
         "roles": {k: roles[k] for k in ("cue", "source1", "source2")},
@@ -558,18 +562,64 @@ def estimate(individuals: Mapping[str, Mapping]) -> dict:
     return out
 
 
-def table_of(values: list) -> dict:
-    """一つの量の、定まる個体の数・向きごとの数・割合と区間・0 でない中の＋の割合と区間・分布（記述。検定しない）。
-    values は _quantity の列（定まらないものを含む）。"""
+UNDEFINED_REASONS = ("out_of_range", "s_undefined")
+
+
+def table_of(values: list, reasons: list | None = None) -> dict:
+    """一つの量の、README §6 の共通の報告の形（記述。検定しない）：定まる個体の数、「＋」「−」「0」の数、それぞれの割合と区間（分母は
+    その量の分母）、0 でない中の＋の割合と区間、分布（最小・四分位・最大）、定まらない個体の数と理由の内訳。
+    values は _quantity の列（定まらないものを含む）。reasons は同じ順の、定まらない理由の集合の列（定まる量は空）。reasons を省くのは、
+    定まらない個体を含まない表（理由はすべて 0）と、分布だけを使う R3 だけ（定まらない個体があれば理由は null）。
+    理由ごとの数は個体の数で、一つの個体に二つの理由（二つの背景で別の理由）があれば両方に数える。定まらない個体の数とは別に示す。"""
     defined = [x for x in values if x["sign"] is not None]
     n = len(defined)
     counts = {s: sum(1 for x in defined if x["sign"] == s) for s in SIGNS}
     nz = counts["+"] + counts["-"]
     vs = [x["value"]["value"] for x in defined]
+    if reasons is None:                              # 理由を渡さない表は、定まらない個体を含まない（含めば理由を null にする）
+        why = None if n < len(values) else {r: 0 for r in UNDEFINED_REASONS}
+    else:
+        if len(reasons) != len(values) or any(bool(r) != (x["sign"] is None) for x, r in zip(values, reasons)):
+            raise ValueError("定まらない理由の列が、量の列と合わない")
+        why = {r: sum(1 for w in reasons if r in w) for r in UNDEFINED_REASONS}
     return {"defined": n, "undefined": len(values) - n, "counts": counts,
-            "proportion": {s: _part(counts[s], n) for s in ("+", "-")},
+            "proportion": {s: _part(counts[s], n) for s in SIGNS},
             "plus_among_nonzero": _part(counts["+"], nz),
-            "distribution": five_numbers(vs), "abs_distribution": five_numbers([abs(x) for x in vs])}
+            "distribution": five_numbers(vs), "abs_distribution": five_numbers([abs(x) for x in vs]),
+            "undefined_reasons": why}
+
+
+def why_undefined(v: Mapping, pairs) -> set[str]:
+    """差の組（系の名前の対）の列を使う量の、定まらない理由の集合（§4.1 の順：その差の系の一方でも作らない系なら範囲の外、どちらも
+    作った系で s が定まらなければ s が定まらない）。二つの差の和は、それぞれの差の理由を合わせる。定まる量は空。"""
+    out = set()
+    for pair in pairs:
+        made = [n in M.BODIES or n == M.RERUN or n in v["built"] for n in pair]
+        if not all(made):
+            out.add("out_of_range")
+        elif any(v["s_U"].get(n) is None for n in pair):
+            out.add("s_undefined")
+    return out
+
+
+def quantity_pairs(name: str) -> list[tuple[str, str]]:
+    """README §3.2 の量が使う差の組（片側の差・中心の差・対称な介入の差・T・S・D・Z）。"""
+    for prefix in ("up", "dn", "Du", "C"):
+        if name.startswith(prefix) and name[len(prefix)].isdigit():
+            body = name[len(prefix):]
+            k, _, c = body.partition("_")
+            bgs = [c] if c else list(BG)
+            if prefix == "up":
+                return [(f"G_{b}_P{k}", f"G_{b}_base") for b in bgs]
+            if prefix == "dn":
+                return [(f"G_{b}_base", f"G_{b}_M{k}") for b in bgs]
+            head = ("UP", "UM") if prefix == "Du" else ("P", "M")
+            return [(f"G_{b}_{head[0]}{k}", f"G_{b}_{head[1]}{k}") for b in bgs]
+    fixed = {"T_A1": [("G_A1_base", "G_A1_M1")], "T_A2": [("G_A2_P1", "G_A2_base")],
+             "S_A1": [("G_A1_X1", "G_A1_X2")], "S_A2": [("G_A2_X1", "G_A2_X2")], "D": [("B_A1", "B_A2")],
+             "Z_A1": [("B_A1", "G_A1_base")], "Z_A2": [("B_A2", "G_A2_base")]}
+    fixed |= {"T": fixed["T_A1"] + fixed["T_A2"], "S": fixed["S_A1"] + fixed["S_A2"]}
+    return fixed[name]
 
 
 def cells(pairs: list[tuple[str, str]]) -> dict:
@@ -588,10 +638,12 @@ def descriptive(individuals: Mapping[str, Mapping]) -> dict:
     out: dict = {"notes": {k: NOTES[k] for k in ("levels", "comparison", "artificial")}}
     # §6.1 段ごとの C_k
     out["levels"] = {str(k): _estimate_over([_level(v, k)["C"] for v in vals])
-                     | {"C": table_of([_level(v, k)["C"]["value"] for v in vals])} for k in levels}
+                     | {"C": table_of([_level(v, k)["C"]["value"] for v in vals],
+                                      [why_undefined(v, quantity_pairs(f"C{k}")) for v in vals])} for k in levels}
     common = sorted(s for s, v in individuals.items() if all(_level(v, k)["C"]["class"] != "undefined" for k in levels))
     out["common_all_levels"] = {"seeds": common, "count": len(common),
                                 "by_level": {str(k): _estimate_over([_level(individuals[s], k)["C"] for s in common])
+                                             | {"C": table_of([_level(individuals[s], k)["C"]["value"] for s in common])}
                                              for k in levels}}
     oor: dict = {}
     for k in levels:
@@ -608,7 +660,8 @@ def descriptive(individuals: Mapping[str, Mapping]) -> dict:
         both = [(_level(v, k)["C"]["A1"]["value"]["sign"], _level(v, k)["C"]["A2"]["value"]["sign"]) for v in vals]
         full = [(a, b) for a, b in both if a is not None and b is not None]
         out["per_background"][str(k)] = {
-            c: table_of([_level(v, k)["C"][c]["value"] for v in vals]) for c in BG} | {
+            c: table_of([_level(v, k)["C"][c]["value"] for v in vals],
+                        [why_undefined(v, quantity_pairs(f"C{k}_{c}")) for v in vals]) for c in BG} | {
             "cells_A1_A2": cells(full), "in_both": len(full),
             "only_one_background": {c: table_of([_level(v, k)["C"][c]["value"] for v in vals
                                                  if _level(v, k)["C"][c]["value"]["sign"] is not None
@@ -628,7 +681,16 @@ def descriptive(individuals: Mapping[str, Mapping]) -> dict:
     sym = {}
     for k in levels:
         dus = [_level(v, k)["Du"] for v in vals]
-        nonstruct = [d["value"] for d in dus if d["value"]["sign"] is not None and not d["structural"]]
+        # 割合の分母は、D^u_k が定まり、どちらの背景も構造上の 0 でない個体。構造上の 0 の個体は分母の外で、数を別に示す。
+        # 定まらない個体は、表の「定まらない」に理由ごとに数える（構造上の 0 と混ぜない）
+        kept = [v for v, d in zip(vals, dus) if not (d["value"]["sign"] is not None and d["structural"])]
+        du_table = table_of([_level(v, k)["Du"]["value"] for v in kept], [why_undefined(v, quantity_pairs(f"Du{k}")) for v in kept])
+        du_per_bg = {}
+        for c in BG:
+            rest = [v for v in vals if _level(v, k)["Du"][c]["class"] != "structural_zero"]
+            du_per_bg[c] = table_of([_level(v, k)["Du"][c]["value"] for v in rest],
+                                    [why_undefined(v, quantity_pairs(f"Du{k}_{c}")) for v in rest]) | {
+                "structural_zero": len(vals) - len(rest)}
         eligible = [(s, v) for s, v in individuals.items() if _level(v, k)["eligible"]["individual"]]
         split = {}
         for name, test in (("delta_plus", lambda v: v["delta_e"]["sign"] == "+"), ("delta_minus", lambda v: v["delta_e"]["sign"] == "-")):
@@ -644,6 +706,11 @@ def descriptive(individuals: Mapping[str, Mapping]) -> dict:
                                             ("delta_minus", lambda v: v["delta_e"]["sign"] == "-"))}
         inel = {c: {r: sum(1 for v in vals if r in _level(v, k)["ineligible_reasons"][c]) for r in INELIGIBLE_REASONS}
                 | {"ineligible": sum(1 for v in vals if not _level(v, k)["eligible"][c])} for c in BG}
+        # 個体ごと（README §6.2「不適格の (c, k) と個体の数を、理由ごとに」）：同じ理由が両方の背景にあれば個体として 1 回、別の理由は
+        # それぞれ数える。不適格な個体の数は、理由ごとの数の和とは別に示す
+        inel["individual"] = {r: sum(1 for v in vals if any(r in _level(v, k)["ineligible_reasons"][c] for c in BG))
+                              for r in INELIGIBLE_REASONS} | {
+            "ineligible": sum(1 for v in vals if not _level(v, k)["eligible"]["individual"])}
         # D^u_k の個体の排他的な分け方（#200 の Gemini 監査への ChatGPT の要件。README §6.2・protocol の must_report.symmetric_control）：
         # 定まらない・どちらの背景も構造上の 0 でない（割合の分母）・一方の背景だけが構造上の 0（背景・札ごと）・両方の背景が構造上の 0。
         # 一方の背景だけが構造上の 0 でも、両方の背景の端の s が定まれば合算の値は定まり、割合の分母と比べの適格からは外す
@@ -660,7 +727,7 @@ def descriptive(individuals: Mapping[str, Mapping]) -> dict:
                 partition["one_structural"][structural[0]][d[structural[0]]["label"]] += 1
             else:                                   # 札は δ(e) だけで決まるので、二つの背景で同じ
                 partition["both_structural"][d["A1"]["label"]] += 1
-        sym[str(k)] = {"Du": table_of(nonstruct),
+        sym[str(k)] = {"Du": du_table, "Du_per_background": du_per_bg,
                        "Du_defined_with_structural_zero": sum(1 for d in dus if d["value"]["sign"] is not None and d["structural"]),
                        "Du_partition": partition,
                        "Du_structural_labels": {lab: sum(1 for d in dus for c in BG if d[c]["label"] == lab)
@@ -676,7 +743,8 @@ def descriptive(individuals: Mapping[str, Mapping]) -> dict:
                                                for k in levels}}
     out["symmetric_control"] = sym
     # §6.3 そのほか
-    qt = {name: table_of([v["quantities"][name] for v in vals]) for name in OTHER_QUANTITIES}
+    qt = {name: table_of([v["quantities"][name] for v in vals], [why_undefined(v, quantity_pairs(name)) for v in vals])
+          for name in OTHER_QUANTITIES}
     tt = [(v["quantities"]["T_A1"]["sign"], v["quantities"]["T_A2"]["sign"]) for v in vals]
     out["T"] = {"T": qt["T"], "T_A1": qt["T_A1"], "T_A2": qt["T_A2"],
                 "cells_A1_A2": cells([(a, b) for a, b in tt if a is not None and b is not None]),
@@ -744,10 +812,15 @@ def auxiliary(individuals: Mapping[str, Mapping]) -> dict:
                     "built": sum(1 for v in vals if n in v["s_U"])}
                  for n in all_systems}
     r3 = {}
-    for k in levels:
+    for k in levels:                                # §3.2 のすべての量：合算の C_k・D^u_k と、背景ごとの C・D^u・片側の差（定まる個体だけ）
         for kind in ("C", "Du"):
             t = table_of([_level(v, k)[kind]["value"] for v in vals])
             r3[f"{kind}{k}"] = {"value": t["distribution"], "abs_value": t["abs_distribution"]}
+        for c in BG:
+            for name, pick in ((f"C{k}_{c}", lambda lv, c=c: lv["C"][c]["value"]), (f"Du{k}_{c}", lambda lv, c=c: lv["Du"][c]["value"]),
+                               (f"up{k}_{c}", lambda lv, c=c: lv["up"][c]), (f"dn{k}_{c}", lambda lv, c=c: lv["dn"][c])):
+                t = table_of([pick(_level(v, k)) for v in vals])
+                r3[name] = {"value": t["distribution"], "abs_value": t["abs_distribution"]}
     for name in OTHER_QUANTITIES:
         t = table_of([v["quantities"][name] for v in vals])
         r3[name] = {"value": t["distribution"], "abs_value": t["abs_distribution"]}
@@ -760,7 +833,7 @@ def auxiliary(individuals: Mapping[str, Mapping]) -> dict:
                  "abs_W_diff": {r: five_numbers([v["W_abs_diff"][r] for v in vals]) for r in roles6},
                  "pair_sum_max_abs_deviation": max((v["pair_deviation"][c] for v in vals for c in BG), default=None),
                  "clones_after_transplant": {
-                     "weights": "the six weights of every built clone after S3 are its endpoint, X1, X2 or W_c (O6 (a), O10, O11)",
+                     "weights": "a description, not the measured values: the six weights of every built clone after S3 are kept in the raw (boundary.sigma_a) and equal its endpoint, X1, X2 or W_c (O6 (a), O10, O11)",
                      "pair_sum_max_abs_deviation": max((v["clone_pair_deviation"] for v in vals), default=None)},
                  "not_built": {"systems": sum(len(v["not_built"]) for v in vals),
                                "individuals_with_any": sum(1 for v in vals if v["not_built"])}}
@@ -779,8 +852,8 @@ def auxiliary(individuals: Mapping[str, Mapping]) -> dict:
                           "window": {"none": sum(1 for r in rows if r["window"] is None),
                                      "windows": five_numbers([r["window"] for r in rows if r["window"] is not None])}}
     out["R7"] = {n: {part: {role: five_numbers([v["firing"][n][part][role] for v in vals if n in v["firing"]])
-                            for role in ("cue", "source1", "source2")}
-                     for part in (("E", "U") if n in M.BODIES + (M.RERUN,) else ("U",))} for n in all_systems}
+                            for role in ("cue", "source1", "source2")} for part in ("E", "U")}
+                 | {"E_from": n if n in M.BODIES + (M.RERUN,) else M.background_of(n)} for n in all_systems}
     out["R8"] = NOTES["R8"]
     out["R9"] = {n: {"s_E": five_numbers([v["s_E"][n]["value"] for v in vals if v["s_E"][n] is not None]),
                      "s_U": five_numbers([v["s_U"][n]["value"] for v in vals if v["s_U"][n] is not None]),

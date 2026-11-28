@@ -1638,6 +1638,7 @@ PEOPLE = {
     "du_both": {"identical": (("G_A1_UP2", "G_A1_UM2"), ("G_A2_UP2", "G_A2_UM2")), "delta": "0"},
     "du_s_undefined_first": {"identical": (("G_A1_UP2", "G_A1_UM2"),), "delta": "0", "spec": (("G_A1_UP2", "u"),)},
     "base_undefined": {"spec": (("G_A1_base", "u"), ("G_A1_P2", "1"), ("G_A1_M2", "0"))},
+    "mixed_reasons": {"identical": (("G_A1_P2", "G_A1_M2"),), "delta": "-", "drop": ("G_A2_P2",)},
 }
 
 
@@ -1664,7 +1665,7 @@ def test_the_hand_made_individuals_are_classified_and_the_recheck_agrees(name) -
                   "s_undefined": "undefined", "identity": "structural_zero", "z1": "structural_zero", "z2": "structural_zero",
                   "rounding": "structural_zero", "e0_s_undefined": "undefined", "du_delta_zero": "both_zero",
                   "du_rounding": "both_zero", "du_one_nonzero": "both_zero", "du_both": "both_zero",
-                  "du_s_undefined_first": "both_zero", "base_undefined": "plus"}[name]
+                  "du_s_undefined_first": "both_zero", "base_undefined": "plus", "mixed_reasons": "undefined"}[name]
     assert p["class"] == want_class == lv["C"]["class"]
     want_value = {"plus": Fraction(1), "minus": Fraction(-1), "cancel": Fraction(0), "base_undefined": Fraction(1)}
     if want_class == "undefined":
@@ -1703,6 +1704,9 @@ def test_the_hand_made_individuals_are_classified_and_the_recheck_agrees(name) -
         assert lv["Du"]["A1"] == {"class": "s_undefined", "value": _value(None), "label": None}
         assert lv["Du"]["value"] == _value(None) and lv["Du"]["structural"] is False
         assert lv["ineligible_reasons"]["A1"] == ["s_undefined"]
+    if name == "mixed_reasons":                                               # 背景ごとに別の理由で不適格
+        assert lv["ineligible_reasons"] == {"A1": ["C_structural_zero"], "A2": ["C_out_of_range"]}
+        assert lv["C"]["A1"]["label"] == "rounding_coincidence" and lv["eligible"]["individual"] is False
     if name == "base_undefined":                                              # 中心の差は定まり、片側の差・T^(A1)・Z^{A1} は定まらない
         assert lv["C"]["A1"]["value"] == _value(Fraction(1)) and lv["up"]["A1"] == lv["dn"]["A1"] == _value(None)
         assert p["quantities"]["T_A1"] == p["quantities"]["T"] == p["quantities"]["Z_A1"] == _value(None)
@@ -1861,6 +1865,109 @@ def test_ct43_9_the_du_partition_is_exclusive_and_matches_the_denominators() -> 
     assert sc["2"]["eligible_individuals"] == 2 and sc["2"]["ineligible"]["A1"]["Du_structural_zero"] == 4
     assert sc["4"]["Du_partition"]["neither_structural"] == len(rows)                                # ほかの段は分母に入る
     assert RC.compare(RC.describe(rows), AN.descriptive(rows))[1] == []
+
+
+def test_ct43_9_ineligibility_is_counted_per_background_and_per_individual() -> None:
+    """#201 初回審査の修正必須 1（README §6.2「不適格の (c, k) と個体の数を、理由ごとに」）：背景ごとの数に加えて、個体ごとの数を出す。
+    同じ理由が両方の背景にある個体は 1 回、背景ごとに別の理由がある個体はそれぞれの理由に 1 回数え、不適格な個体の数は理由ごとの数の和
+    とは別に示す。手で作った記録（両方の背景で同じ理由・別の理由・一方だけが不適格・適格）で、期待値と直接照らす。"""
+    rows = {"1": person("plus"), "2": person("e0_s_undefined"), "3": person("mixed_reasons"), "4": person("du_one_nonzero")}
+    inel = AN.descriptive(rows)["symmetric_control"]["2"]["ineligible"]
+    assert inel["A1"] == {"C_out_of_range": 0, "Du_out_of_range": 0, "s_undefined": 1, "C_structural_zero": 1,
+                          "Du_structural_zero": 1, "ineligible": 3}
+    assert inel["A2"] == {"C_out_of_range": 1, "Du_out_of_range": 0, "s_undefined": 1, "C_structural_zero": 0,
+                          "Du_structural_zero": 0, "ineligible": 2}
+    assert inel["individual"] == {"C_out_of_range": 1, "Du_out_of_range": 0, "s_undefined": 1, "C_structural_zero": 1,
+                                  "Du_structural_zero": 1, "ineligible": 3}
+    assert sum(v for r, v in inel["individual"].items() if r != "ineligible") == 4 != inel["individual"]["ineligible"]
+    assert AN.descriptive(rows)["symmetric_control"]["2"]["eligible_individuals"] == 1
+    assert RC.compare(RC.describe(rows), AN.descriptive(rows))[1] == []
+
+
+def test_the_common_report_form_has_the_zero_share_and_the_undefined_reasons() -> None:
+    """#201 初回審査の修正必須 2（README §6 の共通の報告の形）：「＋」「−」「0」の数と、それぞれの割合と Clopper–Pearson の 95% 区間（分母は
+    その量の分母）、量の分布、定まらない個体の数と理由（範囲の外・s が定まらない）の内訳を、段ごと・背景ごとの C、D^u、T・S・D・Z で出す。
+    全段で共通の個体の集合にも量の分布を出す。D^u の構造上の 0 による分母の外と、定まらないは混ぜない。分母が 0 の割合と区間は定めない。"""
+    rows = {str(i + 1): person(n) for i, n in enumerate(DESCRIBE_ROWS)}
+    d = AN.descriptive(rows)
+    c2 = d["levels"]["2"]["C"]
+    assert (c2["defined"], c2["undefined"], c2["undefined_reasons"]) == (9, 3, {"out_of_range": 1, "s_undefined": 2})
+    for s in ("+", "-", "0"):
+        part = c2["proportion"][s]
+        assert part["count"] == c2["counts"][s] and part["denominator"] == 9 and part["interval"]["computed"] is True
+    assert c2["counts"] == {"+": 3, "-": 1, "0": 5} and c2["proportion"]["0"]["proportion"] == 5 / 9
+    lo, hi = c2["proportion"]["0"]["interval"]["interval"]
+    assert (lo, hi) == pytest.approx(AN.clopper_pearson(5, 9), abs=1e-12)
+    pb = d["per_background"]["2"]
+    assert pb["A1"]["undefined_reasons"] == {"out_of_range": 0, "s_undefined": 2}
+    assert pb["A2"]["undefined_reasons"] == {"out_of_range": 1, "s_undefined": 1}
+    by = d["common_all_levels"]["by_level"]["2"]["C"]
+    assert by["defined"] == 9 and by["undefined"] == 0 and by["distribution"]["count"] == 9
+    assert by["undefined_reasons"] == {"out_of_range": 0, "s_undefined": 0}
+    assert d["T"]["T"]["undefined_reasons"] == {"out_of_range": 0, "s_undefined": 1} == d["T"]["T_A1"]["undefined_reasons"]
+    assert d["T"]["T_A2"]["undefined_reasons"] == {"out_of_range": 0, "s_undefined": 0}
+    assert d["plasticity_contrast"]["Z_A1"]["undefined"] == 1 and d["sensitivity"]["S"]["undefined"] == 0
+    sc = d["symmetric_control"]["2"]
+    assert (sc["Du"]["defined"], sc["Du"]["undefined"], sc["Du_defined_with_structural_zero"]) == (11, 0, 1)
+    assert sc["Du_per_background"]["A1"]["structural_zero"] == 1 and sc["Du_per_background"]["A1"]["defined"] == 11
+    assert sc["Du_per_background"]["A2"]["structural_zero"] == 0 and sc["Du_per_background"]["A2"]["defined"] == 12
+    assert d["delta_e"]["proportion"]["0"]["count"] == 4 and d["delta_e"]["undefined_reasons"] == {"out_of_range": 0, "s_undefined": 0}
+    rows_p = {str(i + 1): person(n) for i, n in enumerate(PARTITION_ROWS)}
+    sp = AN.descriptive(rows_p)["symmetric_control"]["2"]
+    assert sp["Du"]["undefined"] == sp["Du_partition"]["undefined"] == 1
+    assert sp["Du"]["undefined_reasons"] == {"out_of_range": 0, "s_undefined": 1}
+    assert sp["Du"]["defined"] + sp["Du"]["undefined"] + sp["Du_defined_with_structural_zero"] == len(rows_p)
+    none = AN.table_of([_value(None)] * 2, [{"s_undefined"}, {"out_of_range", "s_undefined"}])
+    assert none["proportion"]["0"] == {"count": 0, "denominator": 0, "proportion": None,
+                                       "interval": {"computed": False, "interval": None, "numerator": 0, "denominator": 0,
+                                                    "reason": "denominator = 0"}}
+    assert none["undefined_reasons"] == {"out_of_range": 1, "s_undefined": 2} and none["distribution"] is None
+    assert AN.table_of([_value(None)])["undefined_reasons"] is None                 # 理由を渡さず定まらない個体があれば null
+    with pytest.raises(ValueError):
+        AN.table_of([_value(None)], [set()])                                         # 定まらないのに理由がない
+    assert RC.compare(RC.describe(rows), d)[1] == [] and RC.compare(RC.describe(rows_p), AN.descriptive(rows_p))[1] == []
+    assert RC.compare(RC.table_of([_value(None)] * 2, [{"s_undefined"}, {"out_of_range", "s_undefined"}]), none)[1] == []
+
+
+def test_r3_has_the_distribution_of_every_quantity_per_background() -> None:
+    """#201 初回審査の修正必須 3（README §6.4 R3「§3.2 のすべての量の分布と、その絶対値の分布」）：段ごとに、背景ごとの C・D^u・片側の差
+    up・dn（8 つの量）の分布を出す。定まらない個体は 0 にせず、数えない。手で作った記録で、期待値と直接照らす。"""
+    rows = {str(i + 1): person(n) for i, n in enumerate(DESCRIBE_ROWS)}
+    r3 = AN.auxiliary(rows)["R3"]
+    want = {f"{q}{k}_{c}" for k in LEVELS for c in ("A1", "A2") for q in ("C", "Du", "up", "dn")}
+    assert want <= set(r3) and {f"{q}{k}" for q in ("C", "Du") for k in LEVELS} <= set(r3)
+    assert set(AN.OTHER_QUANTITIES) | {"delta_e"} <= set(r3)
+    assert (r3["C2_A1"]["value"]["count"], r3["C2_A1"]["value"]["min"], r3["C2_A1"]["value"]["max"]) == (10, -1.0, 1.0)
+    assert (r3["C2_A2"]["value"]["count"], r3["C2_A2"]["value"]["min"], r3["C2_A2"]["value"]["max"]) == (10, -0.5, 0.0)
+    assert r3["C2_A2"]["abs_value"]["max"] == 0.5
+    assert (r3["up2_A1"]["value"]["count"], r3["up2_A1"]["value"]["min"], r3["up2_A1"]["value"]["max"]) == (10, -0.5, 0.5)
+    assert (r3["dn2_A1"]["value"]["count"], r3["dn2_A1"]["value"]["min"], r3["dn2_A1"]["value"]["max"]) == (9, -0.5, 0.5)
+    assert r3["Du2_A1"]["value"]["count"] == 12 and r3["Du2_A1"]["value"]["max"] == 0.0
+    assert r3["up4_A2"]["value"]["count"] == 12 and r3["up4_A2"]["value"]["max"] == 0.0
+    assert RC.compare(RC.auxiliary(rows, AN.E_S), AN.auxiliary(rows))[1] == []
+
+
+@pytest.mark.parametrize("which", ["decided", "formal"])
+def test_r7_counts_the_e_firing_of_every_built_clone_from_its_background_body(which) -> None:
+    """#201 初回審査の修正必須 3（README §6.4 R7「作ったすべての系の、E・U の 3 つの Unit の発火の数」）：複製の系の来歴のログは複製の後
+    だけを持つので、複製の系の E の発火の数は、同じ背景の本体の E の記録（共通の履歴）から数え直し、由来（E_from）を書く。新しい測定・
+    ログは足さない。U は複製の系自身の記録。独立の検算も同じ（値は表示しない。一致の真偽だけ）。"""
+    data = measured(decided_seed()) if which == "decided" else measured(FORMAL_SEED, FORMAL)
+    run = data["run"]
+    ind = AN.individual(run)
+    p_e = M.Plan(**run["plan"]).p_e
+    for n in _built(run):
+        body = M.background_of(n)
+        assert ind["firing"][n]["E"] == ind["firing"][body]["E"] and ind["firing"][n]["E_from"] == body, n
+        assert all(p > p_e for p, _u in run["clones"][n]["activity"]), n               # 複製の系のログは U だけ
+    for n in M.BODIES + (M.RERUN,):
+        assert ind["firing"][n]["E_from"] == n
+    assert any(sum(ind["firing"][b]["E"].values()) for b in M.BODIES)                   # 確かめが空でない
+    aux = AN.auxiliary({"1": ind})
+    assert all(set(aux["R7"][n]) == {"E", "U", "E_from"} for n in aux["R7"])
+    assert aux["R7"]["G_A2_X1"]["E_from"] == "B_A2" and aux["R7"]["B_A1_rerun"]["E_from"] == "B_A1_rerun"
+    mine = RC.individual(data)
+    assert RC.compare(mine["firing"], json.loads(json.dumps(ind["firing"])))[1] == []
 
 
 def _one_background_rounding_example() -> tuple[dict, dict]:
@@ -2254,7 +2361,15 @@ TARGETS = [("outcome",), ("judgment", "J_C", "m_nonzero"), ("judgment", "J_C", "
            ("descriptive", "base_strata"), ("descriptive", "symmetric_control"), ("descriptive", "T"),
            ("descriptive", "sensitivity"), ("descriptive", "natural_pair"), ("descriptive", "plasticity_contrast"),
            ("descriptive", "delta_e"), ("descriptive", "zero_table"), ("descriptive", "not_made"),
+           ("descriptive", "levels", "2", "C", "proportion", "0"), ("descriptive", "levels", "2", "C", "undefined_reasons"),
+           ("descriptive", "per_background", "2", "A2", "undefined_reasons"), ("descriptive", "common_all_levels", "by_level", "2", "C"),
+           ("descriptive", "symmetric_control", "2", "ineligible", "individual"),
+           ("descriptive", "symmetric_control", "2", "Du_per_background"), ("descriptive", "symmetric_control", "2", "Du_partition"),
+           ("descriptive", "T", "T", "undefined_reasons"),
            ("auxiliary", "R1"), ("auxiliary", "R1", "S1", "E_S"), ("auxiliary", "R2", "G_A2_X1"), ("auxiliary", "R3", "C2"),
+           ("auxiliary", "R3", "C2_A1"), ("auxiliary", "R3", "Du4_A2"), ("auxiliary", "R3", "up2_A1"), ("auxiliary", "R3", "dn8_A2"),
+           ("auxiliary", "R7", "G_A1_X1", "E"), ("auxiliary", "R7", "G_A1_X1", "E_from"),
+           ("individuals", None, "firing", "G_A2_X2", "E"), ("individuals", None, "firing", "G_A2_X2", "E_from"),
            ("auxiliary", "R3", "Du8"), ("auxiliary", "R3", "Z_A2"), ("auxiliary", "R3", "delta_e"), ("auxiliary", "R4", "W_A1"),
            ("auxiliary", "R4", "abs_W_diff"), ("auxiliary", "R4", "clones_after_transplant"), ("auxiliary", "R4", "not_built"),
            ("auxiliary", "R5", "G_A1_X2"), ("auxiliary", "R6"), ("auxiliary", "R7", "G_A2_X1"), ("auxiliary", "R8"),
